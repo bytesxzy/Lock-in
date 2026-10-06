@@ -1,0 +1,64 @@
+CYB1 protocol 8005afaf00905877  set=dev
+
+== budget 1/4 ==
+variant                      n  skill   comp  compM    viol   Minstr     ok  axes
+new                          8  0.575  0.043  0.282    0.00     6.25   8/8     15
+
+per-axis means (NA = unsupported):
+defensive_utility                  new=0.575
+false_positive_control             new=0.613
+diagnosis_quality                  new=0.699
+causal_model_identification        new=0.547
+temporal_reconstruction            new=0.178
+hidden_state_inference             new=0.025
+cross_environment_transfer         new=0.267
+structural_ood_recovery            new=0.757
+information_gathering_efficiency   new=0.459
+planning_quality                   new=0.515
+calibration                        new=0.180
+knowledge_retention                new=0.599
+recovery_quality                   new=0.788
+capability_per_compute             new=0.002
+safety_compliance                  new=1.000
+
+== budget 2/4 ==
+variant                      n  skill   comp  compM    viol   Minstr     ok  axes
+new                          8  0.578  0.043  0.281    0.00     7.09   8/8     15
+
+per-axis means (NA = unsupported):
+defensive_utility                  new=0.578
+false_positive_control             new=0.611
+diagnosis_quality                  new=0.697
+causal_model_identification        new=0.534
+temporal_reconstruction            new=0.176
+hidden_state_inference             new=0.027
+cross_environment_transfer         new=0.267
+structural_ood_recovery            new=0.798
+information_gathering_efficiency   new=0.442
+planning_quality                   new=0.532
+calibration                        new=0.173
+knowledge_retention                new=0.596
+recovery_quality                   new=0.776
+capability_per_compute             new=0.002
+safety_compliance                  new=1.000
+
+== budget 4/4 ==
+variant                      n  skill   comp  compM    viol   Minstr     ok  axes
+new                          8  0.578  0.043  0.281    0.00     7.09   8/8     15
+
+per-axis means (NA = unsupported):
+defensive_utility                  new=0.578
+false_positive_control             new=0.611
+diagnosis_quality                  new=0.697
+causal_model_identification        new=0.534
+temporal_reconstruction            new=0.176
+hidden_state_inference             new=0.027
+cross_environment_transfer         new=0.267
+structural_ood_recovery            new=0.798
+information_gathering_efficiency   new=0.442
+planning_quality                   new=0.532
+calibration                        new=0.173
+knowledge_retention                new=0.596
+recovery_quality                   new=0.776
+capability_per_compute             new=0.002
+safety_compliance                  new=1.000

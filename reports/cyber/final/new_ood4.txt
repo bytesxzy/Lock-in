@@ -1,0 +1,22 @@
+CYB1 protocol 8005afaf00905877  set=ood
+
+== budget 4/4 ==
+variant                      n  skill   comp  compM    viol   Minstr     ok  axes
+new                          8  0.551  0.000  0.169    0.00    13.75   8/8     15
+
+per-axis means (NA = unsupported):
+defensive_utility                  new=0.551
+false_positive_control             new=0.636
+diagnosis_quality                  new=0.656
+causal_model_identification        new=0.805
+temporal_reconstruction            new=0.095
+hidden_state_inference             new=0.010
+cross_environment_transfer         new=0.249
+structural_ood_recovery            new=0.689
+information_gathering_efficiency   new=0.404
+planning_quality                   new=0.549
+calibration                        new=0.031
+knowledge_retention                new=0.016
+recovery_quality                   new=0.793
+capability_per_compute             new=0.001
+safety_compliance                  new=1.000

@@ -1,0 +1,9 @@
+variant             work budget   complete    skill     work
+new                     8388608      16/16    0.653    6.46M
+no_compute_meta         8388608      11/16    0.428    7.52M
+new                     6291456      16/16    0.619    5.13M
+no_compute_meta         6291456       0/16    0.000    6.29M
+new                     6000000      16/16    0.606    4.94M
+no_compute_meta         6000000       0/16    0.000    6.00M
+new                     4194304      16/16    0.623    3.78M
+no_compute_meta         4194304       0/16    0.000    4.19M

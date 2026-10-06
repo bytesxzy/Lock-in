@@ -1,0 +1,9 @@
+generation G3  seeds=development/diagnostic  protocol c41c32887bfc
+balanced_fixed:4         utility=0.2714 work=  1559406 composite=0.0000
+    cross_tas=0.252 structura=0.303 normalize=0.272 model_ide=0.000 proper_pr=0.562 delayed_p=0.329 knowledge=0.252 prospecti=NA capabilit=0.002
+full:4                   utility=0.3787 work=  4458535 composite=0.2430
+    cross_tas=0.297 structura=0.430 normalize=0.490 model_ide=0.980 proper_pr=0.679 delayed_p=0.389 knowledge=0.521 prospecti=NA capabilit=0.001
+g2_full:4                utility=0.2476 work=  4249863 composite=0.1126
+    cross_tas=0.249 structura=0.239 normalize=0.224 model_ide=0.239 proper_pr=0.604 delayed_p=0.111 knowledge=0.181 prospecti=NA capabilit=0.001
+full vs g2_full            q4 composite 0.2430 / 0.1126 = 2.16x | cross_tas=1.19 structura=1.80 normalize=2.19 model_ide=4.10 proper_pr=1.12 delayed_p=3.50 knowledge=2.88 capabilit=2.17
+full vs balanced_fixed     q4 composite 0.2430 / 0.0000 | cross_tas=1.18 structura=1.42 normalize=1.80 proper_pr=1.21 delayed_p=1.18 knowledge=2.06 capabilit=0.68

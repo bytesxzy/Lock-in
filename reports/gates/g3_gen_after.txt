@@ -1,0 +1,9 @@
+generated worlds generated  n=12  env ce9d1a76b2cd
+full                 utility=0.3689 work=  3621632 composite=0.2293 violations=0
+    cross_tas=0.226 structura=0.350 normalize=0.457 model_ide=0.984 proper_pr=0.674 delayed_p=0.406 knowledge=0.460 capabilit=0.002
+g2_full              utility=0.0729 work=  5193835 composite=0.0292 violations=0
+    cross_tas=0.094 structura=0.072 normalize=0.031 model_ide=0.159 proper_pr=0.579 delayed_p=0.004 knowledge=0.106 capabilit=0.000
+balanced_fixed       utility=0.1185 work=  1555719 composite=0.0000 violations=0
+    cross_tas=0.094 structura=0.077 normalize=0.077 model_ide=0.000 proper_pr=0.562 delayed_p=0.120 knowledge=0.130 capabilit=0.001
+full vs g2_full            utility x5.06 work x0.70 | cross_tas=2.41 structura=4.86 normalize=14.55 model_ide=6.21 proper_pr=1.16 delayed_p=107.13 knowledge=4.34 capabilit=25.03
+full vs balanced_fixed     utility x3.11 work x2.33 | cross_tas=2.41 structura=4.54 normalize=5.92 proper_pr=1.20 delayed_p=3.39 knowledge=3.53 capabilit=2.80

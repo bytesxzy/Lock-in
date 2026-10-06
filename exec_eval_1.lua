@@ -185,6 +185,64 @@ SINGLE-FILE BUNDLE (for pasting into one file, e.g. on Replit)
   Verified from an empty directory: all 12 test suites pass (81,493 checks), and evidence rows of reports/evidence.lua replay
   with identical trace hashes.
 
+CYBER REASONING LAYER (asi.cyber.*; commands cyber-run / cyber-eval / cyber-report / cyber-trace / cyber-replay / cyber-stress; suite `cyber`)
+  What it is. A defensive, sandboxed reasoning system on top of the existing metered machine. The evaluator simulates a small enterprise
+  (7-16 hosts, 4-12 users, services and dependencies, routine business activity, decoys, noisy and delayed sensors, blind hosts, attack
+  campaigns with initial access, credential theft, lateral movement, persistence and re-entry) with a stateless-PRF physics (common random
+  numbers: two controllers on the same seed face exactly the same world). The controller is ONE guest program (compiled by GL, run as VM-1
+  instructions, charged one work unit per instruction) behind a four-operation interface:
+      CSENSE  the round packet: inventory (roles, values, protected hosts), contract (costs, quotas, tool allowance), <= 24 telemetry records
+      CTOOL   15 metered, validated, authorised tools (host/process/network/auth/file/config/alert queries, local vulnerability KB, trace
+              queries, VERIFY probes with published reliability, SIMULATE dry-runs of an action, telemetry enabling, ...) with costs and failure codes
+      CACT    one defensive action (isolate, unisolate, revoke, reissue, kill, clean, patch, fix-config, restore, wait); ends the round
+      CREP    the belief report (per-entity posteriors, six epistemic statuses, incident timeline) and up to eight forecasts of future telemetry
+  Nothing else crosses the boundary: no seed, no task id, no ground truth, no reference defender. t_cyber enforces it with TWIN WORLDS: the same
+  controller runs on two worlds that differ only in a hidden fact (stolen credentials, a hidden persistence, a hidden foothold); its tool
+  requests, actions and reports are identical up to the first world-produced message that differs.
+  How it reasons (all inside the guest). Records become typed, time-stamped events with role-abstracted signatures; a learned notion of what is
+  usual in THIS world (signature counts, per-user source profiles, edges, images); temporal links mined from the event ring and credited only after
+  their own prospective forecasts succeed; feature observables (rare, no cause, off-profile, alerted, recurrence, lateral, external, chain, persistence,
+  bulk, config change, new image) feed a Poisson likelihood-ratio model of three hidden states (host compromised / credential stolen / persistence)
+  with absence-of-evidence counted only where a host is observable, class rates learned from verified labels, and a bounded influence of correlated weak
+  evidence; competing explanations, value-of-information probing (expected Bayes-risk reduction minus cost plus an epistemic bonus that decays with
+  labels), SIMULATE dry-runs and a two-step lookahead before KILL, root-cause closure (misconfiguration, unpatched vulnerability found through the local
+  KB, credential), a deterministic shield (authorisation, quota, reversibility, confidence floor), a world library keyed by a structural fingerprint
+  (retention and transfer), self-resolved forecast calibration, a 64-entry decision-provenance ring (`cyber-trace`) and predictive compute pacing
+  (deep / normal / economy modes chosen from per-mode cost moving averages against the work left).
+  Benchmark CYB1 (frozen, hashed, pinned in the tests). Streams of four episodes of 48 rounds: base world, structural novelty, a different world, return
+  with a regime shock. Sets: dev, diag, val (development), ood and adv (structural-OOD / adversarial; consulted while developing), held and heldB
+  (first held-out sets), plus fresh sets heldC, heldD, heldE outside the frozen protocol. Fifteen scorecard axes (defensive utility, false-positive control,
+  diagnosis, causal-model identification, temporal reconstruction, hidden-state inference, transfer, structural OOD, information efficiency, planning,
+  calibration against climatology, retention, recovery, capability per compute, safety) from the simulator's truth and the controller's own outputs; an axis
+  a controller cannot be scored on is NA (never zero-filled), a supported zero makes a composite zero, ratios exist only on jointly supported axes with a
+  positive denominator. Baselines on identical worlds: passive, a fixed alert-score TRIAGE heuristic, a verification SWEEPER, and OLD = the unchanged
+  generation-3 reasoner behind a fixed 4-field summarising adapter (its image is pinned to the pre-upgrade image).
+  RESULTS (measured; raw rows and paired reports in reports/cyber/, history in the sub-directories; all numbers are mean over streams, paired seeds).
+    Gates: selftest 100,162 passed (the 98,443 pre-existing checks unchanged, plus 1,719 in suite `cyber`); the existing generation-3 held, diagnostic and
+    generated evaluations print byte-identical output to the pre-upgrade bundle (reports/gates, reports/pre_upgrade). No change to the generation-3 reasoner
+    was kept: five small modifications (mixture forecasts over competing rules, per-bin forecast calibration, rule-score prior, memory window, population
+    size / economy threshold) were measured on its development seeds and none cleared the gate (>= +0.01 composite without regression), so all were removed.
+    Clean confirmation set heldE (16 streams, controller v4 run once, baselines recorded before): defensive skill 0.500 against OLD 0.175 (2.9x) and TRIAGE 0.200
+    (2.5x). Composite ratio against OLD over the 8 jointly supported axes with a positive OLD denominator: 1.99x (95% paired-bootstrap CI 1.56-2.58); against
+    TRIAGE 1.47x (1.02-2.01). Pooled over the five held-out sets held..heldE (80 streams; they also guided three controller revisions, so this is optimistic):
+    2.53x (CI 2.22-3.26), but 1.81x (1.65-2.10) without the retention axis on which OLD scores 0.005; against TRIAGE 1.32x (1.16-1.66). THE 2x COMPOSITE TARGET IS
+    THEREFORE NOT ESTABLISHED: it is met by the pre-registered rule only on pooled data and sits on the boundary on the clean set.
+    Per axis (pooled, against OLD): defensive utility 2.8x, transfer 3.2x, structural OOD 2.5x, planning 2.6x, recovery 2.1x; false-positive control only 1.1x (0.48
+    against TRIAGE's 0.94) and capability per compute 0.85x (the controller uses about 3.4x OLD's and 170x TRIAGE's metered work). Axes OLD cannot be scored on:
+    diagnosis 0.69, causal-model identification 0.60, information efficiency 0.41, calibration 0.26, temporal reconstruction 0.14, hidden-state inference 0.02 (the
+    last two are weak). On the structural-OOD and adversarial sets the controller scores 0.55 / 0.53 against OLD 0.12 / 0.08.
+    Ablations (paired, heldE and val, change in skill when the mechanism is removed, positive = helps): memory +0.11 / +0.09, planning +0.08 / +0.07, uncertainty
+    +0.05 / +0.07, root-cause closure +0.06 / +0.04, model learning +0.04 / +0.05. Value-of-information probing, tools, counterfactual forecasts, graph reasoning,
+    temporal links, hidden-state telemetry and the competing-hypotheses cap change utility by no more than the noise (se 0.01-0.04); they carry the diagnosis,
+    causal-model, information, calibration and timeline axes, not utility. Compute meta-control changes nothing at the protocol budgets and decides completion below
+    them: with 1/8 of the budget the controller finishes 16/16 val streams (skill 0.62), the ablated one 0/16 (`cyber-stress`).
+    History kept in reports/cyber: the first single held-out pass (v1) exposed a defect in the controller's own temporal explain-away; its fix was chosen on
+    development sets and confirmed on fresh sets, which exposed a tool-allowance violation, a compute-pacing failure and over-confident persistence reports, then
+    over-probing; each fix was selected on development sets and the last confirmation (heldE) is the number above.
+    Known limits: the controller is a hand-structured Bayesian reasoner with hand-set priors (feature prior multipliers, decision floor, report shrink for persistence)
+    whose class rates are learned online; planning is receding-horizon with a two-step lookahead, not unrestricted search; silent credential theft is essentially
+    undetectable and hidden-state skill is near zero; world generators are procedural, not real enterprises.
+
 MODULE MAP
   asi/util.lua      u64 helpers, checked integers, bit I/O, SHA-256, canonical + Lua-literal serialisation, test framework
   asi/bigint.lua    multi-word integers and exact reduced rationals (all probabilities / enclosures are exact)
@@ -18401,12 +18459,14 @@ commands["cyber-stress"] = function(args)
 end
 
 commands["cyber-report"] = function(args)
-  local pos, opt = parse(args, 2, {raw="flag"})
+  local pos, opt = parse(args, 2, {raw="flag", ["min-ref"]="value", exclude="value"})
   if #pos == 0 then bad("cyber-report needs one or more rows files written by cyber-eval --save") end
   local E = require("asi.cyber.eval")
   local rows = {}
   for _, path in ipairs(pos) do for _, r in ipairs(read_rows(path)) do rows[#rows + 1] = r end end
-  local rep = E.aggregate(rows)
+  local excl
+  if opt.exclude then excl = {}; for _, n in ipairs(split_csv(opt.exclude)) do excl[n] = true end end
+  local rep = E.aggregate(rows, {min_ref = opt["min-ref"] and tonumber(opt["min-ref"]) or nil, exclude = excl})
   if opt.raw then out(U.to_literal(rep), "\n") else out(E.format(rep), "\n") end
   return 0
 end
@@ -44124,8 +44184,9 @@ function E.aggregate(rows, opt)
               else
                 local mx, my = mean(xs), mean(ys)
                 rec.axes[a] = {new = mx, old = my, n = #xs}
-                if my > 0 then rec.axes[a].ratio = mx / my; ratios[#ratios + 1] = mx / my; keep[a] = true
-                else rec.excluded[a] = "denominator zero (OLD supported and scored zero)" end
+                if opt.exclude and opt.exclude[a] then rec.excluded[a] = "excluded by request (sensitivity analysis)"
+                elseif my > (opt.min_ref or 0) then rec.axes[a].ratio = mx / my; ratios[#ratios + 1] = mx / my; keep[a] = true
+                else rec.excluded[a] = (my > 0) and "reference mean below the noise floor min_ref" or "denominator zero (the reference was scored on this axis and scored zero)" end
               end
             end
             rec.joint_axes = {}
@@ -44799,12 +44860,16 @@ package.preload["asi.bundle_info"] = function()
   return {
  ["built_from"]="in-place upgraded single-file Lua project",
  ["hashes"]={
-  ["README.lua"]="e3a88f6f14f891aca022fbafc9c3e1e11d878887eeefe43b56accf8177ef0213",
+  ["README.lua"]="13fe8ab3536736e1d78068f0a92efe8ba9e5589811745e70c85ce58a45d1103d",
   ["asi/archive.lua"]="ef1a88b77029df0d48339c41f1f134ba2d6f8046c51970e91c11487ed34a9fcf",
   ["asi/asm.lua"]="8cf4cd3e0781b7b9c283572408cf4350d0f11a9b6ea755bf5d6c7eb112f6a21b",
   ["asi/astx.lua"]="3df93ba12cf326f90ce16a620a6a40c3c7cedb6a9f73aeb481d764bf93d6dace",
   ["asi/bigint.lua"]="0de306aa7d93f6603cf854072ffb5e6ec46200aaa128d1cc85f2fed9d4347e30",
-  ["asi/cli.lua"]="e09efeec6310dc3ed241fbd499217de8e9f42f5396e3935a06869c6be1588c9a",
+  ["asi/cli.lua"]="cb1bcd2fa8a8e4344f0447aee4f8f2f7fce5c3226c2e2e753ce67fba786fb8a7",
+  ["asi/cyber/env.lua"]="211ddceff7f5165a967bdc8d12f6db69010f684df01429e71620cbf88579355f",
+  ["asi/cyber/eval.lua"]="29c334d589784e5b52233d39c6868392055e5ff05bd4f337b008761803ba8c03",
+  ["asi/cyber/guest.lua"]="093d8c0d43061dcfa18dfa0d937775ed18e16b82303c937fa127ca5675e1dc8c",
+  ["asi/cyber/world.lua"]="1bc2741cfa45962a2d6addd5a83e9541ca83e08a7dc0444c34615f41ea857b6a",
   ["asi/gl.lua"]="6b130916e0e917d0f6bb2f342487459f70e1175e5fd7a08e6b4d80beca558aba",
   ["asi/guest/audit.lua"]="95dc1ca966b7ee17af71eb08bf6f031e72d7f067904b0dcaf2188b2a408ca281",
   ["asi/guest/bias.lua"]="c31c9efd9e6e157187e3df0e2f970bec285da64cbde80e77362396f7422bd0be",
@@ -44826,24 +44891,25 @@ package.preload["asi.bundle_info"] = function()
   ["asi/reason.lua"]="ad44aa0c10998631851469c9af1957a78587aa3d9e945afa88b7c7d4202636ae",
   ["asi/reason/core.lua"]="698354bfffea751b4f0cce9f4af4f67a9b11aa3327161d86f356e039b70c1906",
   ["asi/reason/env.lua"]="977399ce674d9d527d7d405345e347583cc6881bfae7bb4f3c261c565420d06f",
+  ["asi/reason/env3.lua"]="05be33b39ae496ecdfe070b2130c759d939bfe64621072dd7ca37df19eae446e",
   ["asi/reason/eval.lua"]="a8b86c0e86e1e2782532158bd2fd3ca7185d030fb9c02b0608d56d6a3bbc95df",
+  ["asi/reason/generation3.lua"]="f3999c2b613f5be2e0d1e705d026a444ccd74e894b3b2832e85eac02c2c20a13",
+  ["asi/reason/hpr.lua"]="05eb2993081d5ad2dbfbe725854904cefa0af61df7c388febbf9890539b6cce7",
   ["asi/reason/iteration.lua"]="8424620b3ee1be5a46b824fe63527d9d278f5ee1abc8b6961e57088310d825a8",
   ["asi/reason/plan.lua"]="dd1e16450f5656222b037e4e2b15a3a6e0dcdb558d712674a161d907a6db937a",
-  ["asi/reason/hpr.lua"]="05eb2993081d5ad2dbfbe725854904cefa0af61df7c388febbf9890539b6cce7",
-  ["asi/reason/env3.lua"]="05be33b39ae496ecdfe070b2130c759d939bfe64621072dd7ca37df19eae446e",
-  ["asi/reason/generation3.lua"]="f3999c2b613f5be2e0d1e705d026a444ccd74e894b3b2832e85eac02c2c20a13",
-  ["asi/reason/report3.lua"]="ae97f07a53c96d7c9ea0a37b0a987dd3e8be39048fc713626e93942fd72026e8",
-  ["asi/tests/t_hpr.lua"]="22f5b05a20983c4d3ed8700aa841be60e935a229c30d1ad81ab2c8e3602eaa6a",
   ["asi/reason/report.lua"]="e9c2e7794a2a26077ea63e4de7fb2ad6ca0a6de5eacd953c88144c45d338964f",
+  ["asi/reason/report3.lua"]="ae97f07a53c96d7c9ea0a37b0a987dd3e8be39048fc713626e93942fd72026e8",
   ["asi/risk.lua"]="209a93c194009431cf0a9786d61b19f1c25a300ccb9f00ec11efc08e4c74badf",
   ["asi/rng.lua"]="1d73c1a4c55dff191dc10db268708200919e627ac690f10dda48ef3b0808c6f1",
   ["asi/run.lua"]="c805e52408a7bb2525170840dc778cca72bf4196253db90d553e32904befb62a",
   ["asi/spec.lua"]="fbda9f2556889026634f5ae4ec27c6b39b3466e53bfcaf3abfa31a716b2ef709",
-  ["asi/tests/all.lua"]="709b11531b0eef510c31fd45ba85aaa0617259aa03e6bb06c31c7fa6ad99fab2",
+  ["asi/tests/all.lua"]="bcdfa1aa2ea9db0038eded3916a54e33302dd4b1c0df3f50d3edf5653962b70c",
   ["asi/tests/fixture.lua"]="ea280fc377b8ad907274567122a423415187864ef41669e8d10dacc27507ca39",
   ["asi/tests/oracle.lua"]="f89d7d330580ba3b699e1bc8b3e90d17d41917678a6326230e47faf7ee28316c",
+  ["asi/tests/t_cyber.lua"]="8725a6759708c319021fedf486369d44c220a6eb363caa45d923a4d052482eb6",
   ["asi/tests/t_gl.lua"]="73973d8736e513ca4c4eb1f00831a75597f93b8e13a1ff60ed2c28aa73bfb939",
   ["asi/tests/t_harness.lua"]="2438f1f41fed934400953d72a20b71e9ca38dfb6d299f4365e5bbdf4216a5ab0",
+  ["asi/tests/t_hpr.lua"]="22f5b05a20983c4d3ed8700aa841be60e935a229c30d1ad81ab2c8e3602eaa6a",
   ["asi/tests/t_math.lua"]="554318325cbe03a5a610727ec522b1b99f8ffdf07f736b2c1bd9ec9029c2958f",
   ["asi/tests/t_mutation.lua"]="3c5f4a66eb2d595f1ba31c74740198e35aa0fdf6208f68d8fe46f07033d2aa0a",
   ["asi/tests/t_parity.lua"]="d57c996f559ae36eb2c6ee062bef4a7d14932a33ef12b73e57884b2231d9d0d2",
