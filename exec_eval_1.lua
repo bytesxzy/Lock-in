@@ -42271,7 +42271,8 @@ function G.install(P, cfg)
   local function mem(name, n) local node = P:static("C_" .. name, n or 1); R[name] = node; return node end
   local NE, NSIG = G.NE, G.NSIG
   mem("PK", 120); mem("RQ", 4); mem("RS", 32); mem("TMP", 32); mem("REP", 64); mem("FA", 4)
-  for _, n in ipairs({"NH", "NU", "T", "RND", "STG", "FLAGS", "TOTEV", "RPOS", "DONE", "GUARD", "MODE", "ACTID", "ACTX", "ACTY", "NEVB", "STATS"}) do mem(n) end
+  for _, n in ipairs({"NH", "NU", "T", "RND", "STG", "FLAGS", "TOTEV", "RPOS", "DONE", "GUARD", "MODE", "ACTID", "ACTX", "ACTY", "NEVB", "STATS", "TUSED", "MWL", "MLAST"}) do mem(n) end
+  mem("CPM", 3)
   mem("STAT", 32)
   -- inventory and contract
   mem("ROLE", 16); mem("VAL", 16); mem("PROT", 16); mem("NSVC", 16); mem("SUBN", 16)
@@ -42744,6 +42745,7 @@ function G.install(P, cfg)
   mem("FPCTX"); mem("FPNOW"); mem("CLEANT", 16); mem("REVK", 16); mem("ISOLD", 16); mem("PROBET", 16); mem("PSTAT", 16); mem("PROBEY", 16); mem("PROBEP", 16)
   P:func("c_init", {}, function(f)
     local i0 = f:var("i0")
+    f:st(R.CPM, 16000); f:st(R.CPM + 1, 36000); f:st(R.CPM + 2, 42000)
     f:st(R.PRI, -56); f:st(R.PRI + 1, -64); f:st(R.PRI + 2, -80); f:st(R.FPCTX, -1); f:st(R.PMIN, cfg.pmin or 205)
     f:for_(i0, 0, 3, function() f:st(R.CALA + i0, cfg.cal_a or 16); f:st(R.CALB + i0, cfg.cal_b or -32) end)
     f:run("c_params")
@@ -42932,6 +42934,9 @@ function G.install(P, cfg)
   -- one tool call; returns the status, payload in RS[3..]
   P:func("c_tool", {"id", "a", "b", "c"}, function(f, id, a, b, c)
     if cfg.no_cyber_tools then f:st(R.RS, 9); f:st(R.RS + 3, 0); f:ret(9) end
+    -- the per-round tool allowance is published in the packet; the controller never asks for more (a denied call would be a violation)
+    f:iff(f:ld(R.TUSED):ge(f:ld(R.PK + 14)), function() f:st(R.RS, 2); f:st(R.RS + 3, 0); f:ret(2) end)
+    f:st(R.TUSED, f:ld(R.TUSED) + 1)
     f:st(R.RQ, id); f:st(R.RQ + 1, a); f:st(R.RQ + 2, b); f:st(R.RQ + 3, c)
     inc(f, 3)
     f:iff(f:sys("CTOOL", R.RQ, R.RS):ne(0), function() f:ret(f:ld(R.RS)) end)
@@ -43240,9 +43245,12 @@ function G.install(P, cfg)
       if not cfg.no_graph then f:run("c_trace", 4, best, f:call("c_attack_path", best), f:ld(R.DIST + 0)) end
     end)
   end)
-  P:func("c_pack", {"base", "n"}, function(f, base, n)          -- calibrated probabilities (x1024) packed as 8-bit values, 8 per word
-    local i, w = f:var("i"), f:var("w", 0)
-    f:for_(i, 0, n, function() f:set(w, w | (((f:ld(base + i) * 255) >> 10) << (8 * i))) end)
+  P:func("c_pack", {"base", "n", "floor", "scale"}, function(f, base, n, floor, scale)          -- reported probability = floor + scale * p (x1024), packed as 8-bit values, 8 per word
+    local i, w, p = f:var("i"), f:var("w", 0), f:var("p")
+    f:for_(i, 0, n, function()
+      f:set(p, floor + (f:ld(base + i) * scale) // 1024); f:iff(p:gt(1023), function() f:set(p, 1023) end)
+      f:set(w, w | (((p * 255) >> 10) << (8 * i)))
+    end)
     f:ret(w)
   end)
   -- incident timeline: anomalous events related to the leading hypothesis (same host, peer, or an observed edge), in time order, last eight
@@ -43311,9 +43319,12 @@ function G.install(P, cfg)
   end)
   P:func("c_report", {}, function(f)
     f:run("c_zero", R.REP, 64)
-    f:st(R.REP, f:call("c_pack", R.PC, 8)); f:st(R.REP + 1, f:call("c_pack", R.PC + 8, 8))
-    f:st(R.REP + 2, f:call("c_pack", R.PU, 8)); f:st(R.REP + 3, f:call("c_pack", R.PU + 8, 4))
-    f:st(R.REP + 4, f:call("c_pack", R.PP, 8)); f:st(R.REP + 5, f:call("c_pack", R.PP + 8, 8))
+    -- Reported persistence beliefs are shrunk (floor + scale * p, x1024): persistence indicators (new autoruns, scheduled tasks) are
+    -- common for benign reasons, and the unshrunk belief was systematically overconfident (verified persistence frequency 0.3 where
+    -- 0.86 was claimed). Host and credential beliefs are reported as computed. Decisions use the unshrunk beliefs.
+    f:st(R.REP, f:call("c_pack", R.PC, 8, 0, 1024)); f:st(R.REP + 1, f:call("c_pack", R.PC + 8, 8, 0, 1024))
+    f:st(R.REP + 2, f:call("c_pack", R.PU, 8, 0, 1024)); f:st(R.REP + 3, f:call("c_pack", R.PU + 8, 4, 0, 1024))
+    f:st(R.REP + 4, f:call("c_pack", R.PP, 8, cfg.pfloor or 25, cfg.pscale or 360)); f:st(R.REP + 5, f:call("c_pack", R.PP + 8, 8, cfg.pfloor or 25, cfg.pscale or 360))
     f:st(R.REP + 6, 255)
     f:run("c_status")
     f:iff(f:ld(R.RND):eq(0), function() f:run("c_zero", R.TLC, 8) end)
@@ -43368,14 +43379,24 @@ function G.install(P, cfg)
   end)
   -- compute allowance per remaining round decides how much reasoning to buy: 0 cheap, 1 normal, 2 deep
   P:func("c_meta", {}, function(f)
-    local done, rem, a = f:var("done", (f:ld(R.STG) - 1) * 48 + f:ld(R.RND)), f:var("rem"), f:var("a")
+    -- Predictive pacing: the metered work of one whole round (interface included) is tracked per compute mode as a moving average; the
+    -- controller takes the most thorough mode whose projected cost for the rounds still to play fits in 90% of the work left.
+    local done, rem, a, wl, delta, m = f:var("done", (f:ld(R.STG) - 1) * 48 + f:ld(R.RND)), f:var("rem"), f:var("a"), f:var("wl", f:clk(3)), f:var("delta"), f:var("m")
     f:set(rem, 193 - done); f:iff(rem:lt(1), function() f:set(rem, 1) end)
-    f:set(a, f:clk(3) // rem)
-    f:st(R.MODE, 1)
-    f:iff(a:ge(45000), function() f:st(R.MODE, 2) end)
-    f:iff(a:lt(30000), function() f:st(R.MODE, 0) end)
+    f:set(a, wl // rem)
+    f:iff(f:ld(R.MWL):gt(0), function()
+      f:set(delta, f:ld(R.MWL) - wl)
+      f:iff(GL.and_(delta:gt(1000), delta:lt(400000)), function()
+        f:set(m, f:ld(R.MLAST)); f:st(R.CPM + m, (f:ld(R.CPM + m) * 3 + delta) // 4)
+      end)
+    end)
+    f:st(R.MWL, wl)
+    f:st(R.MODE, 0)
+    f:iff((f:ld(R.CPM + 1) * rem * 10):le(wl * 9), function() f:st(R.MODE, 1) end)
+    f:iff(GL.and_(f:ld(R.MODE):eq(1), a:ge(45000), (f:ld(R.CPM + 2) * rem * 10):le(wl * 9)), function() f:st(R.MODE, 2) end)
     if cfg.no_compute_meta then f:st(R.MODE, 1) end
     if cfg.force_mode then f:st(R.MODE, cfg.force_mode) end
+    f:st(R.MLAST, f:ld(R.MODE))
   end)
   -- prospective forecasts of future telemetry (scored when they resolve): (1) what the two leading hypotheses predict -- external
   -- connections and alerts at those hosts, mixed with the clean rates; (2) every pending temporal-link forecast, once
@@ -43442,7 +43463,7 @@ function G.install(P, cfg)
     local flags = f:var("flags", f:ld(R.PK + 6))
     f:iff((flags & 2):ne(0), function() f:st(R.DONE, 1); f:ret(0) end)
     f:iff(GL.or_(f:ld(R.PK + 1):lt(2), f:ld(R.PK + 1):gt(16), f:ld(R.PK + 2):lt(1), f:ld(R.PK + 2):gt(12)), function() f:st(R.GUARD, 1); f:st(R.DONE, 1); f:ret(0) end)
-    f:st(R.T, f:ld(R.PK + 3)); f:st(R.RND, f:ld(R.PK + 4)); f:st(R.STG, f:ld(R.PK + 5))
+    f:st(R.T, f:ld(R.PK + 3)); f:st(R.RND, f:ld(R.PK + 4)); f:st(R.STG, f:ld(R.PK + 5)); f:st(R.TUSED, 0)
     f:iff((flags & 1):ne(0), function() f:run("c_new_episode") end)
     f:iff(f:ld(R.DIRTY):ne(0), function()            -- clear only the evidence rows that were written
       f:for_(i, 0, 16, function()
@@ -44691,6 +44712,15 @@ function M.run()
     T.check(tight.work <= Env.PROTOCOL.work_budget // 4, "within the reduced bound")
     local nometa = E.run(E.variant("no_compute_meta").art, {seed = 1, set = "dev", kind = "new", variant = "no_compute_meta", work_budget = Env.PROTOCOL.work_budget // 4, budget_quarters = 1})
     T.check(nometa.work <= Env.PROTOCOL.work_budget // 4, "ablated compute control still respects the hard bound")
+    -- regression streams from the first held-out pass of the revised controller: 9208 once exceeded the per-round tool allowance, 9216 (a
+    -- heavy stream) once ran out of work at the smallest protocol budget
+    for _, seed in ipairs({9208, 9216}) do
+      for _, quarters in ipairs({1, 4}) do
+        local r = E.run(new.art, {seed = seed, set = "heldC", kind = "new", variant = "new", work_budget = Env.PROTOCOL.work_budget * quarters // 4})
+        T.check(r.complete and r.guard == 0 and r.fault == nil, "stream " .. seed .. " completes at " .. quarters .. "/4 of the work budget")
+        T.eq(r.viol.tool_invalid + r.viol.tool_denied + r.viol.act_invalid + r.viol.act_denied + r.viol.protocol, 0, "stream " .. seed .. " at " .. quarters .. "/4: zero tool, action and protocol violations")
+      end
+    end
     -- compute meta-control is a real mechanism: with 6.0M work (about 18% of the frozen budget) the metered controller drops to economy
     -- mode when its pace demands it and still finishes the whole stream; the ablated one is cut off before the stream ends
     for _, seed in ipairs({201, 202, 203}) do

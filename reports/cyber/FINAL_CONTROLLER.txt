@@ -9,3 +9,7 @@ CONTROLLER v2 (recorded before heldC was ever run): guest image sha256 ddd017290
 Change from v1: the temporal explain-away step clears only the rare / off-profile / bulk features of an explained record (was: also lateral, external, new-image, config evidence).
 Selection evidence (mean defensive skill over dev,diag,val,ood,adv): v1 0.475; explain-away off 0.505; mask rare|offprofile|bulk 0.530; rare|offprofile 0.527; rare 0.526.
 heldC (9201-9216) and heldD (9301-9316, unused) are fresh sets outside the frozen protocol (Env.RESERVE); the frozen protocol hash is unchanged.
+
+CONTROLLER v3 (recorded before heldD was ever run): guest image sha256 cf2f188d45424f719301a3d522f446683fdc4d19da8a6ae71d98fc7670cc73b5  (412192 bits, 6397 words)
+Changes from v2 (defects found on heldC): per-round tool-allowance guard in c_tool; predictive compute pacing in c_meta (per-mode cost moving averages; most thorough mode whose projected cost fits 90% of the work left); reported persistence beliefs shrunk (0.024 + 0.35 p). Selected/checked on dev, diag, val, ood, adv (completion at 1/4 budget 100% on every set, zero violations).
+heldD (9301-9316): baselines recorded (reports/cyber/baselines_heldD.*) before the controller is run on it.
