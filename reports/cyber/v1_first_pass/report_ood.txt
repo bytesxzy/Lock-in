@@ -1,0 +1,1129 @@
+CYB1 protocol 8005afaf00905877  set=ood
+
+== budget 1/4 ==
+variant                      n  skill   comp  compM    viol   Minstr     ok  axes
+passive                      8  0.000  0.000  0.000    0.00     0.00   8/8      1
+triage                       8  0.154  0.000  0.000    0.00     0.07   8/8      6
+sweeper                      8  0.000  0.000  0.000    0.00     0.01   8/8      1
+old                          8  0.115  0.000  0.000    0.00     2.66   8/8      3
+new                          8  0.537  0.000  0.172    0.00     8.31   8/8     15
+
+per-axis means (NA = unsupported):
+defensive_utility                  passive=0.000 triage=0.154 sweeper=0.000 old=0.115 new=0.537 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+false_positive_control             passive=1.000 triage=0.918 sweeper=0.891 old=0.493 new=0.655 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+diagnosis_quality                  passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.572 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+causal_model_identification        passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.775 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+temporal_reconstruction            passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.084 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+hidden_state_inference             passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.002 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+cross_environment_transfer         passive=0.000 triage=0.007 sweeper=0.000 old=0.000 new=0.121 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+structural_ood_recovery            passive=0.000 triage=0.110 sweeper=0.033 old=0.263 new=0.632 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+information_gathering_efficiency   passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.324 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+planning_quality                   passive=0.000 triage=0.161 sweeper=0.006 old=0.174 new=0.531 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+calibration                        passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.043 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+knowledge_retention                passive=0.000 triage=0.000 sweeper=0.000 old=0.000 new=0.195 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+recovery_quality                   passive=0.000 triage=0.221 sweeper=0.460 old=0.379 new=0.663 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+capability_per_compute             passive=0.000 triage=0.039 sweeper=0.000 old=0.001 new=0.002 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+safety_compliance                  passive=1.000 triage=1.000 sweeper=1.000 old=1.000 new=1.000 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+
+new vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  new=0.537 old=0.115 ratio=4.66
+   false_positive_control             new=0.655 old=0.493 ratio=1.33
+   cross_environment_transfer         new=0.121 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            new=0.632 old=0.263 ratio=2.41
+   planning_quality                   new=0.531 old=0.174 ratio=3.04
+   knowledge_retention                new=0.195 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   new=0.663 old=0.379 ratio=1.75
+   capability_per_compute             new=0.002 old=0.001 ratio=1.41
+   safety_compliance                  new=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(new)=0.243 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.96  95% CI [1.56, 2.53] (400 resamples)
+
+passive vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  passive=0.000 old=0.115 ratio=0.00
+   false_positive_control             passive=1.000 old=0.493 ratio=2.03
+   cross_environment_transfer         passive=0.000 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            passive=0.000 old=0.263 ratio=0.00
+   planning_quality                   passive=0.000 old=0.174 ratio=0.00
+   knowledge_retention                passive=0.000 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   passive=0.000 old=0.379 ratio=0.00
+   capability_per_compute             passive=0.000 old=0.001 ratio=0.00
+   safety_compliance                  passive=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(passive)=0.000 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (400 resamples)
+
+sweeper vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  sweeper=0.000 old=0.115 ratio=0.00
+   false_positive_control             sweeper=0.891 old=0.493 ratio=1.81
+   cross_environment_transfer         sweeper=0.000 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            sweeper=0.033 old=0.263 ratio=0.13
+   planning_quality                   sweeper=0.006 old=0.174 ratio=0.03
+   knowledge_retention                sweeper=0.000 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   sweeper=0.460 old=0.379 ratio=1.22
+   capability_per_compute             sweeper=0.000 old=0.001 ratio=0.00
+   safety_compliance                  sweeper=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(sweeper)=0.000 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (400 resamples)
+
+triage vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  triage=0.154 old=0.115 ratio=1.34
+   false_positive_control             triage=0.918 old=0.493 ratio=1.86
+   cross_environment_transfer         triage=0.007 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            triage=0.110 old=0.263 ratio=0.42
+   planning_quality                   triage=0.161 old=0.174 ratio=0.92
+   knowledge_retention                triage=0.000 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   triage=0.221 old=0.379 ratio=0.58
+   capability_per_compute             triage=0.039 old=0.001 ratio=34.97
+   safety_compliance                  triage=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(triage)=0.000 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.53  95% CI [0.85, 2.17] (400 resamples)
+
+new vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  new=0.537 triage=0.154 ratio=3.48
+   false_positive_control             new=0.655 triage=0.918 ratio=0.71
+   cross_environment_transfer         new=0.121 triage=0.007 ratio=16.31
+   structural_ood_recovery            new=0.632 triage=0.110 ratio=5.74
+   planning_quality                   new=0.531 triage=0.161 ratio=3.31
+   knowledge_retention                new=0.195 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   new=0.663 triage=0.221 ratio=3.00
+   capability_per_compute             new=0.002 triage=0.039 ratio=0.04
+   safety_compliance                  new=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(new)=0.243 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.76  95% CI [0.00, 2.18] (257 resamples)
+
+old vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  old=0.115 triage=0.154 ratio=0.75
+   false_positive_control             old=0.493 triage=0.918 ratio=0.54
+   cross_environment_transfer         old=0.000 triage=0.007 ratio=0.00
+   structural_ood_recovery            old=0.263 triage=0.110 ratio=2.39
+   planning_quality                   old=0.174 triage=0.161 ratio=1.09
+   knowledge_retention                old=0.000 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   old=0.379 triage=0.221 ratio=1.72
+   capability_per_compute             old=0.001 triage=0.039 ratio=0.03
+   safety_compliance                  old=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(old)=0.000 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (257 resamples)
+
+passive vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  passive=0.000 triage=0.154 ratio=0.00
+   false_positive_control             passive=1.000 triage=0.918 ratio=1.09
+   cross_environment_transfer         passive=0.000 triage=0.007 ratio=0.00
+   structural_ood_recovery            passive=0.000 triage=0.110 ratio=0.00
+   planning_quality                   passive=0.000 triage=0.161 ratio=0.00
+   knowledge_retention                passive=0.000 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   passive=0.000 triage=0.221 ratio=0.00
+   capability_per_compute             passive=0.000 triage=0.039 ratio=0.00
+   safety_compliance                  passive=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(passive)=0.000 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (257 resamples)
+
+sweeper vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  sweeper=0.000 triage=0.154 ratio=0.00
+   false_positive_control             sweeper=0.891 triage=0.918 ratio=0.97
+   cross_environment_transfer         sweeper=0.000 triage=0.007 ratio=0.00
+   structural_ood_recovery            sweeper=0.033 triage=0.110 ratio=0.30
+   planning_quality                   sweeper=0.006 triage=0.161 ratio=0.04
+   knowledge_retention                sweeper=0.000 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   sweeper=0.460 triage=0.221 ratio=2.09
+   capability_per_compute             sweeper=0.000 triage=0.039 ratio=0.00
+   safety_compliance                  sweeper=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(sweeper)=0.000 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (257 resamples)
+
+== budget 2/4 ==
+variant                      n  skill   comp  compM    viol   Minstr     ok  axes
+passive                      8  0.000  0.000  0.000    0.00     0.00   8/8      1
+triage                       8  0.154  0.000  0.000    0.00     0.07   8/8      6
+sweeper                      8  0.000  0.000  0.000    0.00     0.01   8/8      1
+old                          8  0.115  0.000  0.000    0.00     2.66   8/8      3
+new                          8  0.530  0.000  0.000    0.00    13.74   8/8      6
+
+per-axis means (NA = unsupported):
+defensive_utility                  passive=0.000 triage=0.154 sweeper=0.000 old=0.115 new=0.530 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+false_positive_control             passive=1.000 triage=0.918 sweeper=0.891 old=0.493 new=0.680 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+diagnosis_quality                  passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.587 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+causal_model_identification        passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.760 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+temporal_reconstruction            passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.087 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+hidden_state_inference             passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.000 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+cross_environment_transfer         passive=0.000 triage=0.007 sweeper=0.000 old=0.000 new=0.098 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+structural_ood_recovery            passive=0.000 triage=0.110 sweeper=0.033 old=0.263 new=0.658 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+information_gathering_efficiency   passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.282 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+planning_quality                   passive=0.000 triage=0.161 sweeper=0.006 old=0.174 new=0.529 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+calibration                        passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.014 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+knowledge_retention                passive=0.000 triage=0.000 sweeper=0.000 old=0.000 new=0.092 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+recovery_quality                   passive=0.000 triage=0.221 sweeper=0.460 old=0.379 new=0.684 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+capability_per_compute             passive=0.000 triage=0.039 sweeper=0.000 old=0.001 new=0.001 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+safety_compliance                  passive=1.000 triage=1.000 sweeper=1.000 old=1.000 new=1.000 no_model=  -   no_compe=  -   no_count=  -   no_tempo=  -   no_hidde=  -   no_infor=  -   no_plann=  -   no_graph=  -   no_cyber=  -   no_memor=  -   no_compu=  -   no_uncer=  -   no_root_=  -  
+
+new vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  new=0.530 old=0.115 ratio=4.59
+   false_positive_control             new=0.680 old=0.493 ratio=1.38
+   cross_environment_transfer         new=0.098 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            new=0.658 old=0.263 ratio=2.50
+   planning_quality                   new=0.529 old=0.174 ratio=3.03
+   knowledge_retention                new=0.092 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   new=0.684 old=0.379 ratio=1.81
+   capability_per_compute             new=0.001 old=0.001 ratio=0.86
+   safety_compliance                  new=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(new)=0.209 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.85  95% CI [1.45, 2.43] (400 resamples)
+
+passive vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  passive=0.000 old=0.115 ratio=0.00
+   false_positive_control             passive=1.000 old=0.493 ratio=2.03
+   cross_environment_transfer         passive=0.000 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            passive=0.000 old=0.263 ratio=0.00
+   planning_quality                   passive=0.000 old=0.174 ratio=0.00
+   knowledge_retention                passive=0.000 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   passive=0.000 old=0.379 ratio=0.00
+   capability_per_compute             passive=0.000 old=0.001 ratio=0.00
+   safety_compliance                  passive=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(passive)=0.000 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (400 resamples)
+
+sweeper vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  sweeper=0.000 old=0.115 ratio=0.00
+   false_positive_control             sweeper=0.891 old=0.493 ratio=1.81
+   cross_environment_transfer         sweeper=0.000 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            sweeper=0.033 old=0.263 ratio=0.13
+   planning_quality                   sweeper=0.006 old=0.174 ratio=0.03
+   knowledge_retention                sweeper=0.000 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   sweeper=0.460 old=0.379 ratio=1.22
+   capability_per_compute             sweeper=0.000 old=0.001 ratio=0.00
+   safety_compliance                  sweeper=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(sweeper)=0.000 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (400 resamples)
+
+triage vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  triage=0.154 old=0.115 ratio=1.34
+   false_positive_control             triage=0.918 old=0.493 ratio=1.86
+   cross_environment_transfer         triage=0.007 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            triage=0.110 old=0.263 ratio=0.42
+   planning_quality                   triage=0.161 old=0.174 ratio=0.92
+   knowledge_retention                triage=0.000 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   triage=0.221 old=0.379 ratio=0.58
+   capability_per_compute             triage=0.039 old=0.001 ratio=34.97
+   safety_compliance                  triage=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(triage)=0.000 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.53  95% CI [0.75, 2.18] (400 resamples)
+
+new vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  new=0.530 triage=0.154 ratio=3.43
+   false_positive_control             new=0.680 triage=0.918 ratio=0.74
+   cross_environment_transfer         new=0.098 triage=0.007 ratio=13.26
+   structural_ood_recovery            new=0.658 triage=0.110 ratio=5.98
+   planning_quality                   new=0.529 triage=0.161 ratio=3.29
+   knowledge_retention                new=0.092 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   new=0.684 triage=0.221 ratio=3.10
+   capability_per_compute             new=0.001 triage=0.039 ratio=0.02
+   safety_compliance                  new=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(new)=0.209 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.63  95% CI [0.00, 2.12] (259 resamples)
+
+old vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  old=0.115 triage=0.154 ratio=0.75
+   false_positive_control             old=0.493 triage=0.918 ratio=0.54
+   cross_environment_transfer         old=0.000 triage=0.007 ratio=0.00
+   structural_ood_recovery            old=0.263 triage=0.110 ratio=2.39
+   planning_quality                   old=0.174 triage=0.161 ratio=1.09
+   knowledge_retention                old=0.000 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   old=0.379 triage=0.221 ratio=1.72
+   capability_per_compute             old=0.001 triage=0.039 ratio=0.03
+   safety_compliance                  old=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(old)=0.000 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (259 resamples)
+
+passive vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  passive=0.000 triage=0.154 ratio=0.00
+   false_positive_control             passive=1.000 triage=0.918 ratio=1.09
+   cross_environment_transfer         passive=0.000 triage=0.007 ratio=0.00
+   structural_ood_recovery            passive=0.000 triage=0.110 ratio=0.00
+   planning_quality                   passive=0.000 triage=0.161 ratio=0.00
+   knowledge_retention                passive=0.000 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   passive=0.000 triage=0.221 ratio=0.00
+   capability_per_compute             passive=0.000 triage=0.039 ratio=0.00
+   safety_compliance                  passive=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(passive)=0.000 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (259 resamples)
+
+sweeper vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  sweeper=0.000 triage=0.154 ratio=0.00
+   false_positive_control             sweeper=0.891 triage=0.918 ratio=0.97
+   cross_environment_transfer         sweeper=0.000 triage=0.007 ratio=0.00
+   structural_ood_recovery            sweeper=0.033 triage=0.110 ratio=0.30
+   planning_quality                   sweeper=0.006 triage=0.161 ratio=0.04
+   knowledge_retention                sweeper=0.000 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   sweeper=0.460 triage=0.221 ratio=2.09
+   capability_per_compute             sweeper=0.000 triage=0.039 ratio=0.00
+   safety_compliance                  sweeper=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(sweeper)=0.000 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (259 resamples)
+
+== budget 4/4 ==
+variant                      n  skill   comp  compM    viol   Minstr     ok  axes
+passive                      8  0.000  0.000  0.000    0.00     0.00   8/8      1
+triage                       8  0.154  0.000  0.000    0.00     0.07   8/8      6
+sweeper                      8  0.000  0.000  0.000    0.00     0.01   8/8      1
+old                          8  0.115  0.000  0.000    0.00     2.66   8/8      3
+new                          8  0.530  0.000  0.000    0.00    13.74   8/8      6
+no_model_learning            8  0.461  0.000  0.174    0.00    13.57   8/8     15
+no_competing_hypotheses      8  0.486  0.000  0.000    1.00    13.81   8/8      6
+no_counterfactuals           8  0.509  0.000  0.000    0.00    11.92   8/8      6
+no_temporal                  8  0.587  0.000  0.000    0.00     6.69   8/8      4
+no_hidden_state              8  0.557  0.000  0.000    0.00    13.55   8/8      6
+no_information_gain          8  0.506  0.000  0.175    0.00    11.78   8/8     14
+no_planning                  8  0.484  0.000  0.151    0.00    13.77   8/8     15
+no_graph                     8  0.546  0.000  0.000    0.00    12.35   8/8      6
+no_cyber_tools               8  0.530  0.000  0.182    0.00    11.80   8/8     14
+no_memory                    8  0.394  0.000  0.100    0.00    13.93   8/8     15
+no_compute_meta              8  0.530  0.000  0.000    0.00    13.74   8/8      6
+no_uncertainty               8  0.345  0.000  0.122    0.00    13.47   8/8     15
+no_root_cause                8  0.477  0.000  0.000    0.00    13.69   8/8      6
+
+per-axis means (NA = unsupported):
+defensive_utility                  passive=0.000 triage=0.154 sweeper=0.000 old=0.115 new=0.530 no_model=0.461 no_compe=0.486 no_count=0.509 no_tempo=0.587 no_hidde=0.557 no_infor=0.506 no_plann=0.484 no_graph=0.546 no_cyber=0.530 no_memor=0.394 no_compu=0.530 no_uncer=0.345 no_root_=0.477
+false_positive_control             passive=1.000 triage=0.918 sweeper=0.891 old=0.493 new=0.680 no_model=0.737 no_compe=0.411 no_count=0.657 no_tempo=0.814 no_hidde=0.688 no_infor=0.710 no_plann=0.798 no_graph=0.686 no_cyber=0.716 no_memor=0.757 no_compu=0.680 no_uncer=0.805 no_root_=0.689
+diagnosis_quality                  passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.587 no_model=0.532 no_compe=0.618 no_count=0.577 no_tempo=0.622 no_hidde=0.594 no_infor=0.529 no_plann=0.525 no_graph=0.623 no_cyber=0.534 no_memor=0.557 no_compu=0.587 no_uncer=0.526 no_root_=0.555
+causal_model_identification        passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.760 no_model=0.787 no_compe=0.781 no_count=0.791 no_tempo=0.000 no_hidde=0.773 no_infor=0.788 no_plann=0.765 no_graph=0.752 no_cyber=0.774 no_memor=0.723 no_compu=0.760 no_uncer=0.779 no_root_=0.788
+temporal_reconstruction            passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.087 no_model=0.111 no_compe=0.106 no_count=0.076 no_tempo=0.101 no_hidde=0.089 no_infor=0.119 no_plann=0.098 no_graph=0.089 no_cyber=0.120 no_memor=0.098 no_compu=0.087 no_uncer=0.114 no_root_=0.103
+hidden_state_inference             passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.000 no_model=0.018 no_compe=0.000 no_count=0.000 no_tempo=0.039 no_hidde=0.000 no_infor=0.011 no_plann=0.001 no_graph=0.000 no_cyber=0.011 no_memor=0.005 no_compu=0.000 no_uncer=0.001 no_root_=0.000
+cross_environment_transfer         passive=0.000 triage=0.007 sweeper=0.000 old=0.000 new=0.098 no_model=0.178 no_compe=0.263 no_count=0.098 no_tempo=0.233 no_hidde=0.113 no_infor=0.265 no_plann=0.119 no_graph=0.103 no_cyber=0.319 no_memor=0.043 no_compu=0.098 no_uncer=0.135 no_root_=0.131
+structural_ood_recovery            passive=0.000 triage=0.110 sweeper=0.033 old=0.263 new=0.658 no_model=0.543 no_compe=0.647 no_count=0.652 no_tempo=0.667 no_hidde=0.711 no_infor=0.610 no_plann=0.655 no_graph=0.665 no_cyber=0.619 no_memor=0.418 no_compu=0.658 no_uncer=0.489 no_root_=0.558
+information_gathering_efficiency   passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.282 no_model=0.377 no_compe=0.283 no_count=0.315 no_tempo=0.356 no_hidde=0.297 no_infor=  NA  no_plann=0.334 no_graph=0.329 no_cyber=  NA  no_memor=0.365 no_compu=0.282 no_uncer=0.449 no_root_=0.314
+planning_quality                   passive=0.000 triage=0.161 sweeper=0.006 old=0.174 new=0.529 no_model=0.442 no_compe=0.509 no_count=0.516 no_tempo=0.592 no_hidde=0.550 no_infor=0.492 no_plann=0.480 no_graph=0.546 no_cyber=0.515 no_memor=0.388 no_compu=0.529 no_uncer=0.357 no_root_=0.474
+calibration                        passive=  NA  triage=  NA  sweeper=  NA  old=  NA  new=0.014 no_model=0.048 no_compe=0.029 no_count=0.000 no_tempo=0.076 no_hidde=0.027 no_infor=0.035 no_plann=0.038 no_graph=0.032 no_cyber=0.039 no_memor=0.004 no_compu=0.014 no_uncer=0.015 no_root_=0.008
+knowledge_retention                passive=0.000 triage=0.000 sweeper=0.000 old=0.000 new=0.092 no_model=0.037 no_compe=0.072 no_count=0.113 no_tempo=0.151 no_hidde=0.094 no_infor=0.064 no_plann=0.199 no_graph=0.139 no_cyber=0.072 no_memor=0.004 no_compu=0.092 no_uncer=0.042 no_root_=0.097
+recovery_quality                   passive=0.000 triage=0.221 sweeper=0.460 old=0.379 new=0.684 no_model=0.585 no_compe=0.684 no_count=0.716 no_tempo=0.718 no_hidde=0.711 no_infor=0.643 no_plann=0.566 no_graph=0.677 no_cyber=0.643 no_memor=0.616 no_compu=0.684 no_uncer=0.635 no_root_=0.672
+capability_per_compute             passive=0.000 triage=0.039 sweeper=0.000 old=0.001 new=0.001 no_model=0.001 no_compe=0.001 no_count=0.001 no_tempo=0.002 no_hidde=0.001 no_infor=0.001 no_plann=0.001 no_graph=0.001 no_cyber=0.001 no_memor=0.001 no_compu=0.001 no_uncer=0.001 no_root_=0.001
+safety_compliance                  passive=1.000 triage=1.000 sweeper=1.000 old=1.000 new=1.000 no_model=1.000 no_compe=0.948 no_count=1.000 no_tempo=1.000 no_hidde=1.000 no_infor=1.000 no_plann=1.000 no_graph=1.000 no_cyber=1.000 no_memor=1.000 no_compu=1.000 no_uncer=1.000 no_root_=1.000
+
+new vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  new=0.530 old=0.115 ratio=4.59
+   false_positive_control             new=0.680 old=0.493 ratio=1.38
+   cross_environment_transfer         new=0.098 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            new=0.658 old=0.263 ratio=2.50
+   planning_quality                   new=0.529 old=0.174 ratio=3.03
+   knowledge_retention                new=0.092 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   new=0.684 old=0.379 ratio=1.81
+   capability_per_compute             new=0.001 old=0.001 ratio=0.86
+   safety_compliance                  new=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(new)=0.209 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.85  95% CI [1.46, 2.40] (400 resamples)
+
+no_competing_hypotheses vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_competing_hypotheses=0.486 old=0.115 ratio=4.21
+   false_positive_control             no_competing_hypotheses=0.411 old=0.493 ratio=0.83
+   cross_environment_transfer         no_competing_hypotheses=0.263 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_competing_hypotheses=0.647 old=0.263 ratio=2.46
+   planning_quality                   no_competing_hypotheses=0.509 old=0.174 ratio=2.92
+   knowledge_retention                no_competing_hypotheses=0.072 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_competing_hypotheses=0.684 old=0.379 ratio=1.81
+   capability_per_compute             no_competing_hypotheses=0.001 old=0.001 ratio=0.80
+   safety_compliance                  no_competing_hypotheses=0.948 old=1.000 ratio=0.95
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_competing_hypotheses)=0.208 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.66  95% CI [1.32, 2.14] (400 resamples)
+
+no_compute_meta vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_compute_meta=0.530 old=0.115 ratio=4.59
+   false_positive_control             no_compute_meta=0.680 old=0.493 ratio=1.38
+   cross_environment_transfer         no_compute_meta=0.098 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_compute_meta=0.658 old=0.263 ratio=2.50
+   planning_quality                   no_compute_meta=0.529 old=0.174 ratio=3.03
+   knowledge_retention                no_compute_meta=0.092 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_compute_meta=0.684 old=0.379 ratio=1.81
+   capability_per_compute             no_compute_meta=0.001 old=0.001 ratio=0.86
+   safety_compliance                  no_compute_meta=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_compute_meta)=0.209 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.85  95% CI [1.46, 2.40] (400 resamples)
+
+no_counterfactuals vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_counterfactuals=0.509 old=0.115 ratio=4.41
+   false_positive_control             no_counterfactuals=0.657 old=0.493 ratio=1.33
+   cross_environment_transfer         no_counterfactuals=0.098 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_counterfactuals=0.652 old=0.263 ratio=2.48
+   planning_quality                   no_counterfactuals=0.516 old=0.174 ratio=2.96
+   knowledge_retention                no_counterfactuals=0.113 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_counterfactuals=0.716 old=0.379 ratio=1.89
+   capability_per_compute             no_counterfactuals=0.001 old=0.001 ratio=0.96
+   safety_compliance                  no_counterfactuals=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_counterfactuals)=0.215 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.86  95% CI [1.46, 2.43] (400 resamples)
+
+no_cyber_tools vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_cyber_tools=0.530 old=0.115 ratio=4.60
+   false_positive_control             no_cyber_tools=0.716 old=0.493 ratio=1.45
+   cross_environment_transfer         no_cyber_tools=0.319 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_cyber_tools=0.619 old=0.263 ratio=2.36
+   planning_quality                   no_cyber_tools=0.515 old=0.174 ratio=2.95
+   knowledge_retention                no_cyber_tools=0.072 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_cyber_tools=0.643 old=0.379 ratio=1.70
+   capability_per_compute             no_cyber_tools=0.001 old=0.001 ratio=1.01
+   safety_compliance                  no_cyber_tools=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_cyber_tools)=0.233 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.87  95% CI [1.51, 2.51] (400 resamples)
+
+no_graph vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_graph=0.546 old=0.115 ratio=4.73
+   false_positive_control             no_graph=0.686 old=0.493 ratio=1.39
+   cross_environment_transfer         no_graph=0.103 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_graph=0.665 old=0.263 ratio=2.53
+   planning_quality                   no_graph=0.546 old=0.174 ratio=3.13
+   knowledge_retention                no_graph=0.139 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_graph=0.677 old=0.379 ratio=1.79
+   capability_per_compute             no_graph=0.001 old=0.001 ratio=1.00
+   safety_compliance                  no_graph=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_graph)=0.225 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.91  95% CI [1.50, 2.48] (400 resamples)
+
+no_hidden_state vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_hidden_state=0.557 old=0.115 ratio=4.83
+   false_positive_control             no_hidden_state=0.688 old=0.493 ratio=1.39
+   cross_environment_transfer         no_hidden_state=0.113 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_hidden_state=0.711 old=0.263 ratio=2.71
+   planning_quality                   no_hidden_state=0.550 old=0.174 ratio=3.15
+   knowledge_retention                no_hidden_state=0.094 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_hidden_state=0.711 old=0.379 ratio=1.88
+   capability_per_compute             no_hidden_state=0.001 old=0.001 ratio=0.93
+   safety_compliance                  no_hidden_state=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_hidden_state)=0.219 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.93  95% CI [1.57, 2.42] (400 resamples)
+
+no_information_gain vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_information_gain=0.506 old=0.115 ratio=4.38
+   false_positive_control             no_information_gain=0.710 old=0.493 ratio=1.44
+   cross_environment_transfer         no_information_gain=0.265 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_information_gain=0.610 old=0.263 ratio=2.32
+   planning_quality                   no_information_gain=0.492 old=0.174 ratio=2.82
+   knowledge_retention                no_information_gain=0.064 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_information_gain=0.643 old=0.379 ratio=1.70
+   capability_per_compute             no_information_gain=0.001 old=0.001 ratio=0.97
+   safety_compliance                  no_information_gain=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_information_gain)=0.221 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.83  95% CI [1.47, 2.46] (400 resamples)
+
+no_memory vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_memory=0.394 old=0.115 ratio=3.41
+   false_positive_control             no_memory=0.757 old=0.493 ratio=1.54
+   cross_environment_transfer         no_memory=0.043 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_memory=0.418 old=0.263 ratio=1.59
+   planning_quality                   no_memory=0.388 old=0.174 ratio=2.22
+   knowledge_retention                no_memory=0.004 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_memory=0.616 old=0.379 ratio=1.63
+   capability_per_compute             no_memory=0.001 old=0.001 ratio=0.64
+   safety_compliance                  no_memory=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_memory)=0.117 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.53  95% CI [1.14, 2.08] (400 resamples)
+
+no_model_learning vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_model_learning=0.461 old=0.115 ratio=4.00
+   false_positive_control             no_model_learning=0.737 old=0.493 ratio=1.49
+   cross_environment_transfer         no_model_learning=0.178 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_model_learning=0.543 old=0.263 ratio=2.07
+   planning_quality                   no_model_learning=0.442 old=0.174 ratio=2.54
+   knowledge_retention                no_model_learning=0.037 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_model_learning=0.585 old=0.379 ratio=1.55
+   capability_per_compute             no_model_learning=0.001 old=0.001 ratio=0.76
+   safety_compliance                  no_model_learning=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_model_learning)=0.186 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.68  95% CI [1.27, 2.28] (400 resamples)
+
+no_planning vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_planning=0.484 old=0.115 ratio=4.20
+   false_positive_control             no_planning=0.798 old=0.493 ratio=1.62
+   cross_environment_transfer         no_planning=0.119 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_planning=0.655 old=0.263 ratio=2.49
+   planning_quality                   no_planning=0.480 old=0.174 ratio=2.75
+   knowledge_retention                no_planning=0.199 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_planning=0.566 old=0.379 ratio=1.50
+   capability_per_compute             no_planning=0.001 old=0.001 ratio=0.78
+   safety_compliance                  no_planning=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_planning)=0.224 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.77  95% CI [1.36, 2.38] (400 resamples)
+
+no_root_cause vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_root_cause=0.477 old=0.115 ratio=4.13
+   false_positive_control             no_root_cause=0.689 old=0.493 ratio=1.40
+   cross_environment_transfer         no_root_cause=0.131 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_root_cause=0.558 old=0.263 ratio=2.12
+   planning_quality                   no_root_cause=0.474 old=0.174 ratio=2.72
+   knowledge_retention                no_root_cause=0.097 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_root_cause=0.672 old=0.379 ratio=1.77
+   capability_per_compute             no_root_cause=0.001 old=0.001 ratio=0.78
+   safety_compliance                  no_root_cause=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_root_cause)=0.205 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.73  95% CI [1.37, 2.24] (400 resamples)
+
+no_temporal vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_temporal=0.587 old=0.115 ratio=5.09
+   false_positive_control             no_temporal=0.814 old=0.493 ratio=1.65
+   cross_environment_transfer         no_temporal=0.233 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_temporal=0.667 old=0.263 ratio=2.54
+   planning_quality                   no_temporal=0.592 old=0.174 ratio=3.40
+   knowledge_retention                no_temporal=0.151 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_temporal=0.718 old=0.379 ratio=1.90
+   capability_per_compute             no_temporal=0.002 old=0.001 ratio=1.91
+   safety_compliance                  no_temporal=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_temporal)=0.279 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 2.22  95% CI [1.65, 3.02] (400 resamples)
+
+no_uncertainty vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  no_uncertainty=0.345 old=0.115 ratio=3.00
+   false_positive_control             no_uncertainty=0.805 old=0.493 ratio=1.63
+   cross_environment_transfer         no_uncertainty=0.135 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            no_uncertainty=0.489 old=0.263 ratio=1.86
+   planning_quality                   no_uncertainty=0.357 old=0.174 ratio=2.05
+   knowledge_retention                no_uncertainty=0.042 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_uncertainty=0.635 old=0.379 ratio=1.68
+   capability_per_compute             no_uncertainty=0.001 old=0.001 ratio=0.57
+   safety_compliance                  no_uncertainty=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_uncertainty)=0.169 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.51  95% CI [1.12, 2.00] (400 resamples)
+
+passive vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  passive=0.000 old=0.115 ratio=0.00
+   false_positive_control             passive=1.000 old=0.493 ratio=2.03
+   cross_environment_transfer         passive=0.000 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            passive=0.000 old=0.263 ratio=0.00
+   planning_quality                   passive=0.000 old=0.174 ratio=0.00
+   knowledge_retention                passive=0.000 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   passive=0.000 old=0.379 ratio=0.00
+   capability_per_compute             passive=0.000 old=0.001 ratio=0.00
+   safety_compliance                  passive=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(passive)=0.000 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (400 resamples)
+
+sweeper vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  sweeper=0.000 old=0.115 ratio=0.00
+   false_positive_control             sweeper=0.891 old=0.493 ratio=1.81
+   cross_environment_transfer         sweeper=0.000 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            sweeper=0.033 old=0.263 ratio=0.13
+   planning_quality                   sweeper=0.006 old=0.174 ratio=0.03
+   knowledge_retention                sweeper=0.000 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   sweeper=0.460 old=0.379 ratio=1.22
+   capability_per_compute             sweeper=0.000 old=0.001 ratio=0.00
+   safety_compliance                  sweeper=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(sweeper)=0.000 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (400 resamples)
+
+triage vs old (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 7
+   defensive_utility                  triage=0.154 old=0.115 ratio=1.34
+   false_positive_control             triage=0.918 old=0.493 ratio=1.86
+   cross_environment_transfer         triage=0.007 old=0.000 ratio=undef(ref=0)
+   structural_ood_recovery            triage=0.110 old=0.263 ratio=0.42
+   planning_quality                   triage=0.161 old=0.174 ratio=0.92
+   knowledge_retention                triage=0.000 old=0.000 ratio=undef(ref=0)
+   recovery_quality                   triage=0.221 old=0.379 ratio=0.58
+   capability_per_compute             triage=0.039 old=0.001 ratio=34.97
+   safety_compliance                  triage=1.000 old=1.000 ratio=1.00
+   excluded calibration                  not jointly supported
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded cross_environment_transfer   denominator zero (OLD supported and scored zero)
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(triage)=0.000 composite(old)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.53  95% CI [0.80, 2.25] (400 resamples)
+
+new vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  new=0.530 triage=0.154 ratio=3.43
+   false_positive_control             new=0.680 triage=0.918 ratio=0.74
+   cross_environment_transfer         new=0.098 triage=0.007 ratio=13.26
+   structural_ood_recovery            new=0.658 triage=0.110 ratio=5.98
+   planning_quality                   new=0.529 triage=0.161 ratio=3.29
+   knowledge_retention                new=0.092 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   new=0.684 triage=0.221 ratio=3.10
+   capability_per_compute             new=0.001 triage=0.039 ratio=0.02
+   safety_compliance                  new=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(new)=0.209 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.63  95% CI [0.00, 2.27] (247 resamples)
+
+no_competing_hypotheses vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_competing_hypotheses=0.486 triage=0.154 ratio=3.15
+   false_positive_control             no_competing_hypotheses=0.411 triage=0.918 ratio=0.45
+   cross_environment_transfer         no_competing_hypotheses=0.263 triage=0.007 ratio=35.46
+   structural_ood_recovery            no_competing_hypotheses=0.647 triage=0.110 ratio=5.88
+   planning_quality                   no_competing_hypotheses=0.509 triage=0.161 ratio=3.17
+   knowledge_retention                no_competing_hypotheses=0.072 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_competing_hypotheses=0.684 triage=0.221 ratio=3.10
+   capability_per_compute             no_competing_hypotheses=0.001 triage=0.039 ratio=0.02
+   safety_compliance                  no_competing_hypotheses=0.948 triage=1.000 ratio=0.95
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_competing_hypotheses)=0.208 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.68  95% CI [0.00, 2.48] (247 resamples)
+
+no_compute_meta vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_compute_meta=0.530 triage=0.154 ratio=3.43
+   false_positive_control             no_compute_meta=0.680 triage=0.918 ratio=0.74
+   cross_environment_transfer         no_compute_meta=0.098 triage=0.007 ratio=13.26
+   structural_ood_recovery            no_compute_meta=0.658 triage=0.110 ratio=5.98
+   planning_quality                   no_compute_meta=0.529 triage=0.161 ratio=3.29
+   knowledge_retention                no_compute_meta=0.092 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_compute_meta=0.684 triage=0.221 ratio=3.10
+   capability_per_compute             no_compute_meta=0.001 triage=0.039 ratio=0.02
+   safety_compliance                  no_compute_meta=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_compute_meta)=0.209 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.63  95% CI [0.00, 2.27] (247 resamples)
+
+no_counterfactuals vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_counterfactuals=0.509 triage=0.154 ratio=3.30
+   false_positive_control             no_counterfactuals=0.657 triage=0.918 ratio=0.72
+   cross_environment_transfer         no_counterfactuals=0.098 triage=0.007 ratio=13.26
+   structural_ood_recovery            no_counterfactuals=0.652 triage=0.110 ratio=5.93
+   planning_quality                   no_counterfactuals=0.516 triage=0.161 ratio=3.21
+   knowledge_retention                no_counterfactuals=0.113 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_counterfactuals=0.716 triage=0.221 ratio=3.25
+   capability_per_compute             no_counterfactuals=0.001 triage=0.039 ratio=0.03
+   safety_compliance                  no_counterfactuals=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_counterfactuals)=0.215 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.64  95% CI [0.00, 2.26] (247 resamples)
+
+no_cyber_tools vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_cyber_tools=0.530 triage=0.154 ratio=3.44
+   false_positive_control             no_cyber_tools=0.716 triage=0.918 ratio=0.78
+   cross_environment_transfer         no_cyber_tools=0.319 triage=0.007 ratio=43.10
+   structural_ood_recovery            no_cyber_tools=0.619 triage=0.110 ratio=5.63
+   planning_quality                   no_cyber_tools=0.515 triage=0.161 ratio=3.21
+   knowledge_retention                no_cyber_tools=0.072 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_cyber_tools=0.643 triage=0.221 ratio=2.91
+   capability_per_compute             no_cyber_tools=0.001 triage=0.039 ratio=0.03
+   safety_compliance                  no_cyber_tools=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_cyber_tools)=0.233 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.91  95% CI [1.31, 2.86] (247 resamples)
+
+no_graph vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_graph=0.546 triage=0.154 ratio=3.54
+   false_positive_control             no_graph=0.686 triage=0.918 ratio=0.75
+   cross_environment_transfer         no_graph=0.103 triage=0.007 ratio=13.93
+   structural_ood_recovery            no_graph=0.665 triage=0.110 ratio=6.04
+   planning_quality                   no_graph=0.546 triage=0.161 ratio=3.40
+   knowledge_retention                no_graph=0.139 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_graph=0.677 triage=0.221 ratio=3.07
+   capability_per_compute             no_graph=0.001 triage=0.039 ratio=0.03
+   safety_compliance                  no_graph=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_graph)=0.225 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.69  95% CI [0.00, 2.32] (247 resamples)
+
+no_hidden_state vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_hidden_state=0.557 triage=0.154 ratio=3.61
+   false_positive_control             no_hidden_state=0.688 triage=0.918 ratio=0.75
+   cross_environment_transfer         no_hidden_state=0.113 triage=0.007 ratio=15.26
+   structural_ood_recovery            no_hidden_state=0.711 triage=0.110 ratio=6.46
+   planning_quality                   no_hidden_state=0.550 triage=0.161 ratio=3.42
+   knowledge_retention                no_hidden_state=0.094 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_hidden_state=0.711 triage=0.221 ratio=3.22
+   capability_per_compute             no_hidden_state=0.001 triage=0.039 ratio=0.03
+   safety_compliance                  no_hidden_state=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_hidden_state)=0.219 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.72  95% CI [0.00, 2.59] (247 resamples)
+
+no_information_gain vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_information_gain=0.506 triage=0.154 ratio=3.28
+   false_positive_control             no_information_gain=0.710 triage=0.918 ratio=0.77
+   cross_environment_transfer         no_information_gain=0.265 triage=0.007 ratio=35.82
+   structural_ood_recovery            no_information_gain=0.610 triage=0.110 ratio=5.54
+   planning_quality                   no_information_gain=0.492 triage=0.161 ratio=3.07
+   knowledge_retention                no_information_gain=0.064 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_information_gain=0.643 triage=0.221 ratio=2.91
+   capability_per_compute             no_information_gain=0.001 triage=0.039 ratio=0.03
+   safety_compliance                  no_information_gain=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_information_gain)=0.221 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.83  95% CI [1.25, 2.73] (247 resamples)
+
+no_memory vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_memory=0.394 triage=0.154 ratio=2.55
+   false_positive_control             no_memory=0.757 triage=0.918 ratio=0.82
+   cross_environment_transfer         no_memory=0.043 triage=0.007 ratio=5.83
+   structural_ood_recovery            no_memory=0.418 triage=0.110 ratio=3.80
+   planning_quality                   no_memory=0.388 triage=0.161 ratio=2.41
+   knowledge_retention                no_memory=0.004 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_memory=0.616 triage=0.221 ratio=2.79
+   capability_per_compute             no_memory=0.001 triage=0.039 ratio=0.02
+   safety_compliance                  no_memory=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_memory)=0.117 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.24  95% CI [0.00, 1.94] (247 resamples)
+
+no_model_learning vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_model_learning=0.461 triage=0.154 ratio=2.99
+   false_positive_control             no_model_learning=0.737 triage=0.918 ratio=0.80
+   cross_environment_transfer         no_model_learning=0.178 triage=0.007 ratio=23.96
+   structural_ood_recovery            no_model_learning=0.543 triage=0.110 ratio=4.93
+   planning_quality                   no_model_learning=0.442 triage=0.161 ratio=2.76
+   knowledge_retention                no_model_learning=0.037 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_model_learning=0.585 triage=0.221 ratio=2.65
+   capability_per_compute             no_model_learning=0.001 triage=0.039 ratio=0.02
+   safety_compliance                  no_model_learning=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_model_learning)=0.186 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.61  95% CI [1.06, 2.09] (247 resamples)
+
+no_planning vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_planning=0.484 triage=0.154 ratio=3.14
+   false_positive_control             no_planning=0.798 triage=0.918 ratio=0.87
+   cross_environment_transfer         no_planning=0.119 triage=0.007 ratio=16.10
+   structural_ood_recovery            no_planning=0.655 triage=0.110 ratio=5.95
+   planning_quality                   no_planning=0.480 triage=0.161 ratio=2.99
+   knowledge_retention                no_planning=0.199 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_planning=0.566 triage=0.221 ratio=2.57
+   capability_per_compute             no_planning=0.001 triage=0.039 ratio=0.02
+   safety_compliance                  no_planning=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_planning)=0.224 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.61  95% CI [0.00, 2.07] (247 resamples)
+
+no_root_cause vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_root_cause=0.477 triage=0.154 ratio=3.09
+   false_positive_control             no_root_cause=0.689 triage=0.918 ratio=0.75
+   cross_environment_transfer         no_root_cause=0.131 triage=0.007 ratio=17.73
+   structural_ood_recovery            no_root_cause=0.558 triage=0.110 ratio=5.07
+   planning_quality                   no_root_cause=0.474 triage=0.161 ratio=2.95
+   knowledge_retention                no_root_cause=0.097 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_root_cause=0.672 triage=0.221 ratio=3.05
+   capability_per_compute             no_root_cause=0.001 triage=0.039 ratio=0.02
+   safety_compliance                  no_root_cause=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_root_cause)=0.205 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.59  95% CI [0.00, 2.27] (247 resamples)
+
+no_temporal vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_temporal=0.587 triage=0.154 ratio=3.81
+   false_positive_control             no_temporal=0.814 triage=0.918 ratio=0.89
+   cross_environment_transfer         no_temporal=0.233 triage=0.007 ratio=31.41
+   structural_ood_recovery            no_temporal=0.667 triage=0.110 ratio=6.06
+   planning_quality                   no_temporal=0.592 triage=0.161 ratio=3.69
+   knowledge_retention                no_temporal=0.151 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_temporal=0.718 triage=0.221 ratio=3.26
+   capability_per_compute             no_temporal=0.002 triage=0.039 ratio=0.05
+   safety_compliance                  no_temporal=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_temporal)=0.279 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 2.13  95% CI [1.48, 2.74] (247 resamples)
+
+no_uncertainty vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  no_uncertainty=0.345 triage=0.154 ratio=2.24
+   false_positive_control             no_uncertainty=0.805 triage=0.918 ratio=0.88
+   cross_environment_transfer         no_uncertainty=0.135 triage=0.007 ratio=18.28
+   structural_ood_recovery            no_uncertainty=0.489 triage=0.110 ratio=4.44
+   planning_quality                   no_uncertainty=0.357 triage=0.161 ratio=2.22
+   knowledge_retention                no_uncertainty=0.042 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   no_uncertainty=0.635 triage=0.221 ratio=2.88
+   capability_per_compute             no_uncertainty=0.001 triage=0.039 ratio=0.02
+   safety_compliance                  no_uncertainty=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(no_uncertainty)=0.169 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 1.42  95% CI [0.00, 1.95] (247 resamples)
+
+old vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  old=0.115 triage=0.154 ratio=0.75
+   false_positive_control             old=0.493 triage=0.918 ratio=0.54
+   cross_environment_transfer         old=0.000 triage=0.007 ratio=0.00
+   structural_ood_recovery            old=0.263 triage=0.110 ratio=2.39
+   planning_quality                   old=0.174 triage=0.161 ratio=1.09
+   knowledge_retention                old=0.000 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   old=0.379 triage=0.221 ratio=1.72
+   capability_per_compute             old=0.001 triage=0.039 ratio=0.03
+   safety_compliance                  old=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(old)=0.000 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (247 resamples)
+
+passive vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  passive=0.000 triage=0.154 ratio=0.00
+   false_positive_control             passive=1.000 triage=0.918 ratio=1.09
+   cross_environment_transfer         passive=0.000 triage=0.007 ratio=0.00
+   structural_ood_recovery            passive=0.000 triage=0.110 ratio=0.00
+   planning_quality                   passive=0.000 triage=0.161 ratio=0.00
+   knowledge_retention                passive=0.000 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   passive=0.000 triage=0.221 ratio=0.00
+   capability_per_compute             passive=0.000 triage=0.039 ratio=0.00
+   safety_compliance                  passive=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(passive)=0.000 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (247 resamples)
+
+sweeper vs triage (paired, n=8): jointly-supported axes 9, axes with positive reference denominator 8
+   defensive_utility                  sweeper=0.000 triage=0.154 ratio=0.00
+   false_positive_control             sweeper=0.891 triage=0.918 ratio=0.97
+   cross_environment_transfer         sweeper=0.000 triage=0.007 ratio=0.00
+   structural_ood_recovery            sweeper=0.033 triage=0.110 ratio=0.30
+   planning_quality                   sweeper=0.006 triage=0.161 ratio=0.04
+   knowledge_retention                sweeper=0.000 triage=0.000 ratio=undef(ref=0)
+   recovery_quality                   sweeper=0.460 triage=0.221 ratio=2.09
+   capability_per_compute             sweeper=0.000 triage=0.039 ratio=0.00
+   safety_compliance                  sweeper=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded knowledge_retention          denominator zero (OLD supported and scored zero)
+   excluded diagnosis_quality            not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(sweeper)=0.000 composite(triage)=0.000 ratio=undefined: the reference composite is zero on the jointly supported axes
+   geomean of per-axis ratios (positive-denominator axes) = 0.00  95% CI [0.00, 0.00] (247 resamples)
+
+ablations (full minus ablated, paired per seed; positive = the mechanism helps):
+   no_competing_hypotheses    dSkill=+0.044 (se 0.039)  dComposite=+0.000 (se 0.000)  dUtility=+115  n=8
+   no_compute_meta            dSkill=+0.000 (se 0.000)  dComposite=+0.000 (se 0.000)  dUtility=+0  n=8
+   no_counterfactuals         dSkill=+0.021 (se 0.020)  dComposite=+0.000 (se 0.000)  dUtility=+27  n=8
+   no_cyber_tools             dSkill=-0.001 (se 0.040)  dComposite=-0.182 (se 0.090)  dUtility=-41  n=8
+   no_graph                   dSkill=-0.016 (se 0.025)  dComposite=+0.000 (se 0.000)  dUtility=-110  n=8
+   no_hidden_state            dSkill=-0.027 (se 0.025)  dComposite=+0.000 (se 0.000)  dUtility=-126  n=8
+   no_information_gain        dSkill=+0.024 (se 0.041)  dComposite=-0.175 (se 0.087)  dUtility=+27  n=8
+   no_memory                  dSkill=+0.136 (se 0.047)  dComposite=-0.100 (se 0.050)  dUtility=+406  n=8
+   no_model_learning          dSkill=+0.069 (se 0.044)  dComposite=-0.174 (se 0.063)  dUtility=+169  n=8
+   no_planning                dSkill=+0.046 (se 0.031)  dComposite=-0.151 (se 0.073)  dUtility=+101  n=8
+   no_root_cause              dSkill=+0.053 (se 0.033)  dComposite=+0.000 (se 0.000)  dUtility=+101  n=8
+   no_temporal                dSkill=-0.057 (se 0.046)  dComposite=+0.000 (se 0.000)  dUtility=-226  n=8
+   no_uncertainty             dSkill=+0.184 (se 0.050)  dComposite=-0.122 (se 0.060)  dUtility=+628  n=8

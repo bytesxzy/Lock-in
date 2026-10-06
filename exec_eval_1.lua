@@ -18,6 +18,8 @@ HOW TO USE (Replit or any Lua 5.4):
         lua main.lua cyber-eval --set held --variants new,old,triage --budgets 4 --save rows.lua --summary    paired evaluation, raw rows saved
         lua main.lua cyber-report rows1.lua rows2.lua                 merge saved rows into the paired report (ratios vs OLD, ablation deltas)
         lua main.lua cyber-trace --seed 201 --set val                 decoded decision-provenance ring of the cyber controller
+        lua main.lua cyber-replay rows.lua --row 3                    re-run one saved row (or --all) and check its replay digest
+        lua main.lua cyber-stress --set val --works 6000000,4194304   metered controller vs its compute-ablated twin under tight work budgets
         lua main.lua compare --only parity --limit 8 --out out.lua     part of the pre-registered evaluation (writes a Lua-table report)
         lua main.lua report out.lua            read a report;   lua main.lua replay out.lua --row 1   re-run a row, check its trace hash
         lua main.lua prompt                    print the implementation prompt embedded in the handoff
@@ -265,7 +267,7 @@ WHAT IS NOT CLAIMED
 return {
   language = "Lua 5.4",
   entry = "lua asi.lua <subcommand>",
-  subcommands = {"prompt", "validate", "selftest", "risk", "episode", "parity", "compare", "reason", "reason-compare", "reason-report", "merge", "report", "replay", "trace", "cyber-run", "cyber-eval", "cyber-report", "cyber-trace"},
+  subcommands = {"prompt", "validate", "selftest", "risk", "episode", "parity", "compare", "reason", "reason-compare", "reason-report", "merge", "report", "replay", "trace", "cyber-run", "cyber-eval", "cyber-report", "cyber-trace", "cyber-replay", "cyber-stress"},
   suites = {"math", "rng", "validate", "world", "vm", "gl", "risk", "proof", "parity", "twin", "mutation", "harness", "reason", "cyber"},
 }
 end
@@ -18197,7 +18199,7 @@ local ALIASES = {["--prompt"] = "prompt", ["--validate"] = "validate", ["--selft
 commands.help = function()
   local src = debug.getinfo(1, "S").source
   out("Usage: lua <this file> <subcommand> [options]   (Lua 5.4 only)\n",
-      "Subcommands: prompt validate selftest risk episode parity compare reason reason-compare reason-report merge report replay trace cyber-run cyber-eval cyber-report cyber-trace help\n",
+      "Subcommands: prompt validate selftest risk episode parity compare reason reason-compare reason-report merge report replay trace cyber-run cyber-eval cyber-report cyber-trace cyber-replay cyber-stress help\n",
       "Options are listed in the header comment of asi/cli.lua (in the single-file bundle: the section marked asi.cli).\n",
       "Exit status: 0 ok, 1 violated invariant / failed check, 2 rejected input.\n")
   return 0
@@ -18290,8 +18292,8 @@ commands["cyber-run"] = function(args)
   local E = require("asi.cyber.eval")
   local Env = require("asi.cyber.env")
   local set = opt.set or "dev"
-  if not Env.PROTOCOL.sets[set] then bad("unknown set " .. set) end
-  local seed = opt.seed and math.tointeger(tonumber(opt.seed)) or Env.PROTOCOL.sets[set][1]
+  if not Env.seeds(set) then bad("unknown set " .. set) end
+  local seed = opt.seed and math.tointeger(tonumber(opt.seed)) or Env.seeds(set)[1]
   local b = opt.budget and math.tointeger(tonumber(opt.budget)) or 4
   if b ~= 1 and b ~= 2 and b ~= 4 then bad("budget must be 1, 2 or 4 (quarters)") end
   local name = opt.variant or "new"
@@ -18310,8 +18312,8 @@ commands["cyber-trace"] = function(args)
   local E = require("asi.cyber.eval")
   local Env = require("asi.cyber.env")
   local set = opt.set or "dev"
-  if not Env.PROTOCOL.sets[set] then bad("unknown set " .. set) end
-  local seed = opt.seed and math.tointeger(tonumber(opt.seed)) or Env.PROTOCOL.sets[set][1]
+  if not Env.seeds(set) then bad("unknown set " .. set) end
+  local seed = opt.seed and math.tointeger(tonumber(opt.seed)) or Env.seeds(set)[1]
   local v = E.variant(opt.variant or "new")
   if v.kind ~= "new" then bad("only cyber-interface variants keep a provenance ring") end
   local _, _, vm = E.run(v.art, {seed = seed, set = set, kind = v.kind})
@@ -18329,7 +18331,7 @@ commands["cyber-eval"] = function(args)
   local E = require("asi.cyber.eval")
   local Env = require("asi.cyber.env")
   local set = opt.set or "dev"
-  if not Env.PROTOCOL.sets[set] then bad("unknown set " .. set) end
+  if not Env.seeds(set) then bad("unknown set " .. set) end
   local variants = opt.variants and split_csv(opt.variants) or {"new"}
   if opt.baselines then for _, n in ipairs(E.BASELINES) do variants[#variants + 1] = n end end
   if opt.ablations then for _, n in ipairs(E.ABLATIONS) do variants[#variants + 1] = n end end
@@ -18344,6 +18346,57 @@ commands["cyber-eval"] = function(args)
   end
   local rep = E.aggregate(rows)
   if opt.summary or not opt.save then out(E.format(rep), "\n") else out(U.to_literal(rep), "\n") end
+  return 0
+end
+
+commands["cyber-replay"] = function(args)
+  local pos, opt = parse(args, 2, {row="value", all="flag"})
+  if #pos ~= 1 then bad("cyber-replay needs one rows file written by cyber-eval --save") end
+  local E = require("asi.cyber.eval")
+  local Env = require("asi.cyber.env")
+  local rows = read_rows(pos[1])
+  local first, last = 1, #rows
+  if not opt.all then
+    local n = opt.row and math.tointeger(tonumber(opt.row)) or 1
+    if not n or n < 1 or n > #rows then bad("row out of range 1.." .. #rows) end
+    first, last = n, n
+  end
+  local bad_rows = 0
+  for n = first, last do
+    local r = rows[n]
+    local v = E.variant(r.variant)
+    local again = E.run(v.art, {seed = r.seed, set = r.set, kind = v.kind, variant = r.variant, budget_quarters = r.budget_quarters,
+                                work_budget = Env.PROTOCOL.work_budget * r.budget_quarters // Env.PROTOCOL.budget_den})
+    local same = again.digest == r.digest
+    if not same then bad_rows = bad_rows + 1 end
+    out(string.format("row %d: %s seed=%d set=%s budget=%d/4 digest %s %s\n", n, r.variant, r.seed, r.set, r.budget_quarters, r.digest:sub(1, 16), same and "reproduced" or "MISMATCH (" .. again.digest:sub(1, 16) .. ")"))
+  end
+  return bad_rows == 0 and 0 or 1
+end
+
+-- compute-stress table: the metered controller against its compute-ablated twin under work budgets below the frozen protocol's
+commands["cyber-stress"] = function(args)
+  local pos, opt = parse(args, 2, {set="value", works="value", seeds="value", variants="value"})
+  if #pos > 0 then bad("cyber-stress accepts options only") end
+  local E = require("asi.cyber.eval")
+  local Env = require("asi.cyber.env")
+  local set = opt.set or "val"
+  if not Env.seeds(set) then bad("unknown set " .. set) end
+  local works = opt.works and split_csv(opt.works, true) or {Env.PROTOCOL.work_budget // 4, 6000000, Env.PROTOCOL.work_budget // 8}
+  local seeds = opt.seeds and split_csv(opt.seeds, true) or Env.seeds(set)
+  local variants = opt.variants and split_csv(opt.variants) or {"new", "no_compute_meta"}
+  out(string.format("%-18s %12s %10s %8s %8s\n", "variant", "work budget", "complete", "skill", "work"))
+  for _, w in ipairs(works) do
+    for _, name in ipairs(variants) do
+      local v = E.variant(name)
+      local ok, sk, wk = 0, 0, 0
+      for _, seed in ipairs(seeds) do
+        local row = E.run(v.art, {seed = seed, set = set, kind = v.kind, variant = name, work_budget = w})
+        if row.complete then ok = ok + 1 end; sk = sk + row.skill; wk = wk + row.work
+      end
+      out(string.format("%-18s %12d %7d/%-2d %8.3f %7.2fM\n", name, w, ok, #seeds, sk / #seeds, wk / #seeds / 1e6))
+    end
+  end
   return 0
 end
 
@@ -41797,6 +41850,14 @@ Env.PROTOCOL = {
   reference = "perfect-information reactive defender (evaluator-only); passive = no action",
 }
 Env.protocol_hash = U.sha256(U.to_literal({Env.PROTOCOL, W.PARAMS, W.BASE_ACT_COST, W.BASE_TOOL_COST, W.BASE_VERIFY}))
+-- Fresh held-out sets drawn from the same generator and parameters as the frozen sets. They are NOT part of the frozen protocol (its hash is
+-- unchanged); each is meant to be run once. heldC confirms the final controller after the first held-out pass had shown a defect (see the
+-- reports); heldD is still unused.
+Env.RESERVE = {
+  heldC = {9201, 9202, 9203, 9204, 9205, 9206, 9207, 9208, 9209, 9210, 9211, 9212, 9213, 9214, 9215, 9216},
+  heldD = {9301, 9302, 9303, 9304, 9305, 9306, 9307, 9308, 9309, 9310, 9311, 9312, 9313, 9314, 9315, 9316},
+}
+function Env.seeds(set) return Env.PROTOCOL.sets[set] or Env.RESERVE[set] end
 
 ------------------------------------------------------------------------------------------------ stream (shared by both front ends)
 local Stream = {}; Stream.__index = Stream
@@ -42478,14 +42539,16 @@ function G.install(P, cfg)
       local fe, ce = f:var("fe", f:ld(R.EFEAT + s)), f:var("ce", f:ld(R.EFEAT + nc))
       f:st(R.ECRED + s, nc); f:st(R.SBC + sg, f:ld(R.SBC + sg) + 1)
       f:run("c_pend_hit", best, nc)
-      f:iff((ce & 2095):ne(0), function() f:set(fe, fe | 128) end,
-        function() f:set(fe, fe & (~(1 | 4 | 32 | 512 | 64 | 2048))) end)          -- explained by a normal cause: routine consequences are not anomalies
+      f:iff((ce & 2095):ne(0), function() if not cfg.no_tchain then f:set(fe, fe | 128) end end,
+        function() if not cfg.no_texplain then f:set(fe, fe & (~(cfg.texmask or (1 | 4 | 512)))) end end)          -- explained by a normal cause: such a record is not statistically rare / off-profile / bulk (its lateral, external and new-image evidence is kept)
       f:st(R.EFEAT + s, fe)
       f:ret(1)
     end)
-    f:iff(GL.and_(f:ld(R.SBN + sg):ge(6), (f:ld(R.SBC + sg) * 4):ge(f:ld(R.SBN + sg) * 3)), function()
-      f:st(R.EFEAT + s, f:ld(R.EFEAT + s) | 2)                                  -- its usual cause is missing
-    end)
+    if not cfg.no_tnocause then
+      f:iff(GL.and_(f:ld(R.SBN + sg):ge(6), (f:ld(R.SBC + sg) * 4):ge(f:ld(R.SBN + sg) * 3)), function()
+        f:st(R.EFEAT + s, f:ld(R.EFEAT + s) | 2)                                  -- its usual cause is missing
+      end)
+    end
     f:ret(0)
   end)
   -- the cause event in slot s makes forecasts through every credible link that starts at its signature
@@ -43558,7 +43621,7 @@ E.AXIS_DEFS = {
 -- digest of the passive and reference utility traces of every seed of a set: any change of physics, sets or reference changes it
 function E.world_digest(set)
   local parts = {}
-  for _, seed in ipairs(Env.PROTOCOL.sets[set]) do
+  for _, seed in ipairs(Env.seeds(set)) do
     local b = E.bounds(seed, set)
     parts[#parts + 1] = seed .. ":" .. table.concat(b.passive, ",") .. ":" .. table.concat(b.ref, ",")
   end
@@ -43926,7 +43989,7 @@ end
 function E.collect(opt)
   opt = opt or {}
   local set = opt.set or "dev"
-  local seeds = opt.seeds or Env.PROTOCOL.sets[set]
+  local seeds = opt.seeds or Env.seeds(set)
   assert(seeds, "unknown cyber set " .. tostring(set))
   local variants = opt.variants or {"new", "passive", "triage", "sweeper", "old"}
   local rows = {}
@@ -44018,11 +44081,15 @@ function E.aggregate(rows, opt)
       table.sort(ps, function(x, y) return x[3] < y[3] end)
       return ps
     end
-    -- paired comparison of every variant against OLD on the jointly supported axes
-    if by[b].old then
+    -- paired comparison of every variant against a reference variant (OLD = the pre-upgrade reasoner; triage = a strong fixed heuristic)
+    -- on the jointly supported axes
+    for _, refname in ipairs({"old", "triage"}) do
+     local key = "vs_" .. refname
+     R[key] = R[key] or {}
+     if by[b][refname] then
       for _, name in ipairs(order) do
-        if name ~= "old" then
-          local ps = paired(name, "old")
+        if name ~= refname then
+          local ps = paired(name, refname)
           if #ps > 0 then
             local rec = {n = #ps, axes = {}, excluded = {}}
             local ratios, keep = {}, {}
@@ -44049,7 +44116,7 @@ function E.aggregate(rows, opt)
             for _, a in ipairs(rec.joint_axes) do nv[#nv + 1] = rec.axes[a].new; ov[#ov + 1] = rec.axes[a].old end
             rec.composite_new, rec.composite_old = geo(nv), geo(ov)
             rec.composite_ratio = (rec.composite_old and rec.composite_old > 0) and rec.composite_new / rec.composite_old or nil
-            rec.composite_ratio_note = rec.composite_ratio and nil or "undefined: OLD composite is zero on the jointly supported axes"
+            rec.composite_ratio_note = rec.composite_ratio and nil or "undefined: the reference composite is zero on the jointly supported axes"
             -- paired seed bootstrap of the ratio-geomean over the fixed set of axes with positive OLD denominators
             if #ratios > 0 and #ps > 1 then
               local rnd, samples = lcg(1000003 + b), {}
@@ -44069,10 +44136,11 @@ function E.aggregate(rows, opt)
               table.sort(samples)
               if #samples >= 20 then rec.ratio_ci = {samples[math.max(1, (#samples * 25) // 1000)], samples[math.min(#samples, (#samples * 975) // 1000)], #samples} end
             end
-            R.vs_old[name] = rec
+            R[key][name] = rec
           end
         end
       end
+     end
     end
     -- ablations: paired per-seed deltas against the full model
     if by[b].new then
@@ -44205,14 +44273,22 @@ function E.format(rep)
       end
       p("%s", table.concat(line, " "))
     end
-    for name, rec in pairs(R.vs_old) do
-      p("\n%s vs OLD (paired, n=%d): jointly-supported axes %d, axes with positive OLD denominator %d", name, rec.n, #rec.joint_axes, rec.ratio_axes_n)
+    local reflist = {}
+    for _, refname in ipairs({"old", "triage"}) do
+      local names_ = {}
+      for name in pairs(R["vs_" .. refname]) do names_[#names_ + 1] = name end
+      table.sort(names_)
+      for _, name in ipairs(names_) do reflist[#reflist + 1] = {name, R["vs_" .. refname][name], refname} end
+    end
+    for _, item in ipairs(reflist) do
+      local name, rec, refname = item[1], item[2], item[3]
+      p("\n%s vs %s (paired, n=%d): jointly-supported axes %d, axes with positive reference denominator %d", name, refname, rec.n, #rec.joint_axes, rec.ratio_axes_n)
       for _, a in ipairs(rec.joint_axes) do
         local x = rec.axes[a]
-        p("   %-34s new=%s old=%s ratio=%s", a, f(x.new), f(x.old), x.ratio and string.format("%.2f", x.ratio) or "undef(old=0)")
+        p("   %-34s %s=%s %s=%s ratio=%s", a, name, f(x.new), refname, f(x.old), x.ratio and string.format("%.2f", x.ratio) or "undef(ref=0)")
       end
       for a, why in pairs(rec.excluded) do p("   excluded %-28s %s", a, why) end
-      p("   composite(new)=%s composite(old)=%s ratio=%s", f(rec.composite_new), f(rec.composite_old), rec.composite_ratio and string.format("%.2f", rec.composite_ratio) or rec.composite_ratio_note)
+      p("   composite(%s)=%s composite(%s)=%s ratio=%s", name, f(rec.composite_new), refname, f(rec.composite_old), rec.composite_ratio and string.format("%.2f", rec.composite_ratio) or rec.composite_ratio_note)
       p("   geomean of per-axis ratios (positive-denominator axes) = %s  95%% CI %s", rec.ratio_geomean and string.format("%.2f", rec.ratio_geomean) or "NA",
         rec.ratio_ci and string.format("[%.2f, %.2f] (%d resamples)", rec.ratio_ci[1], rec.ratio_ci[2], rec.ratio_ci[3]) or "NA")
     end

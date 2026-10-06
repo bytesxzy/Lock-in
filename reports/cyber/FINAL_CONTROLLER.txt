@@ -3,3 +3,9 @@ bundle sha256 c014795fc0f14d78fe6d288de3f1d015272008486388b4d84dab2c7a9f2106c8
 image bits    407008	6316	14281  (bits, words, ram_top)
 protocol_hash 8005afaf009058772ccb4f97c73f05073af2ecadc2f5e414e62c71a244dcfea1
 Changes after the baseline freeze (guest-side only; benchmark pins unchanged): epistemic-status report words, guest documentation.
+guest image sha256 0d8889620da81f1f0a4dbcfc8b2164cb6545173e59c927052d9130aa714b2dbe  (G.build({}); every later change to the guest after this record would invalidate the held-out result)
+
+CONTROLLER v2 (recorded before heldC was ever run): guest image sha256 ddd017290cb1762614a3fb232b4470ca82abb35c3f471eceeef499a481cde742  (407008 bits, 6316 words)
+Change from v1: the temporal explain-away step clears only the rare / off-profile / bulk features of an explained record (was: also lateral, external, new-image, config evidence).
+Selection evidence (mean defensive skill over dev,diag,val,ood,adv): v1 0.475; explain-away off 0.505; mask rare|offprofile|bulk 0.530; rare|offprofile 0.527; rare 0.526.
+heldC (9201-9216) and heldD (9301-9316, unused) are fresh sets outside the frozen protocol (Env.RESERVE); the frozen protocol hash is unchanged.
