@@ -42195,6 +42195,7 @@ function G.install(P, cfg)
   -- learned world context (what is normal here)
   mem("SBN", NSIG); mem("SBC", NSIG); mem("PROF", 216); mem("EDGE", 256); mem("IMGN", 32)
   -- evidence engine: class 0 host compromised, 1 user credential stolen, 2 host persistence
+  mem("TLC", 8)
   mem("HEV", 256); mem("UEV", 192)                      -- per-tick feature counts per entity
   mem("EB", 48); mem("PRI", 4)                          -- log-odds x16 per (class*16+id), prior log-odds per class
   mem("C1", 48); mem("C0", 48); mem("E1", 4); mem("E0", 4); mem("G0", 48); mem("GT", 4)   -- labelled counts, labelled exposure, stream base counts
@@ -42388,8 +42389,7 @@ function G.install(P, cfg)
     inc(f, 0)
     f:run("c_features", s)
     f:run("c_fq_match", s)
-    f:run("c_link_credit", s)
-    f:run("c_predict_effects", s)
+    f:iff(f:ld(R.MODE):gt(0), function() f:run("c_link_credit", s); f:run("c_predict_effects", s) end)      -- economy mode stops mining temporal links
     f:run("c_attribute", s)
     f:run("c_absorb", s)
     f:st(R.EVAL + s, 1); f:st(R.RPOS, (s + 1) % NE)
@@ -43158,26 +43158,45 @@ function G.install(P, cfg)
   end)
   -- incident timeline: anomalous events related to the leading hypothesis (same host, peer, or an observed edge), in time order, last eight
   P:func("c_timeline", {}, function(f)
-    local k, sl, a, h, p, cnt, ok, i = f:var("k"), f:var("sl"), f:var("a", f:ld(R.LEAD)), f:var("h"), f:var("p"), f:var("cnt", 0), f:var("ok"), f:var("i")
-    f:iff(f:ld(R.PC + a):lt(100), function() f:ret(0) end)
+    -- incident timeline: the most suspicious recent records of the whole network (summed log-likelihood weight of their features, a
+    -- bonus for records on the leading hypothesis), chronological by reported time. TMP: [0..7] weight, [8..15] slot, [16..23] key, [24..31] seq.
+    local k, w, i, m, n, j, key, cur = f:var("k"), f:var("w"), f:var("i"), f:var("m"), f:var("n", 0), f:var("j"), f:var("key"), f:var("cur")
+    local a = f:var("a", f:ld(R.LEAD))
+    f:for_(i, 0, 8, function() f:st(R.TMP + i, -1); f:st(R.TMP + 8 + i, 0) end)
+    f:set(cur, f:ld(R.T) - (cfg.tlwin or 12))
     f:for_(k, 0, NE, function()
-      f:set(sl, (f:ld(R.RPOS) + k) % NE)
-      f:iff(GL.and_(f:ld(R.EVAL + sl):ne(0), (f:ld(R.EFEAT + sl) & 472):ne(0)), function()
-        f:set(h, f:ld(R.EH + sl)); f:set(p, f:ld(R.EP + sl)); f:set(ok, 0)
-        f:iff(GL.or_(h:eq(a), p:eq(a)), function() f:set(ok, 1) end)
-        f:iff(GL.and_(ok:eq(0), h:lt(f:ld(R.NH)), f:ld(R.PC + h):ge(100)), function()          -- another host of the incident: suspected, and linked to the anchor
-          f:iff(GL.or_(f:ld(R.EDGE + a * 16 + h):ne(0), f:ld(R.EDGE + h * 16 + a):ne(0)), function() f:set(ok, 1) end)
-        end)
-        f:iff(ok:ne(0), function()                                  -- keep the events that drove the belief: summed log-likelihood weight of their features
-          f:set(ok, 0)
-          f:for_(i, 0, G.NB, function() f:iff(((f:ld(R.EFEAT + sl) >> i) & 1):ne(0), function() f:set(ok, ok + f:ld(R.W1 + i)) end) end)
-          f:iff(ok:ge(48), function() f:st(R.TMP + (cnt % 8), f:ld(R.ESEQ + sl)); f:set(cnt, cnt + 1) end)
+      f:iff(f:ld(R.EFEAT + k):ne(0), function()
+        f:iff(GL.and_(f:ld(R.ETE + k):ge(cur), f:ld(R.EVAL + k):ne(0), f:ld(R.EPRED + k):ne(8)), function()
+          f:set(w, 0); f:set(key, f:ld(R.EFEAT + k)); f:set(i, 0)
+          f:while_(key:ne(0), function()
+            f:iff((key & 1):ne(0), function() f:set(w, w + f:ld(R.W1 + i)) end)
+            f:set(key, key >> 1); f:set(i, i + 1)
+          end)
+          f:iff(GL.and_(f:ld(R.PC + a):ge(100), GL.or_(f:ld(R.EH + k):eq(a), f:ld(R.EP + k):eq(a))), function() f:set(w, w + (cfg.tlbonus or 24)) end)
+          f:iff(w:ge(cfg.tlth or 32), function()
+            f:set(m, 0)
+            f:for_(i, 1, 8, function() f:iff(f:ld(R.TMP + i):lt(f:ld(R.TMP + m)), function() f:set(m, i) end) end)
+            f:iff(w:gt(f:ld(R.TMP + m)), function() f:st(R.TMP + m, w); f:st(R.TMP + 8 + m, k) end)
+          end)
         end)
       end)
     end)
-    f:iff(cnt:gt(8), function() f:set(k, cnt % 8) end, function() f:set(k, 0) end)
-    f:iff(cnt:gt(8), function() f:set(cnt, 8) end)
-    f:for_(i, 0, cnt, function() f:st(R.REP + 8 + i, f:ld(R.TMP + (k + i) % 8)) end)
+    f:for_(i, 0, 8, function()
+      f:iff(f:ld(R.TMP + i):ge(0), function()
+        f:set(k, f:ld(R.TMP + 8 + i))
+        f:st(R.TMP + 16 + n, (f:ld(R.ETE + k) << 20) | f:ld(R.ESEQ + k)); f:st(R.TMP + 24 + n, f:ld(R.ESEQ + k))
+        f:set(n, n + 1)
+      end)
+    end)
+    -- insertion sort by key
+    f:for_(i, 1, n, function()
+      f:set(key, f:ld(R.TMP + 16 + i)); f:set(cur, f:ld(R.TMP + 24 + i)); f:set(j, i)
+      f:while_(GL.and_(j:gt(0), f:ld(R.TMP + 16 + j - 1):gt(key)), function()
+        f:st(R.TMP + 16 + j, f:ld(R.TMP + 16 + j - 1)); f:st(R.TMP + 24 + j, f:ld(R.TMP + 24 + j - 1)); f:set(j, j - 1)
+      end)
+      f:st(R.TMP + 16 + j, key); f:st(R.TMP + 24 + j, cur)
+    end)
+    f:for_(i, 0, n, function() f:st(R.REP + 8 + i, f:ld(R.TMP + 24 + i)) end)
   end)
   P:func("c_report", {}, function(f)
     f:run("c_zero", R.REP, 64)
@@ -43185,7 +43204,11 @@ function G.install(P, cfg)
     f:st(R.REP + 2, f:call("c_pack", R.PU, 8)); f:st(R.REP + 3, f:call("c_pack", R.PU + 8, 4))
     f:st(R.REP + 4, f:call("c_pack", R.PP, 8)); f:st(R.REP + 5, f:call("c_pack", R.PP + 8, 8))
     f:st(R.REP + 6, 255)
-    f:run("c_timeline")
+    f:iff(f:ld(R.RND):eq(0), function() f:run("c_zero", R.TLC, 8) end)
+    -- economy mode recomputes the incident timeline every fourth round and re-submits the last one in between
+    f:iff(GL.or_(f:ld(R.MODE):gt(0), (f:ld(R.RND) & 3):eq(0)), function()
+      f:run("c_timeline"); f:run("c_copy", R.TLC, R.REP + 8, 8)
+    end, function() f:run("c_copy", R.REP + 8, R.TLC, 8) end)
   end)
 
   ------------------------------------------------------------------ provenance, compute mode, forecasts
@@ -43238,7 +43261,7 @@ function G.install(P, cfg)
     f:set(a, f:clk(3) // rem)
     f:st(R.MODE, 1)
     f:iff(a:ge(45000), function() f:st(R.MODE, 2) end)
-    f:iff(a:lt(18000), function() f:st(R.MODE, 0) end)
+    f:iff(a:lt(28000), function() f:st(R.MODE, 0) end)
     if cfg.no_compute_meta then f:st(R.MODE, 1) end
   end)
   -- prospective forecasts of future telemetry (scored when they resolve): (1) what the two leading hypotheses predict -- external
@@ -43252,7 +43275,7 @@ function G.install(P, cfg)
     f:for_(r, 0, 2, function()
       f:set(best, -1); f:set(bp, 99)
       f:for_(h, 0, f:ld(R.NH), function() f:iff(GL.and_(f:ld(R.USED + h):eq(0), f:ld(R.PC + h):gt(bp)), function() f:set(bp, f:ld(R.PC + h)); f:set(best, h) end) end)
-      f:iff(best:ge(0), function()
+      f:iff(GL.and_(best:ge(0), f:ld(R.PC + best):ge(cfg.fqmin or 300)), function()
         f:st(R.USED + best, 1); f:set(p, f:ld(R.PC + best))
         f:for_(k, 0, 2, function()
           f:set(bit, 6); f:iff(k:eq(1), function() f:set(bit, 3) end)
@@ -43285,6 +43308,7 @@ function G.install(P, cfg)
             f:set(hi, f:ld(R.PT2 + kk) - f:ld(R.T) + f:ld(R.MAXD)); f:iff(hi:lt(lo), function() f:set(hi, lo) end); f:iff(hi:gt(12), function() f:set(hi, 12) end); f:iff(lo:gt(hi), function() f:set(lo, hi) end)
             f:set(p1, ((f:ld(R.LPH + l) + 1) * 1024) // (f:ld(R.LPN + l) + 2))
             f:set(src, 8 + (p1 >> 7)); f:iff(src:gt(15), function() f:set(src, 15) end)         -- pooled reliability bins over the forecast's own model probability
+            if not cfg.coarse_bins then f:set(src, 16 + (f:ld(R.LP2 + l) - 1) * 8 + f:call("min3", p1 >> 7, 7, 7)) end   -- ... per predicted event type
             f:set(p1, (f:ld(R.FCH + src) * 1024 + 3 * p1) // (f:ld(R.FCN + src) + 3))
             f:set(slot, f:call("c_fq_issue", f:ld(R.LP2 + l), host, lo, hi))
             f:iff(slot:ge(0), function()
@@ -43329,7 +43353,7 @@ function G.install(P, cfg)
     f:run("c_decide")
     f:run("c_shield")
     f:run("c_report")
-    f:run("c_forecasts")
+    f:iff(f:ld(R.MODE):gt(0), function() f:run("c_forecasts") end)
     f:iff(f:sys("CREP", R.REP):ne(0), function() inc(f, 14) end)
     f:st(R.FA, f:ld(R.ACTID)); f:st(R.FA + 1, f:ld(R.ACTX)); f:st(R.FA + 2, f:ld(R.ACTY))
     f:iff(f:ld(R.ACTID):ne(0), function() f:run("c_trace", 2, f:ld(R.ACTID), f:ld(R.ACTX), f:ld(R.EUBEST)) end)
@@ -43531,6 +43555,31 @@ local function fp_cost(S, act, x)
   local dur = ({[1] = 4, [5] = 1, [6] = 2, [7] = 1, [9] = 4})[act] or 0
   return S.act_cost[act] + per * dur
 end
+-- frequency of "an event of this type (external-only for kind 1) is delivered at host h inside a window of the same length" over all
+-- hosts and all start ticks of the forecast's stage; cached per stream
+function E.climatology(s, p)
+  s.clim = s.clim or {}
+  local len = p.hi - p.lo + 1
+  local key = p.stage .. ":" .. p.type .. ":" .. p.kind .. ":" .. len
+  if s.clim[key] then return s.clim[key] end
+  local S = s.specs[p.stage]
+  local T = Env.ROUNDS + 2
+  local seen = {}
+  for h = 0, S.nh - 1 do seen[h] = {} end
+  for _, d in ipairs(s.delivered) do
+    if d.stage == p.stage and d.pred == p.type and seen[d.host] and (p.kind == 0 or d.ext) then seen[d.host][d.t] = true end
+  end
+  local hit, tot = 0, 0
+  for h = 0, S.nh - 1 do
+    for t0 = 1, T - len do
+      tot = tot + 1
+      for t = t0, t0 + len - 1 do if seen[h][t] then hit = hit + 1; break end end
+    end
+  end
+  local c = (tot > 0) and hit / tot or 0
+  s.clim[key] = c
+  return c
+end
 function E.read(vm, art, name, n)
   local a = art.sym and art.sym["C_" .. name]
   if not a then return nil end
@@ -43702,13 +43751,22 @@ function E.score(row, env, vm, art)
     end
   end
   put("planning_quality", pn > 0 and ps / pn or nil, "no plan-requiring stage")
-  -- 11 calibration of submitted forecasts against telemetry, as skill over the constant base rate
-  local np, br, hits = 0, 0, 0
-  for _, p in ipairs(s.preds) do if p.resolved then np = np + 1; local y = p.hit and 1 or 0; br = br + (p.prob / 255 - y) ^ 2; hits = hits + y end end
+  -- 11 calibration of submitted forecasts against telemetry, as Brier skill over CLIMATOLOGY: for every forecast the reference is the
+  -- frequency with which an event of that type (and kind, and window length) occurred at ANY host of the same stage over ALL start
+  -- ticks. The reference does not depend on which forecasts the controller chose to make, so choosing easy forecasts earns nothing.
+  local np, br, bc, hits = 0, 0, 0, 0
+  for _, p in ipairs(s.preds) do
+    if p.resolved then
+      np = np + 1
+      local y = p.hit and 1 or 0
+      local c = E.climatology(s, p)
+      br = br + (p.prob / 255 - y) ^ 2; bc = bc + (c - y) ^ 2; hits = hits + y
+    end
+  end
   if nrep > 0 or np > 0 then
-    if np >= 20 then local h = hits / np; put("calibration", (h > 0 and h < 1) and clip(1 - (br / np) / (h * (1 - h))) or 0)
+    if np >= 20 then put("calibration", (bc > 0) and clip(1 - br / bc) or 0)
     else put("calibration", 0) end
-    D.forecasts = np; D.forecast_brier = np > 0 and br / np or nil; D.forecast_hit_rate = np > 0 and hits / np or nil
+    D.forecasts = np; D.forecast_brier = np > 0 and br / np or nil; D.forecast_clim_brier = np > 0 and bc / np or nil; D.forecast_hit_rate = np > 0 and hits / np or nil
   else put("calibration", nil, "controller makes no forecasts") end
   -- 13 recovery quality
   local rq, rn = 0, 0
@@ -43939,21 +43997,36 @@ function E.aggregate(rows, opt)
         if isabl then
           local ps = paired("new", name)
           if #ps > 0 then
-            local ds, dc, du = {}, {}, {}
+            local ds, du = {}, {}
             for _, p in ipairs(ps) do
               ds[#ds + 1] = (p[1].skill or 0) - (p[2].skill or 0)
-              local only = {}
-              for _, a in ipairs(E.AXES) do if p[1].axes[a] ~= nil and p[2].axes[a] ~= nil then only[a] = true end end
-              dc[#dc + 1] = (composite_of(p[1].axes, only) or 0) - (composite_of(p[2].axes, only) or 0)
               du[#du + 1] = p[1].utility_full - p[2].utility_full
             end
+            -- composite of per-axis means over the jointly supported axes (a supported zero mean gives zero); standard error by paired seed bootstrap
+            local function comp_delta(pick)
+              local nv, av = {}, {}
+              for _, a in ipairs(E.AXES) do
+                local sx, sy, n = 0, 0, 0
+                for _, p in ipairs(pick) do if p[1].axes[a] ~= nil and p[2].axes[a] ~= nil then sx = sx + p[1].axes[a]; sy = sy + p[2].axes[a]; n = n + 1 end end
+                if n > 0 then nv[#nv + 1] = sx / n; av[#av + 1] = sy / n end
+              end
+              return (geo(nv) or 0) - (geo(av) or 0)
+            end
+            local dcomp = comp_delta(ps)
+            local rnd, bs = lcg(7919 + b), {}
+            for _ = 1, (opt.bootstrap or 200) do
+              local pick = {}
+              for i = 1, #ps do pick[i] = ps[rnd(#ps)] end
+              bs[#bs + 1] = comp_delta(pick)
+            end
+            local dc = {dcomp}
             local axd = {}
             for _, a in ipairs(E.AXES) do
               local d = {}
               for _, p in ipairs(ps) do if p[1].axes[a] ~= nil and p[2].axes[a] ~= nil then d[#d + 1] = p[1].axes[a] - p[2].axes[a] end end
               if #d > 0 then axd[a] = mean(d) end
             end
-            R.ablation[name] = {n = #ps, d_skill = mean(ds), se_skill = sd(ds) / math.sqrt(#ds), d_composite = mean(dc), se_composite = sd(dc) / math.sqrt(#dc),
+            R.ablation[name] = {n = #ps, d_skill = mean(ds), se_skill = sd(ds) / math.sqrt(#ds), d_composite = dcomp, se_composite = sd(bs),
                                 d_utility = mean(du), d_axes = axd}
           end
         end
@@ -44400,6 +44473,15 @@ function M.run()
     T.check(tight.work <= Env.PROTOCOL.work_budget // 4, "within the reduced bound")
     local nometa = E.run(E.variant("no_compute_meta").art, {seed = 1, set = "dev", kind = "new", variant = "no_compute_meta", work_budget = Env.PROTOCOL.work_budget // 4, budget_quarters = 1})
     T.check(nometa.work <= Env.PROTOCOL.work_budget // 4, "ablated compute control still respects the hard bound")
+    -- compute meta-control is a real mechanism: with one eighth of the work budget the metered controller drops to economy mode and
+    -- still finishes the whole stream, the ablated one runs out of work half way
+    for _, seed in ipairs({1, 2}) do
+      local eighth = Env.PROTOCOL.work_budget // 8
+      local m = E.run(new.art, {seed = seed, set = "dev", kind = "new", variant = "new", work_budget = eighth})
+      local nm = E.run(E.variant("no_compute_meta").art, {seed = seed, set = "dev", kind = "new", variant = "no_compute_meta", work_budget = eighth})
+      T.check(m.complete and m.skill > 0.05, "with 1/8 of the work budget the metered controller still completes with real skill (seed " .. seed .. ")")
+      T.check(not nm.complete and nm.skill == 0, "without compute meta-control the same budget is exhausted before the stream ends (seed " .. seed .. ")")
+    end
   end
 
   ---------------------------------------------------------------------------------------------------- 8. mechanisms are removable and behaviour-changing
