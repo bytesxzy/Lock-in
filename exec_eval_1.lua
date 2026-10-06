@@ -40688,6 +40688,1362 @@ end
 return All
 end
 
+-- ======================================================================== asi.cyber.world  (simulated enterprise physics; evaluator only)
+package.preload["asi.cyber.world"] = function(...)
+--[============[
+asi.cyber.world -- procedurally generated, simulated, non-destructive enterprise networks. EVALUATOR PHYSICS: no controller
+code runs here and a controller never receives anything except telemetry records and paid tool results (asi.cyber.env).
+
+STRUCTURE (all drawn per world; ids are permuted, so no constant identifies a role, image or routine across worlds)
+  hosts with roles, values, subnets, protected flags, services with criticality and dependencies, software components with
+  versions, config items, link/trust graphs; users with credentials; process images; a local vulnerability KB;
+  benign routines (recurring causal chains with lags: admin maintenance, backup, sessions, updates, heartbeats, failures);
+  DECOYS (benign chains that share prefixes, images and shapes with attack chains); hidden CAMPAIGNS composed per world from
+  step kinds (entry by exploit / stolen credential / misconfiguration, implant, persistence, credential theft, lateral move,
+  collection, exfiltration or disruption) whose success depends on the live hidden state and on defender actions.
+RANDOMNESS is a stateless PRF of (seed, tag, tick, key): every controller faces the same tape (paired comparison); actions
+change state, never the draws. TELEMETRY is produced by sensors with blind hosts, drops, delays, duplicates, misattributed
+hosts, spurious records and misleading alerts. Nothing in this file is reachable from the guest.
+UTILITY is integer half-units per tick (compromise loss, stolen credentials, downtime, action and tool costs, exfiltration).
+]============]
+local U = require("asi.util")
+local R = require("asi.rng")
+local W = {}; W.__index = W
+
+W.PRED = {AUTH = 1, EXEC = 2, CONN = 3, CFG = 4, FILE = 5, SVC = 6, PERSIST = 7, ALERT = 8}
+W.EXT = 255
+W.ROLE = {WS = 0, SRV = 1, DB = 2, GW = 3, JMP = 4, DC = 5}
+W.MAXH, W.MAXU, W.MAXI, W.MAXK = 16, 12, 24, 12
+W.TICKS = 48
+W.ACT = {WAIT = 0, ISOLATE = 1, UNISOLATE = 2, REVOKE = 3, REISSUE = 4, KILL = 5, CLEAN = 6, PATCH = 7, FIXCFG = 8, RESTORE = 9}
+W.TOOL = {HOST = 1, PROC = 2, NET = 3, AUTH = 4, FILE = 5, CONFIG = 6, ALERTS = 7, KB = 8, TRACE_ENT = 9, TRACE_REL = 10,
+          DEPS = 11, SANDBOX = 12, VERIFY = 13, SIMULATE = 14, TELEMETRY = 15}
+W.NACT, W.NTOOL = 10, 15
+-- default contract: costs in half-units (scaled per world), verification reliabilities in 1/256
+W.BASE_ACT_COST = {[0] = 0, 2, 1, 2, 2, 1, 4, 4, 2, 8}
+W.BASE_TOOL_COST = {2, 4, 4, 2, 4, 3, 2, 1, 6, 4, 2, 12, 0, 4, 6}          -- VERIFY cost depends on kind
+W.BASE_VERIFY = {{cost = 20, tpr = 218, fpr = 10}, {cost = 16, tpr = 230, fpr = 8}, {cost = 14, tpr = 205, fpr = 13}}   -- 1 host integrity, 2 persistence sweep, 3 credential audit
+W.MAX_ISOLATED, W.MAX_TOOLS_PER_ROUND = 3, 8
+
+------------------------------------------------------------------------------------------------ stateless PRF
+local function mix(x)
+  x = x ~ (x >> 30); x = x * 0xbf58476d1ce4e5b9
+  x = x ~ (x >> 27); x = x * 0x94d049bb133111eb
+  return x ~ (x >> 31)
+end
+local function prf(seed, tag, a, b, c)
+  local x = mix(seed ~ (tag * 0x9e3779b97f4a7c15))
+  x = mix(x + (a or 0) * 0xd1342543de82ef95)
+  x = mix(x + (b or 0) * 0xaef17502108ef2d9)
+  return mix(x + (c or 0) * 0x2545f4914f6cdd1d)
+end
+local function ru(h, n) return (h >> 1) % n end                     -- uniform integer in [0, n)
+local function rp(h, num, den) return ((h >> 1) % den) < num end    -- true with probability num/den
+W.prf, W.ru, W.rp = prf, ru, rp
+local TAG = {RTN = 1, BIND = 2, CAMP = 3, DELAY = 4, DROP = 5, DUP = 6, MIS = 7, SPUR = 8, ALERT = 9, NOISE = 10, METER = 11,
+             PROBE = 12, STEALTH = 13, FAIL = 14, PIVOT = 15, SKEW = 16, WIGGLE = 17}
+
+------------------------------------------------------------------------------------------------ parameter sets
+-- ranges are inclusive {lo, hi}; the development, diagnostic and held-out sets share one generator and differ only in seeds;
+-- the structural-OOD set draws outside the development ranges (more hosts, deeper chains, longer delays, different costs)
+W.PARAMS = {
+  dev = {nh = {7, 10}, nu = {4, 7}, routines = {4, 6}, decoys = {1, 2}, campaigns = {1, 2}, blind_pct = {15, 35}, drop = {0, 12},
+         dmax = {0, 2}, dup = {3, 8}, mis = {2, 6}, spur = {1, 3}, tpr = {40, 75}, dfpr = {25, 55}, bfp = {1, 3},
+         chain_extra = {0, 2}, lag = {1, 3}, cost_scale = {70, 140}, vuln = {5, 8}, noise = {2, 5}, empty_pct = 15},
+  ood = {nh = {12, 16}, nu = {8, 12}, routines = {6, 7}, decoys = {2, 3}, campaigns = {1, 2}, blind_pct = {30, 45}, drop = {8, 20},
+         dmax = {1, 4}, dup = {5, 12}, mis = {4, 9}, spur = {3, 6}, tpr = {30, 60}, dfpr = {40, 70}, bfp = {2, 5},
+         chain_extra = {2, 4}, lag = {2, 5}, cost_scale = {40, 220}, vuln = {8, 11}, noise = {5, 9}, empty_pct = 10},
+}
+W.PARAMS.diag, W.PARAMS.held, W.PARAMS.adv = W.PARAMS.dev, W.PARAMS.dev, nil
+W.PARAMS.adv = {nh = {8, 12}, nu = {5, 8}, routines = {5, 7}, decoys = {3, 4}, campaigns = {1, 2}, blind_pct = {30, 50}, drop = {8, 18},
+         dmax = {2, 4}, dup = {6, 12}, mis = {5, 10}, spur = {4, 8}, tpr = {25, 45}, dfpr = {55, 80}, bfp = {3, 6},
+         chain_extra = {1, 3}, lag = {1, 4}, cost_scale = {70, 140}, vuln = {6, 9}, noise = {6, 10}, empty_pct = 5, adversarial = true}
+
+local function shuffled(r, n)
+  local a = {}; for i = 1, n do a[i] = i - 1 end
+  for i = n, 2, -1 do local j = r:below(i) + 1; a[i], a[j] = a[j], a[i] end
+  return a
+end
+
+------------------------------------------------------------------------------------------------ spec generation
+-- spec = immutable description of one enterprise; `variant` 0 = base, 1 = structural novelty (new attack schema, extra links,
+-- changed routine bindings), 3 = shock on return (new campaign schema, regime change in routine rates, extra decoy)
+function W.make_spec(seed, P, variant)
+  variant = variant or 0
+  local r = R.new(seed, "cyber-spec:base")
+  local function rg(rr) return r:uniform_int(rr[1], rr[2]) end
+  local S = {seed = seed, P = P, variant = variant}
+  local nh = rg(P.nh); S.nh = nh
+  -- roles: one DC, one GW, one JMP, DB hosts, then servers and workstations
+  local roles = {W.ROLE.DC, W.ROLE.GW, W.ROLE.JMP}
+  for _ = 1, (nh >= 10) and 2 or 1 do roles[#roles + 1] = W.ROLE.DB end
+  local nws = math.max(2, (nh - #roles) * 45 // 100)
+  for i = #roles + 1, nh do roles[i] = (i - #roles <= nws) and W.ROLE.WS or W.ROLE.SRV end
+  local order = shuffled(r, nh)
+  S.role, S.hid = {}, {}
+  for i = 1, nh do S.role[order[i]] = roles[i] end
+  S.byrole = {}
+  for _, ro in pairs(W.ROLE) do S.byrole[ro] = {} end
+  for h = 0, nh - 1 do local l = S.byrole[S.role[h]]; l[#l + 1] = h end
+  S.dc, S.gw, S.jmp = S.byrole[W.ROLE.DC][1], S.byrole[W.ROLE.GW][1], S.byrole[W.ROLE.JMP][1]
+  local baseval = {[W.ROLE.WS] = {1, 3}, [W.ROLE.SRV] = {3, 6}, [W.ROLE.DB] = {6, 9}, [W.ROLE.GW] = {3, 5}, [W.ROLE.JMP] = {3, 5}, [W.ROLE.DC] = {7, 9}}
+  S.val, S.prot, S.subnet, S.nsvc, S.svc = {}, {}, {}, {}, {}
+  for h = 0, nh - 1 do
+    local ro = S.role[h]
+    S.val[h] = r:uniform_int(baseval[ro][1], baseval[ro][2])
+    S.prot[h] = (ro == W.ROLE.DC) or (ro == W.ROLE.DB and r:below(2) == 0)
+    S.subnet[h] = (ro == W.ROLE.GW) and 0 or (ro == W.ROLE.WS or ro == W.ROLE.JMP) and 2 or (ro == W.ROLE.SRV and r:below(2) * 1 or 1)
+  end
+  -- services: slot -> {crit, comp}; components 0 web, 1 app, 2 db, 3 file, 4 auth, 5 admin
+  for h = 0, nh - 1 do
+    local ro, l = S.role[h], {}
+    if ro == W.ROLE.GW then l = {{crit = 3, comp = 0}, {crit = 1, comp = 5}}
+    elseif ro == W.ROLE.SRV then l = {{crit = r:uniform_int(2, 4), comp = 1}}; if r:below(2) == 0 then l[2] = {crit = 2, comp = 3} end
+    elseif ro == W.ROLE.DB then l = {{crit = 4, comp = 2}}
+    elseif ro == W.ROLE.DC then l = {{crit = 4, comp = 4}}
+    elseif ro == W.ROLE.JMP then l = {{crit = 1, comp = 5}}
+    else l = {{crit = 1, comp = 6}} end
+    S.svc[h] = l; S.nsvc[h] = #l
+  end
+  -- link graph (flows allowed) and trust graph (credentials valid for remote login)
+  S.link, S.trust = {}, {}
+  for a = 0, nh - 1 do S.link[a], S.trust[a] = {}, {} end
+  local function both(a, b) S.link[a][b] = true; S.link[b][a] = true end
+  for a = 0, nh - 1 do for b = a + 1, nh - 1 do
+    if S.subnet[a] == S.subnet[b] then both(a, b) end
+    local ra, rb = S.role[a], S.role[b]
+    if ra == W.ROLE.DC or rb == W.ROLE.DC then both(a, b) end
+    if (ra == W.ROLE.JMP and (rb == W.ROLE.SRV or rb == W.ROLE.DB)) or (rb == W.ROLE.JMP and (ra == W.ROLE.SRV or ra == W.ROLE.DB)) then both(a, b) end
+    if (ra == W.ROLE.WS and (rb == W.ROLE.SRV or rb == W.ROLE.GW)) or (rb == W.ROLE.WS and (ra == W.ROLE.SRV or ra == W.ROLE.GW)) then both(a, b) end
+    if (ra == W.ROLE.SRV and rb == W.ROLE.DB) or (rb == W.ROLE.SRV and ra == W.ROLE.DB) then both(a, b) end
+    if (ra == W.ROLE.GW and rb == W.ROLE.SRV) or (rb == W.ROLE.GW and ra == W.ROLE.SRV) then both(a, b) end
+  end end
+  for _ = 1, r:uniform_int(1, 3) do                                  -- legacy cross-subnet links
+    local a, b = r:below(nh), r:below(nh)
+    if a ~= b then both(a, b) end
+  end
+  for a = 0, nh - 1 do for b = 0, nh - 1 do
+    if a ~= b and S.link[a][b] then
+      local ra, rb = S.role[a], S.role[b]
+      if ra == W.ROLE.JMP and (rb == W.ROLE.SRV or rb == W.ROLE.DB or rb == W.ROLE.GW) then S.trust[a][b] = true end
+      if ra == W.ROLE.SRV and rb == W.ROLE.DB then S.trust[a][b] = true end
+      if ra == W.ROLE.WS and rb == W.ROLE.SRV then S.trust[a][b] = true end
+      if ra == W.ROLE.GW and rb == W.ROLE.SRV and r:below(2) == 0 then S.trust[a][b] = true end
+      if rb ~= W.ROLE.DC and ra ~= W.ROLE.DC and r:below(8) == 0 then S.trust[a][b] = true end
+    end
+  end end
+  -- users
+  local nu = rg(P.nu); S.nu = nu
+  S.uhome, S.uadmin, S.cval = {}, {}, {}
+  for u = 0, nu - 1 do
+    S.uadmin[u] = (u < 2)
+    S.cval[u] = S.uadmin[u] and 3 or r:uniform_int(1, 2)
+    local ws = S.byrole[W.ROLE.WS]
+    S.uhome[u] = S.uadmin[u] and S.jmp or ws[1 + r:below(#ws)]
+  end
+  -- process images (ids permuted); one shared pool, kinds assigned to roles
+  local ni = 12 + r:below(3)
+  local ip = shuffled(r, ni)
+  S.ni = ni
+  S.img = {shell = ip[1], sched = ip[2], updater = ip[3], backup = ip[4], admin = ip[5], web = ip[6], app = ip[7], db = ip[8], agent = ip[9],
+           implant = ip[10], implant2 = ip[11], tool = ip[12]}
+  S.imgkind = {}
+  for name, id in pairs(S.img) do S.imgkind[id] = name end
+  -- config items: 0 remote-admin open, 1 weak auth, 2 verbose logging, 3 autostart unsigned. baseline all safe except logging
+  S.cfg0 = {}
+  for h = 0, nh - 1 do S.cfg0[h] = 4 end                              -- item 2 (verbose logging) set
+  -- components and versions, local vulnerability KB
+  S.ver = {}
+  for h = 0, nh - 1 do
+    S.ver[h] = {}
+    for _, sv in ipairs(S.svc[h]) do S.ver[h][sv.comp] = r:uniform_int(1, 9) end
+  end
+  S.kb = {}
+  local nk = rg(P.vuln)
+  for k = 1, nk do
+    local comp = ({0, 1, 2, 3, 5, 0, 5, 1})[1 + r:below(8)]
+    local lo = r:uniform_int(1, 7)
+    S.kb[k] = {comp = comp, vlo = lo, vhi = math.min(9, lo + r:uniform_int(0, 3)), expo = r:below(3), mit = r:below(3) == 0 and 1 or 0,
+               remcost = r:uniform_int(0, 4), conf = r:uniform_int(120, 250)}
+  end
+  -- dependencies: (host, slot) -> {host, slot} that it needs
+  S.dep = {}
+  local function find(ro) local l = S.byrole[ro]; return l[1 + r:below(#l)] end
+  for h = 0, nh - 1 do
+    local ro = S.role[h]
+    if ro == W.ROLE.SRV then S.dep[#S.dep + 1] = {h, 0, find(W.ROLE.DB), 0}
+    elseif ro == W.ROLE.GW then local sl = S.byrole[W.ROLE.SRV]; if #sl > 0 then S.dep[#S.dep + 1] = {h, 0, sl[1 + r:below(#sl)], 0} end
+    elseif ro == W.ROLE.WS then S.dep[#S.dep + 1] = {h, 0, S.dc, 0} end
+  end
+  -- sensors and noise levels (hidden from the controller)
+  S.blind = {}
+  for h = 0, nh - 1 do S.blind[h] = (r:below(100) < rg(P.blind_pct)) and S.role[h] ~= W.ROLE.DC end
+  S.sens = {drop = rg(P.drop), dmax = rg(P.dmax), dup = rg(P.dup), mis = rg(P.mis), spur = rg(P.spur), tpr = rg(P.tpr), dfpr = rg(P.dfpr),
+            bfp = rg(P.bfp), tap = r:uniform_int(40, 90), noise = rg(P.noise), skew = r:uniform_int(0, 12)}
+  -- contract: costs scaled per world, verification reliabilities
+  local cs = rg(P.cost_scale)
+  S.cost_scale = cs
+  S.act_cost, S.tool_cost, S.verify = {}, {}, {}
+  for a = 0, W.NACT - 1 do S.act_cost[a] = math.max(a == 0 and 0 or 1, (W.BASE_ACT_COST[a] * cs + 50) // 100) end
+  for t = 1, W.NTOOL do S.tool_cost[t] = math.max(t == 13 and 0 or 1, (W.BASE_TOOL_COST[t] * cs + 50) // 100) end
+  for k = 1, 3 do local v = W.BASE_VERIFY[k]; S.verify[k] = {cost = math.max(2, (v.cost * cs + 50) // 100), tpr = v.tpr, fpr = v.fpr} end
+  S.rem_kb_cost = {}
+  W._gen_activity(S, r, P, variant)
+  return S
+end
+--@@WORLD-SPEC-END@@
+------------------------------------------------------------------------------------------------ routines, decoys, campaigns
+-- A routine is a recurring causal chain: a list of steps {dt, pred, who} expanded at fire time with PRF-chosen bindings.
+-- `who` names the binding slots used by the step's arguments; the expansion is done in W:fire_routine.
+local ROUTINE_KINDS = {"session", "backup", "admin", "update", "heartbeat", "failure", "logrot"}
+local DECOY_KINDS = {"decoy_admin", "scanner", "offsite"}
+
+function W._gen_activity(S, r, P, variant)
+  local function rg(rr) return r:uniform_int(rr[1], rr[2]) end
+  S.routines = {}
+  local want = rg(P.routines)
+  local pool = {"session", "backup", "admin", "update", "heartbeat", "failure", "logrot"}
+  local chosen = {}
+  for i = 1, math.min(want, #pool) do chosen[#chosen + 1] = pool[i] end
+  if variant == 1 then chosen[#chosen + 1] = "scanner_ok" end                    -- a routine class absent from the base world
+  for _, kind in ipairs(chosen) do
+    local rt = {id = #S.routines + 1, kind = kind, lags = {r:uniform_int(0, 1), r:uniform_int(1, 3), r:uniform_int(1, 3), r:uniform_int(1, 3), r:uniform_int(1, 3), r:uniform_int(1, 3)},
+                opt = {r:below(100) < 60, r:below(100) < 50}}
+    if kind == "session" then rt.mode, rt.num, rt.den = "poisson", 1, r:uniform_int(2, 4)
+    elseif kind == "backup" then rt.mode, rt.period, rt.phase = "periodic", r:uniform_int(7, 12), r:below(12)
+    elseif kind == "admin" then rt.mode, rt.num, rt.den = "poisson", 1, r:uniform_int(9, 16)
+    elseif kind == "update" then rt.mode, rt.period, rt.phase = "periodic", r:uniform_int(14, 22), r:below(22)
+    elseif kind == "heartbeat" then rt.mode, rt.num, rt.den = "poisson", 1, 1; rt.pairs = rg(P.noise)
+    elseif kind == "failure" then rt.mode, rt.num, rt.den = "poisson", 1, r:uniform_int(18, 30); rt.len = r:uniform_int(2, 4)
+    elseif kind == "scanner_ok" then rt.mode, rt.num, rt.den = "poisson", 1, r:uniform_int(14, 20)
+    else rt.mode, rt.num, rt.den = "poisson", 1, 2 end
+    S.routines[#S.routines + 1] = rt
+  end
+  -- decoys: benign, rare, and shaped like attack steps
+  S.decoys = {}
+  local nd = rg(P.decoys) + ((variant == 3) and 1 or 0)
+  for i = 1, nd do
+    local kind = DECOY_KINDS[1 + (i - 1) % 3]
+    local d = {id = 100 + i, kind = kind, mode = "poisson", num = 1, den = r:uniform_int(12, 22), lags = {r:uniform_int(0, 1), r:uniform_int(1, 3), r:uniform_int(1, 3), r:uniform_int(1, 3)},
+               opt = {r:below(100) < 50}}
+    if P.adversarial then d.den = math.max(7, d.den // 2) end
+    if variant == 3 then d.den = math.max(6, d.den * 2 // 3) end
+    S.decoys[#S.decoys + 1] = d
+  end
+  -- campaigns
+  S.camps = {}
+  local ncamp = (r:below(100) < P.empty_pct) and 0 or rg(P.campaigns)
+  S.camp_seed = (r:below(1 << 30))
+  local hostsby = S.byrole
+  for ci = 1, ncamp do
+    local c = {id = ci, start = (ci == 1) and r:uniform_int(3, 12) or r:uniform_int(15, 26), stealth = r:uniform_int(5, 30), succ = r:uniform_int(80, 95),
+               beacon = r:uniform_int(3, 6)}
+    c.lol = r:below(100) < (P.adversarial and 60 or 30)                       -- living off the land: reuse of a benign admin image
+    c.img = c.lol and S.img.admin or ((ci == 2 and S.img.implant2) or S.img.implant)
+    local vecs = {"exploit", "cred", "misconfig"}
+    c.vec = vecs[1 + ((r:below(3) + ci) % 3)]
+    if variant == 1 or variant == 3 then c.vec = vecs[1 + ((ci + variant) % 3)] end
+    -- plant a feasible entry
+    local gw = S.gw
+    if c.vec == "exploit" then
+      c.host = (r:below(3) == 0 and #hostsby[W.ROLE.SRV] > 0) and hostsby[W.ROLE.SRV][1] or gw
+      local comp = (c.host == gw) and 0 or 1
+      if c.host ~= gw then S.cfg0[c.host] = S.cfg0[c.host] | 1 end
+      local k = 1 + r:below(#S.kb)
+      local e = S.kb[k]; e.comp = comp; e.expo = 0
+      local v = S.ver[c.host][comp] or 5; S.ver[c.host][comp] = v
+      e.vlo = math.max(1, v - r:below(3)); e.vhi = math.min(9, v + r:below(3))
+      c.vuln = k
+    elseif c.vec == "cred" then
+      c.host = gw
+      c.user = r:below(S.nu)
+    else
+      local cand = {}
+      for _, h in ipairs(hostsby[W.ROLE.SRV]) do cand[#cand + 1] = h end
+      for _, h in ipairs(hostsby[W.ROLE.DB]) do cand[#cand + 1] = h end
+      c.host = cand[1 + r:below(#cand)]
+      c.cfg_open_t = math.max(1, c.start - r:uniform_int(2, 6))                -- exposure appears as a configuration change before the attack
+    end
+    -- chain composition
+    local steps = {{kind = "entry"}, {kind = "implant"}}
+    if r:below(100) < 60 then steps[#steps + 1] = {kind = "persist"} end
+    local hops = 1 + r:below(1 + rg(P.chain_extra))
+    for _ = 1, hops do
+      if r:below(100) < 55 then steps[#steps + 1] = {kind = "credtheft"} end
+      steps[#steps + 1] = {kind = "lateral"}; steps[#steps + 1] = {kind = "implant"}
+      if r:below(100) < 30 then steps[#steps + 1] = {kind = "persist"} end
+    end
+    steps[#steps + 1] = {kind = "collect"}
+    steps[#steps + 1] = {kind = (r:below(100) < 65) and "exfil" or "disrupt"}
+    for _, s in ipairs(steps) do s.lag = rg(P.lag) end
+    c.steps = steps
+    S.camps[#S.camps + 1] = c
+  end
+  S.needs_plan = false
+  for _, c in ipairs(S.camps) do for _, s in ipairs(c.steps) do if s.kind == "persist" then S.needs_plan = true end end end
+end
+--@@WORLD-ACTIVITY-END@@
+------------------------------------------------------------------------------------------------ runtime state
+local P_ = W.PRED
+-- primary host / peer host of an event (AUTH: destination / source; CONN: source / destination; others: the host)
+function W.hosts_of(pred, a1, a2, a3)
+  if pred == P_.AUTH then return a2, a3 elseif pred == P_.CONN then return a1, a2 end
+  return a1, nil
+end
+-- relation between a cause event and an effect event, classified by the unique priority CHILD > SAMEUSER > SAMEHOST > FWD > BACK
+-- (the guest recomputes exactly this classification from record fields; it is the language of causal links)
+function W.relation(e1, e2)
+  local h1, p1 = W.hosts_of(e1.pred, e1.a1, e1.a2, e1.a3)
+  local h2, p2 = W.hosts_of(e2.pred, e2.a1, e2.a2, e2.a3)
+  if e1.pred == P_.EXEC and e2.pred == P_.EXEC and h1 == h2 and e2.a3 == e1.a2 then return 5 end
+  local u1 = (e1.pred == P_.AUTH) and e1.a1 or (e1.pred == P_.EXEC) and e1.attr or nil
+  local u2 = (e2.pred == P_.AUTH) and e2.a1 or (e2.pred == P_.EXEC) and e2.attr or nil
+  if u1 and u2 and u1 == u2 and h1 ~= h2 then return 4 end
+  if h1 == h2 then return 1 end
+  if p1 ~= nil and p1 == h2 then return 2 end
+  if p2 ~= nil and h1 == p2 then return 3 end
+  return 0
+end
+
+function W.new(S)
+  local w = setmetatable({S = S, t = 0, host = {}, user = {}, sched = {}, q = {}, nseq = 1, neid = 1, events = {}, camps = {}, truth = {},
+    tick_loss = {}, meter = {}, links = {}, by_tick = {}, alert_log = {}, tel_hosts = {}, hbpairs = {}, tel_enabled = 0, exfil_spike = 0, spent = {act = 0, tool = 0}, last_cfg_change = {}, ticket = {}}, W)
+  for h = 0, S.nh - 1 do
+    w.host[h] = {foot = false, persist = false, isol = false, cfg = S.cfg0[h], patched = {}, agent = not S.blind[h], agent_from = 0,
+                 respawn = -1, down = {}, forced = false, restore_until = 0}
+    w.last_cfg_change[h] = -1
+  end
+  for u = 0, S.nu - 1 do w.user[u] = {stolen = false, revoked = false, reissue_t = -1} end
+  for i, c in ipairs(S.camps) do
+    local k = {}
+    for key, v in pairs(c) do k[key] = v end
+    k.i, k.next_t, k.alive, k.blocked, k.pos, k.holds, k.last = 1, c.start, true, 0, nil, {}, nil
+    w.camps[i] = k
+  end
+  return w
+end
+
+function W:agent_active(h) local ho = self.host[h]; return ho.agent and not ho.isol and self.t >= ho.agent_from end
+
+------------------------------------------------------------------------------------------------ telemetry
+function W:push(ev, sensor, arrive, extra)
+  local S = self.S
+  local rec = {pred = ev.pred, a1 = ev.a1, a2 = ev.a2, a3 = ev.a3, attr = ev.attr, sensor = sensor, t_event = ev.t, t_arrive = arrive,
+               seq = self.nseq, true_id = ev.id, chain = ev.chain, decoy = ev.decoy}
+  self.nseq = self.nseq + 1
+  if extra then for k, v in pairs(extra) do rec[k] = v end end
+  -- bounded clock skew on the reported event time
+  if rp(prf(S.seed, TAG.SKEW, ev.id, rec.seq), S.sens.skew, 100) then rec.t_event = math.max(0, ev.t + ((ru(prf(S.seed, TAG.SKEW, ev.id, rec.seq + 7), 2) == 0) and -1 or 1)) end
+  -- misattributed host
+  if rp(prf(S.seed, TAG.MIS, ev.id, rec.seq), S.sens.mis, 100) and S.nh > 2 then
+    local other = ru(prf(S.seed, TAG.MIS, ev.id, rec.seq + 11), S.nh)
+    if ev.pred == P_.AUTH then if other ~= rec.a2 then rec.a2 = other; rec.mis = true end
+    elseif ev.pred ~= P_.ALERT then if other ~= rec.a1 then rec.a1 = other; rec.mis = true end end
+  end
+  local list = self.q[arrive]; if not list then list = {}; self.q[arrive] = list end
+  list[#list + 1] = rec
+end
+
+function W:observe(ev)
+  local S, t = self.S, self.t
+  local sens = S.sens
+  local host, peer = W.hosts_of(ev.pred, ev.a1, ev.a2, ev.a3)
+  local sensor
+  if ev.pred == P_.AUTH then sensor = 1
+  elseif ev.pred == P_.CONN then
+    sensor = 2
+    local cross = (host == W.EXT) or (peer == W.EXT) or (S.subnet[host] ~= S.subnet[peer])
+    if not cross and not rp(prf(S.seed, TAG.DROP, ev.id, 99), sens.tap, 100) then return end
+  else
+    sensor = 3
+    if not self:agent_active(host) then return end
+    if ev.mal and rp(prf(S.seed, TAG.STEALTH, ev.id), ev.stealth or 0, 100) then return end        -- stealthy step leaves no host record
+  end
+  if rp(prf(S.seed, TAG.DROP, ev.id, sensor), sens.drop, 100) then return end
+  local d = ru(prf(S.seed, TAG.DELAY, ev.id, sensor), sens.dmax + 1)
+  self:push(ev, sensor, t + d)
+  if rp(prf(S.seed, TAG.DUP, ev.id), sens.dup, 100) then self:push(ev, sensor, t + d + 1 + ru(prf(S.seed, TAG.DUP, ev.id, 1), 2)) end
+  if sensor == 3 then                                              -- EDR classifier: weak, sometimes misleading evidence
+    local p = ev.mal and (ev.lol and sens.tpr // 2 or sens.tpr) or ev.decoy and sens.dfpr or sens.bfp
+    if rp(prf(S.seed, TAG.ALERT, ev.id), p, 100) then
+      local conf = ev.mal and (130 + ru(prf(S.seed, TAG.ALERT, ev.id, 1), 100)) or (60 + ru(prf(S.seed, TAG.ALERT, ev.id, 1), 140))
+      local aev = {id = -ev.id, t = t, pred = P_.ALERT, a1 = host, a2 = ev.pred, a3 = 1 + ru(prf(S.seed, TAG.ALERT, ev.id, 2), 3), attr = conf, alert_of = ev.id}
+      local al = self.alert_log[host]; if not al then al = {}; self.alert_log[host] = al end
+      al[#al + 1] = {t = t, trig = ev.pred, sev = aev.a3, conf = conf}
+      self:push(aev, 4, t + d + ru(prf(S.seed, TAG.ALERT, ev.id, 3), 2))
+    end
+  end
+end
+
+function W:emit(pred, a1, a2, a3, attr, meta)
+  local id = self.neid; self.neid = id + 1
+  local ev = {id = id, t = self.t, pred = pred, a1 = a1, a2 = a2 or 0, a3 = a3 or 0, attr = attr or 0}
+  if meta then for k, v in pairs(meta) do ev[k] = v end end
+  self.events[id] = ev
+  local bt = self.by_tick[self.t]; if not bt then bt = {}; self.by_tick[self.t] = bt end; bt[#bt + 1] = id
+  if meta and meta.inst then
+    local prev = meta.inst.last
+    if prev then
+      local rel = W.relation(prev, ev)
+      if rel > 0 then local key = prev.pred .. ":" .. ev.pred .. ":" .. rel; self.links[key] = (self.links[key] or 0) + 1 end
+    end
+    meta.inst.last = ev
+  end
+  self:observe(ev)
+  return ev
+end
+
+------------------------------------------------------------------------------------------------ routines and decoys
+local function servers(S) if not S._servers then S._servers = {}; for _, h in ipairs(S.byrole[W.ROLE.SRV]) do S._servers[#S._servers + 1] = h end
+  for _, h in ipairs(S.byrole[W.ROLE.DB]) do S._servers[#S._servers + 1] = h end end; return S._servers end
+local function pickfrom(self, list, key, t, slot) return list[1 + ru(prf(self.S.seed, TAG.BIND, key, t, slot), #list)] end
+
+function W:at(tt, spec) local l = self.sched[tt]; if not l then l = {}; self.sched[tt] = l end; l[#l + 1] = spec end
+
+function W:fire(rt, t)
+  local S = self.S
+  local L = rt.lags
+  local inst = {}
+  local meta = {inst = inst, rtn = rt.kind, decoy = rt.id >= 100 or nil}
+  local function step(dt, pred, a1, a2, a3, attr, extra)
+    local m = {inst = inst, rtn = rt.kind, decoy = meta.decoy}
+    if extra then for k, v in pairs(extra) do m[k] = v end end
+    self:at(t + dt, {pred = pred, a1 = a1, a2 = a2, a3 = a3, attr = attr, meta = m})
+  end
+  local kind = rt.kind
+  local sv = servers(S)
+  if kind == "session" then
+    local u = S.nu > 2 and (2 + ru(prf(S.seed, TAG.BIND, rt.id, t, 1), S.nu - 2)) or 0
+    local src = S.uhome[u]
+    local cands = {}
+    for _, h in ipairs(sv) do if S.trust[src][h] then cands[#cands + 1] = h end end
+    if #cands == 0 then cands = sv end
+    local dst = pickfrom(self, cands, rt.id, t, 2)
+    step(0, P_.AUTH, u, dst, src, 1); step(L[2], P_.CONN, src, dst, 1, 1); step(L[2] + L[3], P_.EXEC, dst, S.img.app, S.img.web, u)
+  elseif kind == "admin" or kind == "decoy_admin" then
+    local u = ru(prf(S.seed, TAG.BIND, rt.id, t, 1), math.min(2, S.nu))
+    local dst = pickfrom(self, sv, rt.id, t, 2)
+    step(0, P_.AUTH, u, dst, S.jmp, 1); step(L[1] + 1, P_.EXEC, dst, S.img.admin, S.img.shell, u)
+    if kind == "decoy_admin" then
+      step(L[1] + 1 + L[2], P_.CONN, dst, W.EXT, 4, 2)
+      if rt.opt[1] then step(L[1] + 1 + L[2] + L[3], P_.FILE, dst, 1, 0, 1) end
+    else
+      local at = L[1] + 1
+      if rt.opt[1] then at = at + L[2]; step(at, P_.CFG, dst, 2, 4 ~ ru(prf(S.seed, TAG.BIND, rt.id, t, 3), 2), 1, {cfgchg = true, approved = true}) end
+      if rt.opt[2] then
+        at = at + L[3]; step(at, P_.SVC, dst, 0, 0, 1, {svc_down = 1}); at = at + L[4]; step(at, P_.SVC, dst, 0, 1, 1)
+        at = at + L[5]; step(at, P_.CONN, dst, sv[1 + ru(prf(S.seed, TAG.BIND, rt.id, t, 4), #sv)], 2, 1)
+      end
+    end
+  elseif kind == "backup" or kind == "offsite" then
+    local h = pickfrom(self, sv, rt.id, t, 1)
+    local other = pickfrom(self, sv, rt.id, t, 2)
+    step(0, P_.EXEC, h, S.img.backup, S.img.sched, 255); step(L[2], P_.FILE, h, 3, 2, 3)
+    step(L[2] + L[3], P_.CONN, h, (kind == "offsite") and W.EXT or other, 3, 3)
+  elseif kind == "update" then
+    local cand = {}
+    for h = 0, S.nh - 1 do if h ~= S.dc then cand[#cand + 1] = h end end
+    local h = pickfrom(self, cand, rt.id, t, 1)
+    step(0, P_.EXEC, h, S.img.updater, S.img.sched, 255); step(L[2], P_.CONN, h, W.EXT, 4, 1); step(L[2] + L[3], P_.FILE, h, 1, 0, 1)
+  elseif kind == "heartbeat" then
+    for p = 1, rt.pairs do
+      if rp(prf(S.seed, TAG.RTN, rt.id * 100 + p, t), 1, 2) then
+        local a = ru(prf(S.seed, TAG.BIND, rt.id, p, 1), S.nh)
+        local b = ru(prf(S.seed, TAG.BIND, rt.id, p, 2), S.nh)
+        if a ~= b then step(0, P_.CONN, a, b, 5, 0) end
+      end
+    end
+  elseif kind == "failure" then
+    local h = ru(prf(S.seed, TAG.BIND, rt.id, t, 1), S.nh)
+    local sl = ru(prf(S.seed, TAG.BIND, rt.id, t, 2), S.nsvc[h])
+    step(0, P_.SVC, h, sl, 0, 2, {svc_down = rt.len}); step(rt.len, P_.SVC, h, sl, 1, 2)
+  elseif kind == "logrot" then
+    local h = ru(prf(S.seed, TAG.BIND, rt.id, t, 1), S.nh)
+    step(0, P_.FILE, h, 2, 1, 1)
+  elseif kind == "scanner" or kind == "scanner_ok" then
+    local h = (kind == "scanner_ok") and S.jmp or pickfrom(self, sv, rt.id, t, 1)
+    local k = 0
+    for b = 0, S.nh - 1 do
+      if b ~= h and S.link[h][b] and k < 4 and rp(prf(S.seed, TAG.BIND, rt.id, t, 10 + b), 60, 100) then step(k // 2, P_.CONN, h, b, 6, 1); k = k + 1 end
+    end
+  end
+end
+
+function W:run_scheduled()
+  local l = self.sched[self.t]
+  if not l then return end
+  self.sched[self.t] = nil
+  local S = self.S
+  for _, sp in ipairs(l) do
+    local host, peer = W.hosts_of(sp.pred, sp.a1, sp.a2, sp.a3)
+    local blocked = (host ~= W.EXT and self.host[host] and self.host[host].isol) or (peer and peer ~= W.EXT and self.host[peer] and self.host[peer].isol)
+    if sp.pred == P_.AUTH and self.user[sp.a1] and self.user[sp.a1].revoked then blocked = true end
+    if not blocked then
+      local m = sp.meta or {}
+      local ev = self:emit(sp.pred, sp.a1, sp.a2, sp.a3, sp.attr, m)
+      if m.svc_down then self.host[host].down[sp.a2] = self.t + m.svc_down end
+      if m.cfgchg then self.host[host].cfg = self.host[host].cfg ~ (1 << sp.a2); self.last_cfg_change[host] = self.t; self.ticket[host] = ru(prf(S.seed, TAG.BIND, ev.id, 5), 100) < 85 end
+    end
+  end
+end
+--@@WORLD-RUNTIME-END@@
+------------------------------------------------------------------------------------------------ campaigns (hidden attacker-like behaviour)
+function W:vulnerable(h, k)
+  local S, e = self.S, self.S.kb[k]
+  local v = S.ver[h][e.comp]
+  return v ~= nil and v >= e.vlo and v <= e.vhi and not self.host[h].patched[k]
+end
+
+function W:camp_foot_hosts(c)
+  local l = {}
+  for h in pairs(c.holds) do if self.host[h].foot and not self.host[h].isol then l[#l + 1] = h end end
+  table.sort(l); return l
+end
+
+function W:run_campaigns()
+  local S, t = self.S, self.t
+  for _, c in ipairs(self.camps) do
+    local meta = {chain = true, mal = true, stealth = c.stealth, lol = c.lol, camp = c.id}
+    c.inst = c.inst or {}
+    meta.inst = c.inst
+    if c.vec == "cred" and t == c.start then self.user[c.user].stolen = true end
+    if c.vec == "misconfig" and t == c.cfg_open_t then
+      self.host[c.host].cfg = self.host[c.host].cfg | 3; self.last_cfg_change[c.host] = t; self.ticket[c.host] = ru(prf(S.seed, TAG.CAMP, c.id, 77), 100) < 10
+      self:emit(P_.CFG, c.host, 0, 1, 1, meta)
+    end
+    -- beaconing from live footholds, and respawn from persistence
+    for h in pairs(c.holds) do
+      local ho = self.host[h]
+      if ho.foot and not ho.isol and (t - c.start) % c.beacon == 0 then self:emit(P_.CONN, h, W.EXT, 10, 0, meta) end
+      if ho.persist and not ho.foot and not ho.isol and ho.respawn >= 0 and t >= ho.respawn then
+        ho.foot = true; ho.respawn = -1; self:emit(P_.EXEC, h, c.img, S.img.sched, 255, meta)
+      end
+    end
+    local st = c.steps[c.i]
+    if c.alive and st and t >= c.next_t and t >= c.start then
+      local function adv() c.i = c.i + 1; c.next_t = t + ((c.steps[c.i] and c.steps[c.i].lag) or 1); c.blocked = 0 end
+      local ok = rp(prf(S.seed, TAG.CAMP, c.id, t, c.i), c.succ, 100)
+      local pos = c.pos
+      local pho = pos and self.host[pos]
+      local kind = st.kind
+      if kind == "entry" then
+        local he = c.host; local ho = self.host[he]
+        local feasible = not ho.isol
+        if c.vec == "exploit" then feasible = feasible and self:vulnerable(he, c.vuln)
+        elseif c.vec == "cred" then feasible = feasible and self.user[c.user].stolen and not self.user[c.user].revoked
+        else feasible = feasible and (ho.cfg & 3) == 3 end
+        if not feasible then c.blocked = c.blocked + 1
+        elseif ok then
+          ho.foot = true; c.pos = he; c.holds[he] = true; ho.camp = c.id
+          if c.vec == "cred" then self:emit(P_.AUTH, c.user, he, W.EXT, 1, meta)
+          elseif c.vec == "exploit" then self:emit(P_.CONN, W.EXT, he, 1, 1, meta); self:emit(P_.EXEC, he, S.img.shell, S.img.web, 255, meta)
+          else self:emit(P_.CONN, W.EXT, he, 7, 1, meta); self:emit(P_.AUTH, ru(prf(S.seed, TAG.CAMP, c.id, t, 3), S.nu), he, W.EXT, 1, meta) end
+          adv()
+        end
+      elseif kind == "implant" or kind == "persist" or kind == "credtheft" or kind == "collect" or kind == "exfil" or kind == "disrupt" then
+        if not (pos and pho.foot) then
+          local live = self:camp_foot_hosts(c)
+          c.blocked = c.blocked + 1
+          if #live > 0 then c.pos = live[1 + ru(prf(S.seed, TAG.PIVOT, c.id, t), #live)]
+          elseif c.blocked >= 2 then
+            local any = false
+            for h in pairs(c.holds) do if self.host[h].persist then any = true end end
+            if not any and (c.reenter or 0) < 2 and c.i > 1 then c.reenter = (c.reenter or 0) + 1; c.i = 1; c.next_t = t + 4; c.holds = {} end
+          end
+        elseif pho.isol then c.blocked = c.blocked + 1
+        elseif ok then
+          if kind == "implant" then self:emit(P_.EXEC, pos, c.img, S.img.shell, c.lol and ru(prf(S.seed, TAG.CAMP, c.id, 5), math.min(2, S.nu)) or 255, meta)
+          elseif kind == "persist" then
+            self:emit(P_.PERSIST, pos, 1 + ru(prf(S.seed, TAG.CAMP, c.id, t, 4), 3), 0, 0, meta)
+            self:emit(P_.CFG, pos, 3, 1, 1, meta); self:emit(P_.FILE, pos, 1, 0, 1, meta)
+            pho.persist = true; pho.dropper_t = t; pho.cfg = pho.cfg | 8; self.last_cfg_change[pos] = t; self.ticket[pos] = false
+          elseif kind == "credtheft" then
+            self:emit(P_.FILE, pos, 4, 2, 1, meta); self:emit(P_.EXEC, pos, S.img.tool, S.img.shell, 255, meta)
+            local u = (S.role[pos] == W.ROLE.JMP or S.role[pos] == W.ROLE.SRV) and ru(prf(S.seed, TAG.CAMP, c.id, t, 6), math.min(2, S.nu)) or ru(prf(S.seed, TAG.CAMP, c.id, t, 6), S.nu)
+            self.user[u].stolen = true; c.stolen_user = u; pho.cred_t = t
+          elseif kind == "collect" then
+            self:emit(P_.FILE, pos, 3, 2, 3, meta); pho.coll_t = t
+            local sv = servers(S); self:emit(P_.CONN, pos, sv[1 + ru(prf(S.seed, TAG.CAMP, c.id, t, 7), #sv)], 2, 2, meta)
+          elseif kind == "exfil" then
+            self:emit(P_.CONN, pos, W.EXT, 9, 3, meta); self.exfil_spike = self.exfil_spike + 12 * S.val[pos]; c.alive = false; c.done = true
+          else
+            self:emit(P_.SVC, pos, 0, 0, 3, meta); self:emit(P_.FILE, pos, 3, 1, 3, meta); pho.forced = true; c.alive = false; c.done = true
+          end
+          if c.alive then adv() end
+        end
+      elseif kind == "lateral" then
+        if not (pos and pho.foot) then
+          local live = self:camp_foot_hosts(c)
+          c.blocked = c.blocked + 1
+          if #live > 0 then c.pos = live[1 + ru(prf(S.seed, TAG.PIVOT, c.id, t), #live)] end
+        elseif pho.isol then c.blocked = c.blocked + 1
+        else
+          local cands, uvalid = {}, nil
+          for u = 0, S.nu - 1 do if self.user[u].stolen and not self.user[u].revoked then uvalid = uvalid or u end end
+          for h2 = 0, S.nh - 1 do
+            local h2o = self.host[h2]
+            if h2 ~= pos and S.link[pos][h2] and not h2o.isol and not h2o.foot and not c.holds[h2] then
+              local viaCred = uvalid and S.trust[pos][h2]
+              local viaVuln = false
+              for k = 1, #S.kb do if S.kb[k].expo ~= 0 and S.ver[h2][S.kb[k].comp] and self:vulnerable(h2, k) then viaVuln = true end end
+              if viaCred or viaVuln then cands[#cands + 1] = {h2, viaCred and true or false} end
+            end
+          end
+          if #cands == 0 then c.blocked = c.blocked + 1
+          elseif ok then
+            local pick = cands[1 + ru(prf(S.seed, TAG.CAMP, c.id, t, 8), #cands)]
+            local h2 = pick[1]
+            if pick[2] then self:emit(P_.AUTH, uvalid, h2, pos, 1, meta) else self:emit(P_.CONN, pos, h2, 8, 1, meta) end
+            self:emit(P_.CONN, pos, h2, 7, 1, meta)
+            self.host[h2].foot = true; self.host[h2].camp = c.id; c.holds[h2] = true; c.pos = h2
+            adv()
+          end
+        end
+      end
+    end
+  end
+end
+
+------------------------------------------------------------------------------------------------ defender actions
+function W:apply(a)
+  local S, t = self.S, self.t
+  local id, x, y = a[1], a[2], a[3]
+  local cost = S.act_cost[id]
+  local ho = self.host[x]
+  if id == W.ACT.ISOLATE then ho.isol = true
+  elseif id == W.ACT.UNISOLATE then ho.isol = false
+  elseif id == W.ACT.REVOKE then self.user[x].revoked = true; self.user[x].reissue_t = -1
+  elseif id == W.ACT.REISSUE then self.user[x].reissue_t = t + 2
+  elseif id == W.ACT.KILL then ho.foot = false; if ho.persist then ho.respawn = t + 3 end
+  elseif id == W.ACT.CLEAN then
+    ho.foot = false; ho.persist = false; ho.forced = false; ho.respawn = -1; ho.cfg = ho.cfg & ~8
+    for s = 0, S.nsvc[x] - 1 do ho.down[s] = t + 2 end
+  elseif id == W.ACT.PATCH then
+    ho.patched[y] = true; cost = cost + S.kb[y].remcost
+    for s, sv in ipairs(S.svc[x]) do if sv.comp == S.kb[y].comp then ho.down[s - 1] = t + 1 end end
+  elseif id == W.ACT.FIXCFG then ho.cfg = ho.cfg & ~((y == 3 or y == 0 or y == 1) and (1 << y) or 0)
+  elseif id == W.ACT.RESTORE then
+    ho.foot = false; ho.persist = false; ho.forced = false; ho.respawn = -1; ho.cfg = S.cfg0[x]
+    for s = 0, S.nsvc[x] - 1 do ho.down[s] = t + 4 end
+  end
+  return cost
+end
+
+-- validation shared by the environment (authorization) and by tests; returns status 0 ok, 1 invalid arguments, 2 unauthorized
+function W:check_action(a)
+  local S = self.S
+  local id, x, y = a[1], a[2], a[3]
+  if math.type(id) ~= "integer" or id < 0 or id >= W.NACT then return 1 end
+  if id == 0 then return 0 end
+  if math.type(x) ~= "integer" then return 1 end
+  if id == W.ACT.REVOKE or id == W.ACT.REISSUE then
+    if x < 0 or x >= S.nu then return 1 end
+    if id == W.ACT.REISSUE and not self.user[x].revoked then return 1 end
+    return 0
+  end
+  if x < 0 or x >= S.nh then return 1 end
+  if id == W.ACT.PATCH and (math.type(y) ~= "integer" or y < 1 or y > #S.kb) then return 1 end
+  if id == W.ACT.FIXCFG and (math.type(y) ~= "integer" or y < 0 or y > 3) then return 1 end
+  if (id == W.ACT.ISOLATE or id == W.ACT.RESTORE) and S.prot[x] then return 2 end
+  if id == W.ACT.ISOLATE then
+    local n = 0
+    for h = 0, S.nh - 1 do if self.host[h].isol then n = n + 1 end end
+    if n >= W.MAX_ISOLATED or self.host[x].isol then return 2 end
+  end
+  if id == W.ACT.UNISOLATE and not self.host[x].isol then return 1 end
+  return 0
+end
+
+------------------------------------------------------------------------------------------------ one tick
+local function due(S, rt, t)
+  if rt.mode == "periodic" then return (t + rt.phase) % rt.period == 0 end
+  return rp(prf(S.seed, TAG.RTN, rt.id, t), rt.num, rt.den)
+end
+
+function W:degraded(h, s, depth)
+  local S, t = self.S, self.t
+  local ho = self.host[h]
+  if ho.isol or ho.forced or t < (ho.down[s] or -1) then return true end
+  if depth >= 3 then return false end
+  for _, d in ipairs(S.dep) do
+    if d[1] == h and d[2] == s and self:degraded(d[3], d[4], depth + 1) then return true end
+  end
+  return false
+end
+
+function W:step(act)
+  local S = self.S
+  self.t = self.t + 1
+  local t = self.t
+  local act_cost = 0
+  if act and act[1] ~= 0 then act_cost = self:apply(act) end
+  for u = 0, S.nu - 1 do
+    local us = self.user[u]
+    if us.revoked and us.reissue_t >= 0 and t >= us.reissue_t then us.revoked = false; us.reissue_t = -1 end
+  end
+  for _, rt in ipairs(S.routines) do if due(S, rt, t) then self:fire(rt, t) end end
+  for _, d in ipairs(S.decoys) do if due(S, d, t) then self:fire(d, t) end end
+  self:run_scheduled()
+  self:run_campaigns()
+  -- spurious records (sensor faults): rare-looking, belonging to no true event
+  for k = 1, S.sens.spur do
+    if rp(prf(S.seed, TAG.SPUR, t, k), 35, 100) then
+      local pred = ({P_.EXEC, P_.CONN, P_.AUTH, P_.FILE})[1 + ru(prf(S.seed, TAG.SPUR, t, k + 20), 4)]
+      local h1, h2 = ru(prf(S.seed, TAG.SPUR, t, k + 40), S.nh), ru(prf(S.seed, TAG.SPUR, t, k + 60), S.nh)
+      local img = ru(prf(S.seed, TAG.SPUR, t, k + 80), S.ni)
+      local ev = {id = 0, t = t, pred = pred, a1 = (pred == P_.AUTH) and ru(prf(S.seed, TAG.SPUR, t, k + 90), S.nu) or h1,
+                  a2 = (pred == P_.EXEC) and img or h2, a3 = (pred == P_.AUTH) and h1 or (pred == P_.EXEC) and S.img.shell or 6, attr = 0}
+      self:push(ev, (pred == P_.AUTH) and 1 or (pred == P_.CONN) and 2 or 3, t + ru(prf(S.seed, TAG.SPUR, t, k + 99), S.sens.dmax + 1), {fake = true})
+    end
+  end
+  -- accounting (half-units)
+  local loss, parts = 0, {foot = 0, pers = 0, stolen = 0, down = 0, rev = 0}
+  for h = 0, S.nh - 1 do
+    local ho = self.host[h]
+    if ho.foot then parts.foot = parts.foot + 2 * S.val[h] elseif ho.persist then parts.pers = parts.pers + S.val[h] end
+    for s = 0, S.nsvc[h] - 1 do if self:degraded(h, s, 0) then parts.down = parts.down + 2 * S.svc[h][s + 1].crit end end
+  end
+  for u = 0, S.nu - 1 do
+    local us = self.user[u]
+    if us.stolen and not us.revoked then parts.stolen = parts.stolen + 2 * S.cval[u] end
+    if us.revoked then parts.rev = parts.rev + S.cval[u] end
+  end
+  loss = parts.foot + parts.pers + parts.stolen + parts.down + parts.rev
+  local spike = self.exfil_spike; self.exfil_spike = 0
+  parts.spike = spike; parts.act = act_cost
+  self.tick_loss[t] = loss + spike
+  self.meter[t] = math.max(0, math.min(255, (loss + spike + 2 * (ru(prf(S.seed, TAG.WIGGLE, t), 5) - 2)) // 2))
+  -- hidden truth for scoring (evaluator only)
+  local fm, pm, sm, em = 0, 0, 0, 0
+  for h = 0, S.nh - 1 do
+    local ho = self.host[h]
+    if ho.foot or ho.persist then fm = fm | (1 << h) end
+    if ho.persist then pm = pm | (1 << h) end
+    if (ho.cfg & 1) == 1 then em = em | (1 << h) end
+  end
+  for u = 0, S.nu - 1 do if self.user[u].stolen then sm = sm | (1 << u) end end
+  self.truth[t] = {comp = fm, persist = pm, stolen = sm, expo = em, parts = parts}
+  return -(loss + spike + act_cost), parts
+end
+
+-- telemetry records whose arrival tick is `t`, in sequence order (delivery and backlog are the environment's business)
+function W:take_arrivals(t)
+  local l = self.q[t]; self.q[t] = nil
+  if not l then return {} end
+  table.sort(l, function(a, b) return a.seq < b.seq end)
+  return l
+end
+--@@WORLD-TICK-END@@
+------------------------------------------------------------------------------------------------ evaluator-only reference defender
+-- A reactive defender with PERFECT knowledge of the current hidden state and zero information cost. It does not know the
+-- future (it cannot patch before an attack starts). It is the scoring ceiling "perfect-information reaction", not an optimum.
+function W:reference_action()
+  local S = self.S
+  -- 1. kill or clean the most valuable live foothold
+  local best, bv = nil, -1
+  for h = 0, S.nh - 1 do
+    local ho = self.host[h]
+    if (ho.foot or ho.persist or ho.forced) and S.val[h] > bv then best, bv = h, S.val[h] end
+  end
+  -- 2. close the root cause of any campaign that could re-enter or is still active
+  for _, c in ipairs(self.camps) do
+    if c.alive or (c.reenter or 0) < 2 then
+      if c.start <= self.t + 1 and (c.alive or best) then
+        if c.vec == "exploit" and self:vulnerable(c.host, c.vuln) and not self.host[c.host].isol then return {W.ACT.PATCH, c.host, c.vuln} end
+        if c.vec == "misconfig" and (self.host[c.host].cfg & 1) == 1 and c.alive then return {W.ACT.FIXCFG, c.host, 0} end
+        if c.vec == "cred" and self.user[c.user].stolen and not self.user[c.user].revoked then return {W.ACT.REVOKE, c.user} end
+      end
+    end
+  end
+  if best then
+    local ho = self.host[best]
+    if ho.persist or ho.forced then return {W.ACT.CLEAN, best} end
+    return {W.ACT.KILL, best}
+  end
+  for u = 0, S.nu - 1 do
+    local us = self.user[u]
+    if us.stolen and not us.revoked then return {W.ACT.REVOKE, u} end
+  end
+  for u = 0, S.nu - 1 do
+    local us = self.user[u]
+    local any = false
+    for _, c in ipairs(self.camps) do if c.alive and c.user == u then any = true end end
+    if us.revoked and us.reissue_t < 0 and not any then return {W.ACT.REISSUE, u} end
+  end
+  return {W.ACT.WAIT}
+end
+--@@WORLD-REF-END@@
+------------------------------------------------------------------------------------------------ tool backend (read-only except TELEMETRY)
+-- Every tool returns (status, payload). status 0 ok, 1 invalid arguments, 2 unauthorized or quota, 4 unavailable (blind host / no
+-- sample), 5 nothing to do. Measurement noise is a PRF of (tool, arguments, tick): repeating a call in the same tick repeats it.
+local BEH = {beacon = 0, persist = 1, cred = 2, bulk = 3, admin = 5, update = 6, backup = 7}
+local function recent_events(self, from_t, fn)
+  for tt = self.t, math.max(1, from_t), -1 do
+    local l = self.by_tick[tt]
+    if l then for i = #l, 1, -1 do local ev = self.events[l[i]]; if fn(ev) == false then return end end end
+  end
+end
+function W:collateral(act, x)
+  -- services that would degrade if host x's services went down (from the possibly stale CMDB), and the cost per tick
+  local S = self.S
+  local n, cost = 0, 0
+  local function walk(h, s, depth)
+    for _, d in ipairs(S.dep) do
+      if d[3] == h and d[4] == s and depth < 3 then
+        if not rp(prf(S.seed, TAG.PROBE, 500 + d[1], d[2], x), 15, 100) then n = n + 1; cost = cost + 2 * S.svc[d[1]][d[2] + 1].crit end
+        walk(d[1], d[2], depth + 1)
+      end
+    end
+  end
+  for s = 0, S.nsvc[x] - 1 do cost = cost + 2 * S.svc[x][s + 1].crit; n = n + 1; walk(x, s, 0) end
+  return n, cost
+end
+
+function W:tool(id, a, b, c)
+  local S, t = self.S, self.t
+  local function key(k) return prf(S.seed, TAG.PROBE, id * 64 + (k or 0), (a or 0) * 256 + (b or 0), t) end
+  if math.type(id) ~= "integer" or id < 1 or id > W.NTOOL then return 1, {} end
+  local function ishost(x) return math.type(x) == "integer" and x >= 0 and x < S.nh end
+  local function isuser(x) return math.type(x) == "integer" and x >= 0 and x < S.nu end
+  local T = W.TOOL
+  if id == T.HOST then
+    if not ishost(a) then return 1, {} end
+    local ho = self.host[a]
+    local up = 0
+    for s = 0, S.nsvc[a] - 1 do if not self:degraded(a, s, 0) then up = up | (1 << s) end end
+    local p = {S.role[a], S.val[a] | ((S.prot[a] and 1 or 0) << 4), up, ho.isol and 1 or 0, S.nsvc[a], 255, 0, 255, 0, 255, 0, ho.cfg, S.subnet[a]}
+    for i, sv in ipairs(S.svc[a]) do if i <= 3 then p[4 + 2 * i], p[5 + 2 * i] = sv.comp, S.ver[a][sv.comp] end end
+    return 0, p
+  elseif id == T.PROC then
+    if not ishost(a) then return 1, {} end
+    if not self:agent_active(a) then return 4, {} end
+    local p = {S.img.agent, S.img.sched, S.img.shell, 255}
+    local dm = ({[W.ROLE.GW] = S.img.web, [W.ROLE.SRV] = S.img.app, [W.ROLE.DB] = S.img.db})[S.role[a]]
+    if dm then p[#p + 1] = dm; p[#p + 1] = S.img.shell end
+    local ho = self.host[a]
+    if ho.foot then
+      local c = self.camps[ho.camp or 1]
+      if c and not rp(key(1), c.stealth + 10, 100) then p[#p + 1] = c.img; p[#p + 1] = S.img.shell end
+    end
+    return 0, p
+  elseif id == T.NET then
+    if not ishost(a) then return 1, {} end
+    if not self:agent_active(a) then return 4, {} end
+    local p = {}
+    for _, rt in ipairs(S.routines) do end
+    for b2 = 0, S.nh - 1 do
+      if b2 ~= a and S.link[a][b2] and rp(prf(S.seed, TAG.PROBE, 700 + a, b2, t // 3), 25, 100) and #p < 10 then p[#p + 1] = b2; p[#p + 1] = 5 end
+    end
+    if self.host[a].foot and not self.host[a].isol and not rp(key(2), 15, 100) then p[#p + 1] = W.EXT; p[#p + 1] = 10 end
+    return 0, p
+  elseif id == T.AUTH then
+    if not ishost(a) then return 1, {} end
+    local p = {}
+    recent_events(self, t - 8, function(ev)
+      if ev.pred == P_.AUTH and ev.a2 == a and #p < 15 and not rp(key(3 + ev.id % 7), 10, 100) then p[#p + 1] = ev.a1; p[#p + 1] = ev.a3; p[#p + 1] = ev.t end
+    end)
+    return 0, p
+  elseif id == T.FILE then
+    if not ishost(a) then return 1, {} end
+    if not self:agent_active(a) then return 4, {} end
+    local ho = self.host[a]
+    local p = {2, math.max(0, t - 1 - ru(key(1), 3)), 1, 1}
+    if ho.dropper_t then p[#p + 1] = 1; p[#p + 1] = ho.dropper_t; p[#p + 1] = 1; p[#p + 1] = 0 end
+    if ho.cred_t then p[#p + 1] = 4; p[#p + 1] = ho.cred_t; p[#p + 1] = 1; p[#p + 1] = 1 end
+    if ho.coll_t then p[#p + 1] = 3; p[#p + 1] = ho.coll_t; p[#p + 1] = 3; p[#p + 1] = 1 end
+    return 0, p
+  elseif id == T.CONFIG then
+    if not ishost(a) then return 1, {} end
+    local ho = self.host[a]
+    local pm = 0
+    for k = 1, #S.kb do if ho.patched[k] then pm = pm | (1 << (k - 1)) end end
+    return 0, {ho.cfg, (ho.cfg ~ S.cfg0[a]) & 15, (self.last_cfg_change[a] >= 0) and self.last_cfg_change[a] or 255, self.ticket[a] and 1 or 0, pm}
+  elseif id == T.ALERTS then
+    if not ishost(a) then return 1, {} end
+    if not self:agent_active(a) then return 4, {} end
+    local p, al = {}, self.alert_log[a] or {}
+    for i = #al, math.max(1, #al - 3), -1 do local x = al[i]; p[#p + 1] = x.trig; p[#p + 1] = x.sev; p[#p + 1] = x.conf; p[#p + 1] = x.t end
+    return 0, p
+  elseif id == T.KB then
+    if math.type(a) ~= "integer" or a < 0 or a > 6 then return 1, {} end
+    local p = {}
+    for k, e in ipairs(S.kb) do if e.comp == a and #p < 28 then p[#p + 1] = k; p[#p + 1] = e.vlo; p[#p + 1] = e.vhi; p[#p + 1] = e.expo; p[#p + 1] = e.mit; p[#p + 1] = e.remcost; p[#p + 1] = e.conf end end
+    return 0, p
+  elseif id == T.TRACE_ENT then
+    if not ishost(a) or math.type(b) ~= "integer" or b < 0 or b >= S.ni then return 1, {} end
+    if not self:agent_active(a) then return 4, {} end
+    local found
+    recent_events(self, t - 14, function(ev) if ev.pred == P_.EXEC and ev.a1 == a and ev.a2 == b then found = ev; return false end end)
+    if not found then return 4, {} end
+    local gp = 255
+    recent_events(self, found.t - 14, function(ev) if ev.pred == P_.EXEC and ev.a1 == a and ev.a2 == found.a3 and ev.id < found.id then gp = ev.a3; return false end end)
+    return 0, {found.a3, gp, found.attr, found.t}
+  elseif id == T.TRACE_REL then
+    if not (ishost(a) or a == W.EXT) or not (ishost(b) or b == W.EXT) then return 1, {} end
+    local n, last, mask, na = 0, 255, 0, 0
+    recent_events(self, t - 12, function(ev)
+      if ev.pred == P_.CONN and ((ev.a1 == a and ev.a2 == b) or (ev.a1 == b and ev.a2 == a)) then n = n + 1; if last == 255 then last = ev.t end; mask = mask | (1 << (ev.a3 % 12)) end
+      if ev.pred == P_.AUTH and ((ev.a3 == a and ev.a2 == b) or (ev.a3 == b and ev.a2 == a)) then na = na + 1 end
+    end)
+    return 0, {n, last, mask, na}
+  elseif id == T.DEPS then
+    if not ishost(a) then return 1, {} end
+    local p = {}
+    local function walk(h, s, depth)
+      for _, d in ipairs(S.dep) do
+        if d[3] == h and d[4] == s and depth < 3 and #p < 18 and not rp(prf(S.seed, TAG.PROBE, 500 + d[1], d[2], a), 15, 100) then
+          p[#p + 1] = d[1]; p[#p + 1] = d[2]; p[#p + 1] = S.svc[d[1]][d[2] + 1].crit; walk(d[1], d[2], depth + 1)
+        end
+      end
+    end
+    for s = 0, S.nsvc[a] - 1 do walk(a, s, 0) end
+    return 0, p
+  elseif id == T.SANDBOX then
+    if not ishost(a) or math.type(b) ~= "integer" or b < 0 or b >= S.ni then return 1, {} end
+    local seen = false
+    recent_events(self, t - 20, function(ev) if ev.pred == P_.EXEC and ev.a1 == a and ev.a2 == b then seen = true; return false end end)
+    if not seen then return 4, {} end
+    local kind = S.imgkind[b]
+    local mask = 0
+    if kind == "implant" or kind == "implant2" then
+      if rp(key(1), 25, 100) then mask = 1 << BEH.admin
+      else for _, bit in ipairs({BEH.beacon, BEH.persist, BEH.cred, BEH.bulk}) do if rp(key(2 + bit), 80, 100) then mask = mask | (1 << bit) end end end
+    elseif kind == "admin" then mask = 1 << BEH.admin
+    elseif kind == "updater" then mask = 1 << BEH.update
+    elseif kind == "backup" then mask = (1 << BEH.backup) | (1 << BEH.bulk)
+    elseif kind == "tool" then mask = (1 << BEH.cred) | (1 << BEH.admin) end
+    return 0, {mask, 200}
+  elseif id == T.VERIFY then
+    local kind = a
+    if math.type(kind) ~= "integer" or kind < 1 or kind > 3 then return 1, {} end
+    local v = S.verify[kind]
+    local truth
+    if kind == 3 then if not isuser(b) then return 1, {} end; truth = self.user[b].stolen
+    else
+      if not ishost(b) then return 1, {} end
+      local ho = self.host[b]
+      truth = (kind == 1) and (ho.foot or ho.persist) or ho.persist
+    end
+    local pos = ru(key(9), 256) < (truth and v.tpr or v.fpr)
+    return 0, {pos and 1 or 0}
+  elseif id == T.SIMULATE then
+    if math.type(a) ~= "integer" then return 1, {} end
+    local st = self:check_action({a, b, c})
+    if st == 1 then return 1, {} end
+    if st == 2 then return 0, {0, 0, 0, 0, 0} end
+    local n, cost = 0, 0
+    local dur = ({[0] = 0, 99, 1, 2, 1, 0, 2, 1, 1, 4})[a]
+    local rev = (a == 1 or a == 3 or a == 8 or a == 2 or a == 4 or a == 0) and 1 or 0
+    if a == W.ACT.ISOLATE or a == W.ACT.CLEAN or a == W.ACT.RESTORE or a == W.ACT.PATCH then n, cost = self:collateral(a, b) end
+    if a == W.ACT.REVOKE then cost = S.cval[b] end
+    return 0, {1, n, math.min(cost, 255), rev, dur}
+  elseif id == T.TELEMETRY then
+    if not ishost(a) then return 1, {} end
+    if self.host[a].agent and self.t >= self.host[a].agent_from then return 5, {} end
+    if self.tel_enabled >= 3 then return 2, {} end
+    self.host[a].agent = true; self.host[a].agent_from = t + 1; self.tel_enabled = self.tel_enabled + 1
+    return 0, {1}
+  end
+  return 1, {}
+end
+--@@WORLD-TOOLS-END@@
+return W
+end
+
+-- ======================================================================== asi.cyber.env  (controller-facing interface, metering, accounting)
+package.preload["asi.cyber.env"] = function(...)
+--[============[
+asi.cyber.env -- the ONLY boundary between a guest program and a simulated enterprise.
+
+  CSENSE rd, ra        write the round packet (header, host inventory, episode contract, up to 24 telemetry records) at [ra]
+  CTOOL  rd, ra, rb    run a tool: request [tool, a, b, c] at [ra]; response [status, tool, n, payload...] written at [rb]
+  CACT   rd, ra        commit one defensive action [act, x, y] at [ra] and END THE ROUND (the world advances one tick)
+  CREP   rd, ra        submit the current belief report and up to 8 forecasts of future telemetry (scored when they resolve)
+
+Work is charged to the VM ledger exactly as quoted before execution; utility costs of tools and actions are charged to the
+episode score. Invalid requests cost their base work, return a failure status and count as protocol violations; they never
+reach the world. Authorization (protected hosts, isolation quota, tool rate limit) is enforced here and reported in the
+packet; the guest has its own shield on top. A stream is four consecutive episodes of 48 rounds: base world, structural
+novelty, a different world, and return with a regime shock; the guest keeps whatever it learned (it is one VM run).
+Also defined: Env.Legacy, an adapter that exposes the SAME worlds through the frozen 4-field RSENSE/RACT/RPRED interface of the
+generation-3 reasoner so that the unchanged old controller can be run as the pre-upgrade baseline.
+]============]
+local U = require("asi.util")
+local ISA = require("asi.isa")
+local VM = require("asi.vm")
+local W = require("asi.cyber.world")
+local Env = {}; Env.__index = Env
+Env.ops = {{"CSENSE", "rr"}, {"CTOOL", "rrr"}, {"CACT", "rr"}, {"CREP", "rr"}}
+Env.index = {CSENSE = 1, CTOOL = 2, CACT = 3, CREP = 4}
+Env.machine = ISA.build(Env.ops)
+Env.BATCH, Env.PACKET_WORDS, Env.MAGIC = 24, 120, 0xC1B3
+Env.ROUNDS, Env.STAGES = 48, 4
+Env.TOOL_WORK = {16, 24, 24, 24, 24, 16, 16, 8, 32, 24, 24, 64, 96, 32, 16}
+Env.PROTOCOL = {
+  id = "CYB1", version = 1, stages = {"train", "structural_novelty", "different_world", "return_shock"}, rounds = 48,
+  work_budget = 33549312, ram_words = 8192, stack_words = 256, image_cap_bits = 1048576,
+  work = {csense = 64, csense_event = 3, ctool = 48, cact = 64, crep = 32, crep_pred = 4}, tool_work = Env.TOOL_WORK,
+  batch = 24, tools_per_round = W.MAX_TOOLS_PER_ROUND, max_isolated = W.MAX_ISOLATED, packet_words = 120,
+  budgets = {1, 2, 4}, budget_den = 4,
+  sets = {dev = {1, 2, 3, 4, 5, 6, 7, 8}, diag = {101, 102, 103, 104, 105, 106},
+          held = {9001, 9002, 9003, 9004, 9005, 9006, 9007, 9008, 9009, 9010, 9011, 9012, 9013, 9014, 9015, 9016},
+          heldB = {9101, 9102, 9103, 9104, 9105, 9106, 9107, 9108, 9109, 9110, 9111, 9112, 9113, 9114, 9115, 9116},
+          ood = {8001, 8002, 8003, 8004, 8005, 8006, 8007, 8008}, adv = {7001, 7002, 7003, 7004, 7005, 7006, 7007, 7008}},
+  params = {dev = "dev", diag = "dev", held = "dev", heldB = "dev", ood = "ood", adv = "adv"},
+  reference = "perfect-information reactive defender (evaluator-only); passive = no action",
+}
+Env.protocol_hash = U.sha256(U.to_literal({Env.PROTOCOL, W.PARAMS, W.BASE_ACT_COST, W.BASE_TOOL_COST, W.BASE_VERIFY}))
+
+------------------------------------------------------------------------------------------------ stream (shared by both front ends)
+local Stream = {}; Stream.__index = Stream
+Env.Stream = Stream
+function Stream.new(opts)
+  opts = opts or {}
+  local seed = opts.seed or 1
+  local P = W.PARAMS[opts.params or Env.PROTOCOL.params[opts.set or "dev"] or "dev"]
+  local self = setmetatable({seed = seed, P = P, specs = {}, stage = 0, round = 0, gt = 0, rows = {}, tool_log = {}, act_log = {}, preds = {}, reports = {},
+    viol = {tool_invalid = 0, tool_denied = 0, act_invalid = 0, act_denied = 0, protocol = 0}, backlog = {}, delivered = {}, tool_cost_round = 0, tools_round = 0,
+    info_spent = 0, act_spent = 0, last_act_status = 0, last_meter = 0, round_open = false, done = false, opts = opts, tel_cost_total = 0}, Stream)
+  local variants = {0, 1, 0, 3}
+  for k = 1, Env.STAGES do
+    local base = (k == 3) and (seed + 7777) or seed
+    local S = W.make_spec(base, P, variants[k])
+    S.seed = base * 1000003 + (k - 1) * 7919 + variants[k]
+    S.stage_name = Env.PROTOCOL.stages[k]
+    self.specs[k] = S
+  end
+  if opts.limit_stages then self.nstages = opts.limit_stages else self.nstages = Env.STAGES end
+  self.rounds = opts.rounds or Env.ROUNDS
+  self:enter(1)
+  return self
+end
+
+function Stream:enter(k)
+  self.stage = k; self.round = 0
+  self.S = self.specs[k]
+  self.world = W.new(self.S)
+  if self.opts.ghost and self.opts.ghost.stage == k then self.world.host[self.opts.ghost.host].ghost = true end
+  self.reset = true
+  self.backlog = {}
+  self.stage_start_gt = self.gt
+  self.tool_cost_round, self.tools_round, self.round_open = 0, 0, false
+  self.last_act_status = 0
+  local u, parts = self.world:step(nil)                 -- tick 1 happens before the controller's first look
+  self.last_meter = 0
+  self.pending_util = {u = u, parts = parts}
+  self.stage_t0 = self.world.t
+  self:record_tick(0, 0, 0, u, parts)
+end
+
+function Stream:record_tick(act_id, tools_cost, act_status, u, parts)
+  local w = self.world
+  self.rows[#self.rows + 1] = {gt = self.gt, stage = self.stage, round = self.round, t = w.t, util = u - tools_cost, step_util = u, tool_cost = tools_cost,
+    act = act_id, act_status = act_status, truth = w.truth[w.t], meter = w.meter[w.t], parts = parts}
+end
+
+-- the first CSENSE of a round collects this tick's arrivals into the backlog
+function Stream:begin_round()
+  if self.round_open then return end
+  self.round_open = true
+  local arr = self.world:take_arrivals(self.world.t)
+  for _, rec in ipairs(arr) do self.backlog[#self.backlog + 1] = rec end
+  self.round_sense_calls = 0
+end
+
+function Stream:pop_batch()
+  local out = {}
+  while #out < Env.BATCH and #self.backlog > 0 do out[#out + 1] = table.remove(self.backlog, 1) end
+  return out
+end
+
+function Stream:enter_next_or_done()
+  self:resolve_predictions(true)
+  if self.stage >= self.nstages then self.done = true; return end
+  self:enter(self.stage + 1)
+end
+
+-- one round ends: apply the action (status already decided), tick the world, resolve forecasts, advance the stage if needed
+function Stream:end_round(act, status)
+  local w = self.world
+  local tools_cost = self.tool_cost_round
+  local applied = (status == 0 and act and act[1] ~= 0) and act or nil
+  local aid = act and act[1] or 0
+  self.gt = self.gt + 1; self.round = self.round + 1
+  local tel_cost = w.tel_enabled                         -- ongoing cost of extra telemetry, half-units per host per tick
+  self.tel_cost_total = self.tel_cost_total + tel_cost
+  local u, parts = w:step(applied)
+  self.last_meter = w.meter[w.t - 1] or 0               -- the meter a controller reads is delayed by one tick
+  self.act_spent = self.act_spent + (parts.act or 0)
+  self.last_act_status = status
+  self:record_tick(aid, tools_cost + tel_cost, status, u, parts)
+  self.tool_cost_round, self.tools_round, self.round_open = 0, 0, false
+  self.reset = false
+  self:resolve_predictions()
+  if self.round >= self.rounds then self:enter_next_or_done() end
+end
+
+function Stream:resolve_predictions(force)
+  local t = self.world.t
+  for _, p in ipairs(self.preds) do
+    if not p.resolved and p.stage == self.stage and (force or t - 1 >= p.hi) then
+      local hit = false
+      for _, d in ipairs(self.delivered) do
+        if d.stage == p.stage and d.t >= p.lo and d.t <= p.hi and d.pred == p.type and d.host == p.host then hit = true; break end
+      end
+      p.resolved, p.hit = true, hit
+    end
+  end
+end
+
+------------------------------------------------------------------------------------------------ new interface: VM environment ops
+function Env.new(opts)
+  local self = setmetatable({}, Env)
+  self.s = Stream.new(opts)
+  self.trace_log = {}
+  return self
+end
+local function writable(vm, a, n) return math.type(a) == "integer" and a >= VM.RAM_BASE and a + n <= VM.RAM_BASE + vm.ram_words end
+
+function Env:packet()
+  local s = self.s
+  local S, w = s.S, s.world
+  local batch = s:pop_batch()
+  local p = {}
+  local pm = 0
+  for h = 0, S.nh - 1 do if S.prot[h] then pm = pm | (1 << h) end end
+  local flags = (s.reset and 1 or 0) | (s.done and 2 or 0) | ((#s.backlog > 0) and 4 or 0) | ((s.round_sense_calls > 0) and 8 or 0)
+  p[1], p[2], p[3], p[4], p[5], p[6], p[7] = Env.MAGIC, S.nh, S.nu, w.t, s.round, s.stage, flags
+  p[8], p[9], p[10], p[11], p[12], p[13] = #batch, #s.backlog, s.last_meter, s.info_spent, s.last_act_status, pm
+  local niso = 0
+  for h = 0, S.nh - 1 do if w.host[h].isol then niso = niso + 1 end end
+  p[14], p[15], p[16] = W.MAX_ISOLATED - niso, W.MAX_TOOLS_PER_ROUND, #S.kb
+  for h = 0, 15 do
+    if h < S.nh then p[16 + 1 + h] = S.role[h] | (S.val[h] << 4) | ((S.prot[h] and 1 or 0) << 8) | (S.nsvc[h] << 9) | (S.subnet[h] << 12) else p[16 + 1 + h] = 0 end
+  end
+  local c = 33
+  for a = 0, W.NACT - 1 do p[c] = S.act_cost[a]; c = c + 1 end
+  for t = 1, W.NTOOL do p[c] = S.tool_cost[t]; c = c + 1 end
+  for k = 1, 3 do p[c] = S.verify[k].cost; p[c + 1] = S.verify[k].tpr; p[c + 2] = S.verify[k].fpr; c = c + 3 end
+  p[c] = S.ni; p[c + 1] = S.nsvc[0]; c = c + 2          -- c now 33 + 10 + 15 + 9 + 2 = 69
+  while #p < 72 do p[#p + 1] = 0 end
+  for i, rec in ipairs(batch) do
+    p[72 + 2 * i - 1] = rec.pred | (rec.a1 << 4) | (rec.a2 << 12) | (rec.a3 << 20) | (rec.attr << 28) | (rec.sensor << 36)
+    p[72 + 2 * i] = rec.t_event | (rec.t_arrive << 16) | (rec.seq << 32)
+    s.delivered[#s.delivered + 1] = {stage = s.stage, t = w.t, pred = rec.pred, host = (rec.pred == W.PRED.AUTH) and rec.a2 or rec.a1, seq = rec.seq, true_id = rec.true_id, fake = rec.fake}
+    s.rec_by_seq = s.rec_by_seq or {}; s.rec_by_seq[rec.seq] = rec
+  end
+  for i = #p + 1, Env.PACKET_WORDS do p[i] = 0 end
+  return p, #batch
+end
+
+function Env:quote(vm, idx, rd, ra, rb, imm, t)
+  local P = Env.PROTOCOL.work
+  if idx == 1 then
+    self.s:begin_round()
+    return P.csense + P.csense_event * math.min(Env.BATCH, #self.s.backlog)
+  elseif idx == 2 then
+    local id = vm:mread(vm.r[ra])
+    if id == nil then return nil, VM.FAULT.ACCESS end
+    return P.ctool + ((math.type(id) == "integer" and id >= 1 and id <= W.NTOOL) and Env.TOOL_WORK[id] or 0)
+  elseif idx == 3 then return P.cact
+  elseif idx == 4 then
+    local n = vm:mread(vm.r[ra] + 40)
+    if n == nil then return nil, VM.FAULT.ACCESS end
+    return P.crep + P.crep_pred * ((math.type(n) == "integer" and n >= 0 and n <= 8) and n or 0)
+  end
+  return nil, VM.FAULT.OP
+end
+
+function Env:exec(vm, idx, rd, ra, rb, imm, t)
+  local r, s = vm.r, self.s
+  local P = Env.PROTOCOL.work
+  if idx == 1 then
+    local dest = r[ra]; if not writable(vm, dest, Env.PACKET_WORDS) then return nil, VM.FAULT.ACCESS end
+    local pk, n = self:packet()
+    for i = 1, Env.PACKET_WORDS do vm:mwrite(dest + i - 1, pk[i]) end
+    s.round_sense_calls = s.round_sense_calls + 1
+    r[rd] = 0
+    return P.csense + P.csense_event * n, 1
+  elseif idx == 2 then
+    local req = {}
+    for i = 0, 3 do local v = vm:mread(r[ra] + i); if v == nil then return nil, VM.FAULT.ACCESS end; req[i + 1] = v end
+    if not writable(vm, r[rb], 32) then return nil, VM.FAULT.ACCESS end
+    local id = req[1]
+    local base = P.ctool + ((math.type(id) == "integer" and id >= 1 and id <= W.NTOOL) and Env.TOOL_WORK[id] or 0)
+    local status, payload, cost = 1, {}, 0
+    local valid_id = math.type(id) == "integer" and id >= 1 and id <= W.NTOOL
+    if not valid_id then s.viol.tool_invalid = s.viol.tool_invalid + 1
+    elseif s.tools_round >= W.MAX_TOOLS_PER_ROUND then status = 2; s.viol.tool_denied = s.viol.tool_denied + 1
+    else
+      s.tools_round = s.tools_round + 1
+      for i = 2, 4 do if math.type(req[i]) ~= "integer" then req[i] = -1 end end
+      status, payload = s.world:tool(id, req[2], req[3], req[4])
+      if status == 0 or status == 4 then
+        cost = (id == W.TOOL.VERIFY and s.S.verify[req[2]] and s.S.verify[req[2]].cost) or s.S.tool_cost[id]
+        s.tool_cost_round = s.tool_cost_round + cost; s.info_spent = s.info_spent + cost
+      elseif status == 1 then s.viol.tool_invalid = s.viol.tool_invalid + 1
+      elseif status == 2 then s.viol.tool_denied = s.viol.tool_denied + 1 end
+    end
+    local dest = r[rb]
+    vm:mwrite(dest, status); vm:mwrite(dest + 1, valid_id and id or 0); vm:mwrite(dest + 2, math.min(#payload, 29))
+    for i = 1, 29 do vm:mwrite(dest + 2 + i, payload[i] or 0) end
+    s.tool_log[#s.tool_log + 1] = {gt = s.gt, stage = s.stage, t = s.world.t, tool = id, a = req[2], b = req[3], c = req[4], status = status, cost = cost, n = #payload,
+                                   work = vm.budget - vm.work_left + base, payload = payload}
+    r[rd] = status
+    return base, 1
+  elseif idx == 3 then
+    local act = {}
+    for i = 0, 2 do local v = vm:mread(r[ra] + i); if v == nil then return nil, VM.FAULT.ACCESS end; act[i + 1] = v end
+    local status = s.world:check_action(act)
+    if status == 1 then s.viol.act_invalid = s.viol.act_invalid + 1 elseif status == 2 then s.viol.act_denied = s.viol.act_denied + 1 end
+    s.act_log[#s.act_log + 1] = {gt = s.gt, stage = s.stage, t = s.world.t, act = act[1], x = act[2], y = act[3], status = status, work = vm.budget - vm.work_left + P.cact}
+    r[rd] = status
+    s:end_round(act, status)
+    return P.cact, 1
+  elseif idx == 4 then
+    local rep = {}
+    for i = 0, 63 do local v = vm:mread(r[ra] + i); if v == nil then return nil, VM.FAULT.ACCESS end; rep[i + 1] = v end
+    local n = rep[41]
+    local ok = math.type(n) == "integer" and n >= 0 and n <= 8
+    if not ok then s.viol.protocol = s.viol.protocol + 1; r[rd] = 1; return P.crep, 1 end
+    s.reports[s.gt + 1] = {stage = s.stage, t = s.world.t, words = rep, truth = s.world.truth[s.world.t]}
+    for i = 1, n do
+      local wd = rep[41 + i]
+      local type_, host, lo, hi, prob = wd & 15, (wd >> 4) & 255, (wd >> 12) & 255, (wd >> 20) & 255, (wd >> 28) & 255
+      if lo >= 1 and hi >= lo and hi <= 12 and type_ >= 1 and type_ <= 8 then
+        s.preds[#s.preds + 1] = {stage = s.stage, made = s.world.t, type = type_, host = host, lo = s.world.t + lo, hi = s.world.t + hi, prob = prob}
+      else s.viol.protocol = s.viol.protocol + 1 end
+    end
+    r[rd] = 0
+    return P.crep + P.crep_pred * n, 1
+  end
+  return nil, VM.FAULT.OP
+end
+--@@ENV-NEW-END@@
+------------------------------------------------------------------------------------------------ legacy adapter (pre-upgrade interface)
+-- The generation-3 reasoner can only read four integers 0..7 and choose one of four actions; it cannot name an entity. This
+-- adapter is the fixed, non-learning summarisation of the SAME passive telemetry that the new controllers receive:
+--   f0 severity of the alerts delivered this round     f1 decayed alert score of the most suspicious host
+--   f2 business-impact meter bucket                    f3 number of isolated hosts
+--   actions: 0 wait, 1 isolate the most suspicious host, 2 clean it, 3 release the lowest isolated host
+-- The adapter chooses nothing for the controller beyond naming "the most suspicious host"; whether and when to act is learned.
+local Legacy = {}; Legacy.__index = Legacy
+Env.Legacy = Legacy
+local REn = require("asi.reason.env")
+Legacy.ops, Legacy.machine = REn.ops, REn.machine
+function Legacy.new(opts)
+  local self = setmetatable({}, Legacy)
+  self.s = Stream.new(opts)
+  self.event, self.last_action, self.last_reward, self.last_failure, self.rejected, self.pred_calls, self.pred_rejected = 0, -1, 0, 0, 0, 0, 0
+  self.score = {}
+  self.episode_changed = true
+  return self
+end
+function Legacy:legal_mask(focus)
+  local s = self.s
+  local mask = 1
+  local niso, first = 0, nil
+  for h = 0, s.S.nh - 1 do if s.world.host[h].isol then niso = niso + 1; first = first or h end end
+  if focus and s.world:check_action({1, focus}) == 0 then mask = mask | 2 end
+  if focus then mask = mask | 4 end
+  if niso > 0 then mask = mask | 8 end
+  self.first_iso = first
+  return mask
+end
+function Legacy:observe()
+  local s = self.s
+  if self.observed_round == s.gt + s.stage * 1000 then return end
+  self.observed_round = s.gt + s.stage * 1000
+  s:begin_round()
+  local sev = 0
+  if self.reset_pending ~= false then self.score = {} end
+  for h in pairs(self.score) do self.score[h] = self.score[h] * 3 // 4 end
+  for _, rec in ipairs(s.backlog) do
+    if rec.pred == W.PRED.ALERT then sev = sev + rec.a3; self.score[rec.a1] = (self.score[rec.a1] or 0) + 4 * rec.a3 end
+  end
+  s.backlog = {}
+  local focus, best = nil, 3
+  for h = 0, s.S.nh - 1 do
+    local v = self.score[h] or 0
+    if v > best and not s.world.host[h].isol then focus, best = h, v end
+  end
+  self.focus = focus
+  local niso = 0
+  for h = 0, s.S.nh - 1 do if s.world.host[h].isol then niso = niso + 1 end end
+  self.obs = {math.min(7, sev), math.min(7, best // 4), math.min(7, s.last_meter // 4), math.min(7, niso)}
+  self.mask = self:legal_mask(focus)
+end
+function Legacy:sense_words()
+  local s = self.s
+  self:observe()
+  local w = {1, 4, 4, 7, 7, 7, 7, -1, -1, 0, -1}
+  w[12] = self.mask; w[13] = 15; w[14] = self.event
+  w[15] = s.reset and 1 or 0; w[16] = s.done and 1 or 0
+  w[17] = s.stage - 1; w[18] = s.round; w[19] = s.gt; w[20] = self.last_action
+  w[21] = self.last_reward; w[22] = self.last_failure; w[23] = self.event; w[24] = (self.event > 0) and 1 or 0
+  for i = 1, 4 do w[24 + i] = self.obs[i] end
+  return w
+end
+function Legacy:act(a)
+  local s = self.s
+  if s.done then return 1 end
+  if math.type(a) ~= "integer" or a < 0 or a > 3 or (self.mask & (1 << a)) == 0 then
+    self.rejected = self.rejected + 1; s.viol.act_denied = s.viol.act_denied + 1; self.last_failure = 1; return 3
+  end
+  local act = {W.ACT.WAIT}
+  if a == 1 then act = {W.ACT.ISOLATE, self.focus} elseif a == 2 then act = {W.ACT.CLEAN, self.focus} elseif a == 3 then act = {W.ACT.UNISOLATE, self.first_iso} end
+  local status = s.world:check_action(act)
+  if status ~= 0 then self.rejected = self.rejected + 1; s.viol.act_denied = s.viol.act_denied + 1; self.last_failure = 1; return 3 end
+  s.act_log[#s.act_log + 1] = {gt = s.gt, stage = s.stage, t = s.world.t, act = act[1], x = act[2], y = act[3], status = 0}
+  local before_stage = s.stage
+  s:end_round(act, 0)
+  local row = s.rows[#s.rows]
+  self.event = self.event + 1; self.last_action = a; self.last_failure = 0
+  self.last_reward = math.max(0, math.min(256, 256 + 4 * row.util))
+  self.reset_pending = (s.stage ~= before_stage)
+  return 0
+end
+function Legacy:submit_prediction(w)
+  self.pred_calls = self.pred_calls + 1
+  local ok = not self.s.done and w[1] == self.event + 1 and math.type(w[2]) == "integer" and w[2] >= 0 and w[2] < 4
+  ok = ok and math.type(w[11]) == "integer" and w[11] >= 0 and w[11] <= 256
+  for b = 0, 1 do
+    local mask = w[12 + b]; ok = ok and math.type(mask) == "integer" and mask >= 0 and mask <= 15
+    if ok then for i = 1, 4 do local v = w[2 + 4 * b + i]
+      if (mask & (1 << (i - 1))) ~= 0 then ok = ok and math.type(v) == "integer" and v >= 0 and v <= 7
+      else ok = ok and math.type(v) == "integer" and v >= -1 and v <= 7 end
+    end end
+  end
+  if not ok then self.pred_rejected = self.pred_rejected + 1; return 3 end
+  return 0
+end
+function Legacy:quote(vm, idx) if idx == 1 then return 128 elseif idx == 2 or idx == 3 then return 64 end; return nil, VM.FAULT.OP end
+function Legacy:exec(vm, idx, rd, ra, rb, imm, t)
+  local r = vm.r
+  if idx == 1 then
+    local dest = r[ra]; if not writable(vm, dest, 28) then return nil, VM.FAULT.ACCESS end
+    local w = self:sense_words(); for i = 1, 28 do vm:mwrite(dest + i - 1, w[i]) end
+    r[rd] = 0; return 128, 128
+  elseif idx == 2 then
+    r[rd] = self:act(r[ra]); return 64, 64
+  elseif idx == 3 then
+    local w = {}; for i = 0, 12 do local v = vm:mread(r[ra] + i); if v == nil then return nil, VM.FAULT.ACCESS end; w[i + 1] = v end
+    r[rd] = self:submit_prediction(w); return 64, 64
+  end
+  return nil, VM.FAULT.OP
+end
+function Legacy:result()
+  local t = {}
+  for _, r in ipairs(self.s.rows) do t[#t + 1] = table.concat({r.gt, r.stage, r.act, r.util, r.meter}, ",") end
+  return {family = "cyber-legacy", seed = self.s.seed, steps = self.event, complete = self.s.done, failures = self.rejected, failed = false, phases = {},
+          trace_hash = U.sha256(table.concat(t, "\n"))}
+end
+--@@ENV-LEGACY-END@@
+return Env
+end
+
+-- @@CYBER-MODULES-END@@ (new cyber-reasoning modules are inserted above this line)
+
 package.preload["asi.bundle_info"] = function()
   return {
  ["built_from"]="in-place upgraded single-file Lua project",

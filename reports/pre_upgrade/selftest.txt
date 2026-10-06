@@ -1,0 +1,15 @@
+math       (conformance)      passed    466  failed   0     0.6s
+rng        (conformance)      passed  52153  failed   0     0.1s
+validate   (conformance)      passed     32  failed   0    28.6s
+world      (conformance)      passed  20524  failed   0     7.3s
+vm         (conformance)      passed    360  failed   0     0.1s
+gl         (conformance)      passed   8247  failed   0     0.6s
+risk       (certificate)      passed     81  failed   0    30.0s
+proof      (certificate)      passed     66  failed   0    47.4s
+parity     (execution)        passed   6628  failed   0    29.2s
+twin       (execution)        passed     35  failed   0    11.1s
+mutation   (failure-detection) passed     64  failed   0    73.3s
+harness    (reports)          passed   1058  failed   0    34.2s
+reason     (reasoning)        passed   8729  failed   0    13.3s
+TOTAL passed 98443 failed 0
+exit 0
