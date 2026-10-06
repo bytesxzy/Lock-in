@@ -1,0 +1,5 @@
+Controller state recorded BEFORE the held-out pass (sets held 9001-9016 and heldB 9101-9116 have not been run with the cyber controller up to this record)
+bundle sha256 c014795fc0f14d78fe6d288de3f1d015272008486388b4d84dab2c7a9f2106c8
+image bits    407008	6316	14281  (bits, words, ram_top)
+protocol_hash 8005afaf009058772ccb4f97c73f05073af2ecadc2f5e414e62c71a244dcfea1
+Changes after the baseline freeze (guest-side only; benchmark pins unchanged): epistemic-status report words, guest documentation.

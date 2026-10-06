@@ -18315,6 +18315,7 @@ commands["cyber-trace"] = function(args)
   local v = E.variant(opt.variant or "new")
   if v.kind ~= "new" then bad("only cyber-interface variants keep a provenance ring") end
   local _, _, vm = E.run(v.art, {seed = seed, set = set, kind = v.kind})
+  out("host epistemic status at the end of the run: ", table.concat(E.host_status(vm, v.art, 10), " "), "\n")
   out("tick kind        a    b    v1  runner-up  work-left  leader-p\n")
   for _, r in ipairs(E.trace_records(vm, v.art)) do
     out(string.format("%4s %-11s %4s %4s %5s %9s %10s %8s\n", r.tick, r.kind, r.a, r.b, r.v1, r.v2, r.work_left, r.lead_p))
@@ -42171,9 +42172,24 @@ HIDDEN STATE. Per host (compromised, persistent) and per user (credential stolen
 Poisson likelihood ratio over feature counts, with class-conditional rates learned from VERIFIED labels (paid probes) and a weak
 prior. The absence of evidence counts only where the host is observable.
 
-DECISION. Probes are chosen by value of information (expected reduction of Bayes risk minus cost); actions by expected utility
-over a rollout of the guest's own world model with depth-limited search over probe/act sequences; a deterministic shield checks
-authorization, quota, reversibility and diagnosis confidence before any action; every decision leaves a trace record.
+DECISION. Probes are chosen by value of information (expected reduction of Bayes risk minus cost); actions by Bayes risk under the
+guest's own world model: every candidate (WAIT / KILL / CLEAN / REVOKE+REISSUE / FIXCFG / PATCH ...) is first DRY-RUN with the
+tool-level SIMULATE for its collateral damage, KILL is valued with a two-step lookahead (does the host come back?), and root causes
+(misconfiguration, unpatched vulnerability found through the local KB, stolen credential) are closed so that cleaning does not
+recur. The plan is receding-horizon, not an unrestricted search. A deterministic shield checks authorization, quota, reversibility
+and diagnosis confidence before any action; every decision leaves a trace record in a 64-entry provenance ring.
+
+PROSPECTIVE FORECASTS. Each round the guest submits up to eight forecasts of future telemetry: what its leading hypotheses predict
+(external connections / alerts at suspected hosts, once their posterior is substantial) and the effects its validated temporal
+links predict. Their probabilities are shrunk toward the guest's OWN resolved record, binned by predicted event type, and the
+forecasts are scored by the guest itself when the telemetry arrives (self-resolved calibration).
+
+COMPUTE CONTROL. The guest paces its metered work against the budget left per remaining round: deep (more probes), normal, and
+ECONOMY mode (no probes, no link mining, no forecasts, timeline refreshed every fourth round). With about 18% of the frozen budget
+it still completes the stream; the ablation without this control is cut off by the work limit.
+
+EPISTEMIC STATUS. Every host belief is submitted with one of six statuses (unknown / known true / known false / uncertain /
+contradicted by a fresh probe / stale), 4 bits per host in the report block.
 ]============]
 local GL = require("asi.gl")
 local Env = require("asi.cyber.env")
@@ -42662,7 +42678,7 @@ function G.install(P, cfg)
     f:run("c_params")
   end)
   ------------------------------------------------------------------ episode handling
-  mem("FPCTX"); mem("FPNOW"); mem("CLEANT", 16); mem("REVK", 16); mem("ISOLD", 16); mem("PROBET", 16); mem("PSTAT", 16)
+  mem("FPCTX"); mem("FPNOW"); mem("CLEANT", 16); mem("REVK", 16); mem("ISOLD", 16); mem("PROBET", 16); mem("PSTAT", 16); mem("PROBEY", 16); mem("PROBEP", 16)
   P:func("c_init", {}, function(f)
     local i0 = f:var("i0")
     f:st(R.PRI, -56); f:st(R.PRI + 1, -64); f:st(R.PRI + 2, -80); f:st(R.FPCTX, -1); f:st(R.PMIN, cfg.pmin or 205)
@@ -42740,7 +42756,7 @@ function G.install(P, cfg)
     f:run("c_rebuild_csig")
     f:run("c_zero", R.EVAL, NE); f:st(R.RPOS, 0); f:run("c_zero", R.PACT, G.NPEND); f:run("c_zero", R.PREP, G.NPEND); f:st(R.NPEND, 0); f:run("c_zero", R.FQA, 32)
     f:run("c_zero", R.HEV, 256); f:run("c_zero", R.UEV, 192); f:run("c_zero", R.HAG, 16); f:run("c_zero", R.HLAST, 16)
-    f:run("c_zero", R.CLEANT, 16); f:run("c_zero", R.TELON, 16); f:run("c_zero", R.UVER, 16); f:run("c_zero", R.KILLT, 16); f:run("c_zero", R.DOWNK, 16); f:run("c_zero", R.SIMK, 160); f:run("c_zero", R.RCCFG, 16); f:run("c_zero", R.RCHOST, 16); f:run("c_zero", R.HPAT, 16); f:run("c_zero", R.REVT, 16); f:run("c_zero", R.UREI, 16); f:run("c_zero", R.KBK, 8);  f:run("c_zero", R.REVK, 16); f:run("c_zero", R.ISOLD, 16); f:run("c_zero", R.PROBET, 16)
+    f:run("c_zero", R.CLEANT, 16); f:run("c_zero", R.PROBET, 16); f:run("c_zero", R.PROBEY, 16); f:run("c_zero", R.TELON, 16); f:run("c_zero", R.UVER, 16); f:run("c_zero", R.KILLT, 16); f:run("c_zero", R.DOWNK, 16); f:run("c_zero", R.SIMK, 160); f:run("c_zero", R.RCCFG, 16); f:run("c_zero", R.RCHOST, 16); f:run("c_zero", R.HPAT, 16); f:run("c_zero", R.REVT, 16); f:run("c_zero", R.UREI, 16); f:run("c_zero", R.KBK, 8);  f:run("c_zero", R.REVK, 16); f:run("c_zero", R.ISOLD, 16); f:run("c_zero", R.PROBET, 16)
     f:for_(i, 0, 16, function() f:st(R.EB + i, f:ld(R.PRI)); f:st(R.EB + 16 + i, f:ld(R.PRI + 1)); f:st(R.EB + 32 + i, f:ld(R.PRI + 2)) end)
     f:run("c_zero", R.EW, 48)
   end)
@@ -42865,6 +42881,7 @@ function G.install(P, cfg)
     f:iff(st:ne(0), function() f:ret(0) end)
     f:set(y, f:ld(R.RS + 3))
     f:run("c_trace", 1, 13, h, y)
+    f:st(R.PROBEY + h, y + 1); f:st(R.PROBEP + h, f:call("c_pcomp", h))
     f:run("c_cal_learn", 0, f:ld(R.EB + h), y)
     f:iff(y:ne(0), function() f:set(lr, f:call("c_log2q", tpr, fpr)) end, function() f:set(lr, f:call("c_log2q", 256 - tpr, 256 - fpr)) end)
     f:st(R.EB + h, f:ld(R.EB + h) + lr)
@@ -43207,12 +43224,35 @@ function G.install(P, cfg)
     end)
     f:for_(i, 0, n, function() f:st(R.REP + 8 + i, f:ld(R.TMP + 24 + i)) end)
   end)
+  -- epistemic status of every host-compromise belief, 4 bits per host in REP[16..17]:
+  -- 0 unknown (never observed or probed)  1 known true  2 known false  3 uncertain  4 contradicted (a fresh probe overturned the prior belief)
+  -- 5 stale (the last probe is older than 12 ticks or predates a remediation)
+  P:func("c_status", {}, function(f)
+    local h, s, age, pa, py, pt = f:var("h"), f:var("s"), f:var("age"), f:var("pa"), f:var("py"), f:var("pt")
+    f:for_(h, 0, f:ld(R.NH), function()
+      f:set(pa, f:ld(R.PC + h)); f:set(pt, f:ld(R.PROBET + h)); f:set(py, f:ld(R.PROBEY + h) - 1); f:set(age, f:ld(R.T) - pt)
+      f:set(s, 3)
+      f:iff(GL.and_(pt:eq(0), f:ld(R.HLAST + h):eq(0)), function() f:set(s, 0) end, function()
+        f:iff(pt:gt(0), function()
+          f:iff(GL.or_(age:gt(12), f:ld(R.CLEANT + h):gt(pt), f:ld(R.KILLT + h):gt(pt)), function() f:set(s, 5) end, function()
+            f:iff(py:ne(0), function() f:set(s, 1) end, function() f:set(s, 2) end)
+            f:iff(GL.or_(GL.and_(py:eq(0), f:ld(R.PROBEP + h):ge(512)), GL.and_(py:ne(0), f:ld(R.PROBEP + h):le(100))), function() f:set(s, 4) end)
+          end)
+        end, function()
+          f:iff(pa:lt(80), function() f:set(s, 2) end)
+          f:iff(pa:gt(940), function() f:set(s, 1) end)
+        end)
+      end)
+      f:iff(h:lt(8), function() f:st(R.REP + 16, f:ld(R.REP + 16) | (s << (h * 4))) end, function() f:st(R.REP + 17, f:ld(R.REP + 17) | (s << ((h - 8) * 4))) end)
+    end)
+  end)
   P:func("c_report", {}, function(f)
     f:run("c_zero", R.REP, 64)
     f:st(R.REP, f:call("c_pack", R.PC, 8)); f:st(R.REP + 1, f:call("c_pack", R.PC + 8, 8))
     f:st(R.REP + 2, f:call("c_pack", R.PU, 8)); f:st(R.REP + 3, f:call("c_pack", R.PU + 8, 4))
     f:st(R.REP + 4, f:call("c_pack", R.PP, 8)); f:st(R.REP + 5, f:call("c_pack", R.PP + 8, 8))
     f:st(R.REP + 6, 255)
+    f:run("c_status")
     f:iff(f:ld(R.RND):eq(0), function() f:run("c_zero", R.TLC, 8) end)
     -- economy mode recomputes the incident timeline every fourth round and re-submits the last one in between
     f:iff(GL.or_(f:ld(R.MODE):gt(0), (f:ld(R.RND) & 3):eq(0)), function()
@@ -44127,6 +44167,16 @@ E.FROZEN = {
   },
 }
 
+-- epistemic status of each host-compromise belief at the end of a run (the report block the controller submits last)
+E.STATUS_NAMES = {[0] = "unknown", "known_true", "known_false", "uncertain", "contradicted", "stale"}
+function E.host_status(vm, art, nh)
+  local rep = E.read(vm, art, "REP", 64)
+  local out = {}
+  if not rep then return out end
+  for h = 0, nh - 1 do out[#out + 1] = E.STATUS_NAMES[(rep[16 + h // 8] >> (4 * (h % 8))) & 15] or "invalid" end
+  return out
+end
+
 function E.suite(opt)
   local rows = E.collect(opt)
   return E.aggregate(rows, opt), rows
@@ -44462,6 +44512,20 @@ function M.run()
     T.check(not prot_isolated, "the shield never even asks to isolate a protected host")
     local ax = row.axes
     for _, name in ipairs(E.AXES) do T.check(ax[name] == nil or (ax[name] >= 0 and ax[name] <= 1), "axis " .. name .. " is in [0,1]") end
+    -- every belief carries one of the six epistemic statuses
+    do
+      local counts, valid = {}, true
+      for gt = 1, 192 do
+        local r = env.s.reports[gt]
+        if r then for h = 0, env.s.specs[r.stage].nh - 1 do
+          local st = (r.words[17 + h // 8] >> (4 * (h % 8))) & 15
+          counts[st] = (counts[st] or 0) + 1
+          if st > 5 then valid = false end
+        end end
+      end
+      T.check(valid, "every submitted host belief has a valid epistemic status (seed " .. seed .. ")")
+      T.check((counts[2] or 0) > 0 and (counts[0] or 0) > 0 and (counts[3] or 0) > 0, "statuses known-false, unknown and uncertain all occur (seed " .. seed .. ")")
+    end
     -- the guest keeps provenance for what it did
     local recs = E.trace_records(vm, new.art)
     T.check(#recs > 0, "provenance records exist"); local mono = true
