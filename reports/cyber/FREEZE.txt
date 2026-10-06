@@ -1,0 +1,14 @@
+CYB1 benchmark freeze record (written BEFORE the cyber controller was run on the held-out sets 'held' and 'heldB')
+
+protocol_hash   8005afaf009058772ccb4f97c73f05073af2ecadc2f5e414e62c71a244dcfea1
+scoring_hash    3ddd15d6a6121fcd0d8f6e84e7125dfbbbae6dee8472e3503de97c10ab012388
+golden digest   d0d2f31ad9b02b7e0591932b69d07bf041fba618e58830012c79aac6626abe32   (scorecards of passive/triage/sweeper on dev seeds 1-3)
+OLD image       eb1e5e2b446ffba65ec38beb84a1301f71e2fe0df88e963e0f2bf24333b7dbc9   (identical to baseline/exec_eval_1.lua's generation-3 reasoner)
+bundle sha256   2441ec739eac148a69b8a3bd9b8ac95aea0454d83212325584834f26018859e0   (state at freeze)
+pre-upgrade bundle sha256 671d672de5d394a4171949c1f5474725b3cb37fa545b208852625d0989323e8f
+
+Sets (seeds): dev 1-8, diag 101-106, val 201-216 (development), ood 8001-8008 and adv 7001-7008 (structural-OOD / adversarial; partly
+consulted while developing), held 9001-9016 and heldB 9101-9116 (never run with the cyber controller before this record).
+Baselines recorded here: passive, triage, sweeper, OLD (generation-3 reasoner behind the 4-field legacy adapter) on every set at budgets 1/4, 2/4, 4/4:
+  baselines_{dev,diag,ood,adv,held,heldB}.lua  (raw per-stream rows)   baselines_*.txt  (paired summaries)
+The pins are enforced by the tests in suite 'cyber' (E.FROZEN in asi.cyber.eval).

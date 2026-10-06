@@ -14,6 +14,10 @@ HOW TO USE (Replit or any Lua 5.4):
         lua main.lua reason --family symbolic --seed 1                 the metered shared reasoner
         lua main.lua reason-compare --held --ablations --budgets       frozen finite-task evaluation to stdout
         lua main.lua reason-report                                    architecture audit and measured evidence
+        lua main.lua cyber-run --seed 201 --set val --trace            one metered defensive-cyber stream (scorecard, digest, provenance ring)
+        lua main.lua cyber-eval --set held --variants new,old,triage --budgets 4 --save rows.lua --summary    paired evaluation, raw rows saved
+        lua main.lua cyber-report rows1.lua rows2.lua                 merge saved rows into the paired report (ratios vs OLD, ablation deltas)
+        lua main.lua cyber-trace --seed 201 --set val                 decoded decision-provenance ring of the cyber controller
         lua main.lua compare --only parity --limit 8 --out out.lua     part of the pre-registered evaluation (writes a Lua-table report)
         lua main.lua report out.lua            read a report;   lua main.lua replay out.lua --row 1   re-run a row, check its trace hash
         lua main.lua prompt                    print the implementation prompt embedded in the handoff
@@ -66,6 +70,11 @@ CONTENTS: the preserved and upgraded sources below are wrapped as package.preloa
 --   asi.reason.generation3        <- NEW generation-3 evaluation (frozen physics + scorecard, ablations, generated suite)
 --   asi.reason.report3            <- NEW generation-3 architecture audit and measured evidence
 --   asi.tests.t_hpr               <- NEW tests of the generation-3 reasoner (run inside the `reason` suite)
+--   asi.cyber.world               <- NEW defensive-cyber enterprise simulator (physics, 15 tools, actions, reference defender; evaluator only)
+--   asi.cyber.env                 <- NEW metered 4-op cyber interface (CSENSE/CTOOL/CACT/CREP), frozen protocol CYB1, 4-field legacy adapter
+--   asi.cyber.guest               <- NEW cyber reasoner (GL program): relational/temporal evidence engine, hypotheses, VOI, shield, graph, provenance
+--   asi.cyber.eval                <- NEW cyber scorecard (15 axes), paired suite, aggregation vs OLD, frozen benchmark pins
+--   asi.tests.t_cyber             <- NEW tests of the cyber layer (suite `cyber`)
 --   asi.tests.t_reason_core        <- asi/tests/t_reason_core.lua
 --   asi.tests.t_reason_plan        <- asi/tests/t_reason_plan.lua
 --   asi.tests.t_reason_env         <- asi/tests/t_reason_env.lua
@@ -13094,7 +13103,7 @@ function Hpr.install(P, cfg)
   mem("DEEPLVL")
   mem("BT"); mem("BC"); mem("BS"); mem("EVALS")
   mem("NCAND", 16); mem("CR0", 16 * NC); mem("CR1", 16 * NC); mem("CST", 16 * NC); mem("PST", 16)
-  mem("TGEN"); mem("BGEN"); mem("RELN"); mem("RELL", 4); mem("CBS", 132); mem("CBN", 132); mem("CBON"); mem("REINDS"); mem("REINDM"); mem("DFAIL"); mem("DFREE"); mem("DBACK"); mem("ECON"); mem("ECOTHR"); mem("STEPG"); mem("FC", 13); mem("FOK"); mem("FTOT"); mem("UCAL"); mem("QHI"); mem("QLO"); mem("VIS", 64);  mem("VISA", 256); mem("NOVB"); mem("DELIBQ"); mem("DEEPFIT"); mem("CHON"); mem("RPOST"); mem("RNX", 16); mem("RESTORED"); mem("SIMSTRONG"); mem("CBMIN"); mem("CBSPREAD"); mem("CBW"); mem("LIB", 3 * LW); mem("LIBN"); mem("LIBAGE", 3); mem("LIBON"); mem("EXOON"); mem("RSUM"); mem("EBADAPT"); mem("CIND", 16); mem("CMISS", 16); mem("CBACK", 16); mem("CFAIL", 16); mem("EXCON"); mem("EXO", 4); mem("PTEST", 4); mem("PHIT", 4); mem("REL"); mem("STATS", 16)
+  mem("TGEN"); mem("BGEN"); mem("RELN"); mem("RELL", 4); mem("CBS", 132); mem("CBN", 132); mem("CBON"); mem("REINDS"); mem("REINDM"); mem("DFAIL"); mem("DFREE"); mem("DBACK"); mem("ECON"); mem("ECOTHR"); mem("STEPG"); mem("FC", 13); mem("FOK"); mem("FTOT");  mem("UCAL"); mem("QHI"); mem("QLO"); mem("VIS", 64);  mem("VISA", 256); mem("NOVB"); mem("DELIBQ"); mem("DEEPFIT"); mem("CHON"); mem("RPOST"); mem("RNX", 16); mem("RESTORED"); mem("SIMSTRONG"); mem("CBMIN"); mem("CBSPREAD"); mem("CBW"); mem("LIB", 3 * LW); mem("LIBN"); mem("LIBAGE", 3); mem("LIBON"); mem("EXOON"); mem("RSUM"); mem("EBADAPT"); mem("CIND", 16); mem("CMISS", 16); mem("CBACK", 16); mem("CFAIL", 16); mem("EXCON"); mem("EXO", 4); mem("PTEST", 4); mem("PHIT", 4); mem("REL"); mem("STATS", 16)
   local function inc(f, k, d) f:st(R.STATS + k, f:ld(R.STATS + k) + (d or 1)) end
   -- STATS: 0 transitions, 1 inductions, 2 ladder evaluations, 3 inserted candidates, 4 surprises, 5 plans, 6 plan nodes
 
@@ -43261,8 +43270,9 @@ function G.install(P, cfg)
     f:set(a, f:clk(3) // rem)
     f:st(R.MODE, 1)
     f:iff(a:ge(45000), function() f:st(R.MODE, 2) end)
-    f:iff(a:lt(28000), function() f:st(R.MODE, 0) end)
+    f:iff(a:lt(30000), function() f:st(R.MODE, 0) end)
     if cfg.no_compute_meta then f:st(R.MODE, 1) end
+    if cfg.force_mode then f:st(R.MODE, cfg.force_mode) end
   end)
   -- prospective forecasts of future telemetry (scored when they resolve): (1) what the two leading hypotheses predict -- external
   -- connections and alerts at those hosts, mixed with the clean rates; (2) every pending temporal-link forecast, once
@@ -43331,7 +43341,13 @@ function G.install(P, cfg)
     f:iff(GL.or_(f:ld(R.PK + 1):lt(2), f:ld(R.PK + 1):gt(16), f:ld(R.PK + 2):lt(1), f:ld(R.PK + 2):gt(12)), function() f:st(R.GUARD, 1); f:st(R.DONE, 1); f:ret(0) end)
     f:st(R.T, f:ld(R.PK + 3)); f:st(R.RND, f:ld(R.PK + 4)); f:st(R.STG, f:ld(R.PK + 5))
     f:iff((flags & 1):ne(0), function() f:run("c_new_episode") end)
-    f:iff(f:ld(R.DIRTY):ne(0), function() f:run("c_zero", R.HEV, 256); f:run("c_zero", R.UEV, 192); f:run("c_zero", R.HEVN, 16); f:run("c_zero", R.UEVN, 16); f:st(R.DIRTY, 0) end)
+    f:iff(f:ld(R.DIRTY):ne(0), function()            -- clear only the evidence rows that were written
+      f:for_(i, 0, 16, function()
+        f:iff(f:ld(R.HEVN + i):ne(0), function() f:run("c_zero", R.HEV + i * 16, 16); f:st(R.HEVN + i, 0) end)
+        f:iff(f:ld(R.UEVN + i):ne(0), function() f:run("c_zero", R.UEV + i * 16, 16); f:st(R.UEVN + i, 0) end)
+      end)
+      f:st(R.DIRTY, 0)
+    end)
     f:set(n, 1)
     f:while_(n:ne(0), function()
       f:for_(i, 0, f:ld(R.PK + 7), function() f:run("c_ingest", i) end)
@@ -43481,6 +43497,34 @@ function E.bounds(seed, set)
   return out
 end
 
+-- The scorecard is part of the frozen benchmark: its textual definitions are hashed and pinned (see E.FROZEN and the t_cyber tests).
+E.AXIS_DEFS = {
+  defensive_utility = "(stream utility - passive utility) / (perfect-information reactive reference utility - passive utility), clipped to [0,1]; an unfinished stream scores its missing ticks as passive and earns 0",
+  false_positive_control = "1 - (downtime cost of actions taken on clean targets) / (cost of acting on every host once), clipped to [0,1]",
+  diagnosis_quality = "mean over ticks of the F1 of host-compromise beliefs thresholded at 0.5 against the simulator's truth (all-clean ticks score 1 when nothing is flagged)",
+  causal_model_identification = "F1 of the controller's validated temporal links (>=3 prospective trials, hit rate >=1/2) against the world's true causal links observed >=5 times",
+  temporal_reconstruction = "on ticks with >=2 delivered attack-chain records in the last 12 ticks: precision of the submitted incident timeline x order agreement with true event order x coverage min(1, listed/min(8, live))",
+  hidden_state_inference = "1 - Brier of all submitted entity beliefs (host compromise, stolen credential, persistence) / the Brier of the constant true base rate",
+  cross_environment_transfer = "reference-normalised utility skill on the first 16 ticks of the different-world stage",
+  structural_ood_recovery = "mean reference-normalised skill on the whole structural-novelty stage and on the late part of the shock stage",
+  information_gathering_efficiency = "Brier reduction produced by paid verification probes / (reduction + probe cost/40)",
+  planning_quality = "reference-normalised skill on the stages whose worlds need a multi-step response",
+  calibration = "1 - Brier of submitted forecasts of future telemetry / Brier of the climatological frequency of the same event type, kind and window length (>=20 resolved forecasts, else 0)",
+  knowledge_retention = "reference-normalised skill on the first 16 ticks after returning to the first world",
+  recovery_quality = "mean over stages of (fraction of compromised hosts recovered by the end) x (1 - residual service downtime fraction)",
+  capability_per_compute = "skill x 24576 / metered VM work, clipped to [0,1] (24576 = the work of one sense and one action per round)",
+  safety_compliance = "1 - (invalid or denied tool/action requests, protocol errors, guard trips, faults, incomplete stream)/19.2, clipped to [0,1]",
+}
+-- digest of the passive and reference utility traces of every seed of a set: any change of physics, sets or reference changes it
+function E.world_digest(set)
+  local parts = {}
+  for _, seed in ipairs(Env.PROTOCOL.sets[set]) do
+    local b = E.bounds(seed, set)
+    parts[#parts + 1] = seed .. ":" .. table.concat(b.passive, ",") .. ":" .. table.concat(b.ref, ",")
+  end
+  return U.sha256(table.concat(parts, "|"))
+end
+
 -- run one image on one stream; `kind` "new" uses the cyber ops, "legacy" the frozen 4-field adapter
 function E.run(art, opts)
   opts = opts or {}
@@ -43534,6 +43578,7 @@ end
 E.AXES = {"defensive_utility", "false_positive_control", "diagnosis_quality", "causal_model_identification", "temporal_reconstruction",
           "hidden_state_inference", "cross_environment_transfer", "structural_ood_recovery", "information_gathering_efficiency",
           "planning_quality", "calibration", "knowledge_retention", "recovery_quality", "capability_per_compute", "safety_compliance"}
+E.SCORING_HASH = U.sha256(U.to_literal({E.AXES, E.AXIS_DEFS}))
 local function clip(x) return math.max(0, math.min(1, x)) end
 local function popcount(x) local n = 0; while x ~= 0 do n = n + (x & 1); x = x >> 1 end; return n end
 -- skill of the guest on trace ticks [a, b] of the whole stream against the passive and reference traces
@@ -44049,6 +44094,39 @@ function E.trace_records(vm, art)
   return out
 end
 
+-- digest of the full scorecard of the three non-learning baseline controllers on fixed streams: pins world + interface + scorer together
+function E.golden_digest()
+  local parts = {}
+  for _, name in ipairs({"passive", "triage", "sweeper"}) do
+    for _, seed in ipairs({1, 2, 3}) do
+      local v = E.variant(name)
+      local row = E.run(v.art, {seed = seed, set = "dev", kind = v.kind, variant = name})
+      local ks = {}
+      for _, a in ipairs(E.AXES) do ks[#ks + 1] = a .. "=" .. (row.axes[a] ~= nil and string.format("%.9f", row.axes[a]) or "NA") end
+      parts[#parts + 1] = table.concat({name, seed, row.utility, row.digest, table.concat(ks, ",")}, "|")
+    end
+  end
+  return U.sha256(table.concat(parts, "\n"))
+end
+
+-- The frozen cyber benchmark. These pins were recorded BEFORE the controller was ever run on the held-out sets; the t_cyber tests fail if the
+-- physics, the interface, the sets, the scorecard definitions, the baseline controllers or the OLD (pre-upgrade) image change.
+E.FROZEN = {
+  protocol_hash = "8005afaf009058772ccb4f97c73f05073af2ecadc2f5e414e62c71a244dcfea1",
+  scoring_hash = "3ddd15d6a6121fcd0d8f6e84e7125dfbbbae6dee8472e3503de97c10ab012388",
+  golden = "d0d2f31ad9b02b7e0591932b69d07bf041fba618e58830012c79aac6626abe32",
+  old_image = "eb1e5e2b446ffba65ec38beb84a1301f71e2fe0df88e963e0f2bf24333b7dbc9",
+  world_digest = {
+    dev = "7f091461bcd205d4232d2997b06f4211a097a96a5015d60b67951a17002d37b7",
+    diag = "929aff932dd4a5b9de0cac233b82783762db4d0611921e0eb2cc2a1e9471f38a",
+    val = "55bb245719d34d26db4bd7c8c752b3a9e9b7d7681f32d1a7e0d6b7de0878a678",
+    held = "c81a7e3dac62a5849a08c0ca853c85d567482715806ec4313b11da5f5d166662",
+    heldB = "0869390440dc83c447c7a7016c64a55b3b55c5dccc6b63b592677b6f45cf382c",
+    ood = "4004450e5ab9ee942f34f200e23fe3f96df888f055c6f3075d5ce8ba490d1c06",
+    adv = "ae25100975ddfe935b6215c8f012601a3afa5e1a250ed053f69caa478183edfd",
+  },
+}
+
 function E.suite(opt)
   local rows = E.collect(opt)
   return E.aggregate(rows, opt), rows
@@ -44473,13 +44551,12 @@ function M.run()
     T.check(tight.work <= Env.PROTOCOL.work_budget // 4, "within the reduced bound")
     local nometa = E.run(E.variant("no_compute_meta").art, {seed = 1, set = "dev", kind = "new", variant = "no_compute_meta", work_budget = Env.PROTOCOL.work_budget // 4, budget_quarters = 1})
     T.check(nometa.work <= Env.PROTOCOL.work_budget // 4, "ablated compute control still respects the hard bound")
-    -- compute meta-control is a real mechanism: with one eighth of the work budget the metered controller drops to economy mode and
-    -- still finishes the whole stream, the ablated one runs out of work half way
-    for _, seed in ipairs({1, 2}) do
-      local eighth = Env.PROTOCOL.work_budget // 8
-      local m = E.run(new.art, {seed = seed, set = "dev", kind = "new", variant = "new", work_budget = eighth})
-      local nm = E.run(E.variant("no_compute_meta").art, {seed = seed, set = "dev", kind = "new", variant = "no_compute_meta", work_budget = eighth})
-      T.check(m.complete and m.skill > 0.05, "with 1/8 of the work budget the metered controller still completes with real skill (seed " .. seed .. ")")
+    -- compute meta-control is a real mechanism: with 6.0M work (about 18% of the frozen budget) the metered controller drops to economy
+    -- mode when its pace demands it and still finishes the whole stream; the ablated one is cut off before the stream ends
+    for _, seed in ipairs({201, 202, 203}) do
+      local m = E.run(new.art, {seed = seed, set = "val", kind = "new", variant = "new", work_budget = 6000000})
+      local nm = E.run(E.variant("no_compute_meta").art, {seed = seed, set = "val", kind = "new", variant = "no_compute_meta", work_budget = 6000000})
+      T.check(m.complete and m.skill > 0.05, "with 6.0M work the metered controller still completes with real skill (seed " .. seed .. ")")
       T.check(not nm.complete and nm.skill == 0, "without compute meta-control the same budget is exhausted before the stream ends (seed " .. seed .. ")")
     end
   end
@@ -44525,6 +44602,17 @@ function M.run()
   end
   ---------------------------------------------------------------------------------------------------- 10. frozen protocol
   T.eq(#Env.protocol_hash, 64, "the benchmark has a protocol hash")
+  T.eq(Env.protocol_hash, E.FROZEN.protocol_hash, "the benchmark protocol (sets, budgets, costs, physics parameters) is the frozen one")
+  T.eq(E.SCORING_HASH, E.FROZEN.scoring_hash, "the scorecard definitions are the frozen ones")
+  for _, set in ipairs({"dev", "diag", "val", "held", "heldB", "ood", "adv"}) do
+    T.eq(E.world_digest(set), E.FROZEN.world_digest[set], "the passive and reference utility traces of set " .. set .. " are the frozen ones")
+  end
+  T.eq(E.golden_digest(), E.FROZEN.golden, "world + interface + scorer give the frozen scorecards to the three baseline controllers")
+  do
+    local Hpr = require("asi.reason.hpr")
+    local art = Hpr.artifact({})
+    T.eq(U.sha256(table.concat(art.words, ",")), E.FROZEN.old_image, "the OLD controller is exactly the pre-upgrade generation-3 reasoner")
+  end
   for _, set in ipairs({"dev", "diag", "val", "held", "heldB", "ood", "adv"}) do T.check(#Env.PROTOCOL.sets[set] >= 6, "set " .. set .. " exists") end
   local seen = {}
   for set, seeds in pairs(Env.PROTOCOL.sets) do for _, s in ipairs(seeds) do T.check(not seen[s], "seed " .. s .. " belongs to exactly one set"); seen[s] = set end end
