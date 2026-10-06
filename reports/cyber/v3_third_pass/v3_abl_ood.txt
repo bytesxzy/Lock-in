@@ -1,0 +1,50 @@
+CYB1 protocol 8005afaf00905877  set=ood
+
+== budget 4/4 ==
+variant                      n  skill   comp  compM    viol   Minstr     ok  axes
+new                          8  0.518  0.000  0.192    0.00    13.80   8/8     15
+no_model_learning            8  0.536  0.000  0.183    0.00    13.59   8/8     15
+no_competing_hypotheses      8  0.460  0.000  0.168    0.00    14.12   8/8     15
+no_counterfactuals           8  0.523  0.000  0.000    0.00    11.92   8/8     11
+no_temporal                  8  0.587  0.000  0.000    0.00     6.75   8/8      4
+no_hidden_state              8  0.541  0.000  0.195    0.00    13.62   8/8     15
+no_information_gain          8  0.543  0.022  0.182    0.00    11.86   8/8     14
+no_planning                  8  0.513  0.000  0.192    0.00    13.90   8/8     15
+no_graph                     8  0.498  0.000  0.195    0.00    12.50   8/8     15
+no_cyber_tools               8  0.568  0.024  0.185    0.00    11.87   8/8     14
+no_memory                    8  0.430  0.000  0.118    0.00    14.11   8/8     15
+no_compute_meta              8  0.518  0.000  0.192    0.00    13.80   8/8     15
+no_uncertainty               8  0.383  0.000  0.129    0.00    13.62   8/8     15
+no_root_cause                8  0.507  0.026  0.204    0.00    13.70   8/8     15
+
+per-axis means (NA = unsupported):
+defensive_utility                  new=0.518 no_model=0.536 no_compe=0.460 no_count=0.523 no_tempo=0.587 no_hidde=0.541 no_infor=0.543 no_plann=0.513 no_graph=0.498 no_cyber=0.568 no_memor=0.430 no_compu=0.518 no_uncer=0.383 no_root_=0.507
+false_positive_control             new=0.660 no_model=0.687 no_compe=0.460 no_count=0.691 no_tempo=0.814 no_hidde=0.684 no_infor=0.649 no_plann=0.794 no_graph=0.690 no_cyber=0.641 no_memor=0.721 no_compu=0.660 no_uncer=0.822 no_root_=0.675
+diagnosis_quality                  new=0.628 no_model=0.653 no_compe=0.591 no_count=0.628 no_tempo=0.622 no_hidde=0.631 no_infor=0.595 no_plann=0.590 no_graph=0.600 no_cyber=0.597 no_memor=0.610 no_compu=0.628 no_uncer=0.556 no_root_=0.627
+causal_model_identification        new=0.808 no_model=0.822 no_compe=0.812 no_count=0.814 no_tempo=0.000 no_hidde=0.801 no_infor=0.820 no_plann=0.807 no_graph=0.806 no_cyber=0.823 no_memor=0.728 no_compu=0.808 no_uncer=0.798 no_root_=0.832
+temporal_reconstruction            new=0.090 no_model=0.097 no_compe=0.106 no_count=0.085 no_tempo=0.101 no_hidde=0.087 no_infor=0.128 no_plann=0.096 no_graph=0.099 no_cyber=0.115 no_memor=0.098 no_compu=0.090 no_uncer=0.089 no_root_=0.099
+hidden_state_inference             new=0.024 no_model=0.016 no_compe=0.027 no_count=0.024 no_tempo=0.060 no_hidde=0.031 no_infor=0.014 no_plann=0.034 no_graph=0.028 no_cyber=0.012 no_memor=0.036 no_compu=0.024 no_uncer=0.007 no_root_=0.050
+cross_environment_transfer         new=0.163 no_model=0.191 no_compe=0.167 no_count=0.163 no_tempo=0.233 no_hidde=0.206 no_infor=0.279 no_plann=0.200 no_graph=0.189 no_cyber=0.333 no_memor=0.029 no_compu=0.163 no_uncer=0.091 no_root_=0.211
+structural_ood_recovery            new=0.632 no_model=0.682 no_compe=0.617 no_count=0.643 no_tempo=0.667 no_hidde=0.664 no_infor=0.610 no_plann=0.620 no_graph=0.593 no_cyber=0.619 no_memor=0.524 no_compu=0.632 no_uncer=0.507 no_root_=0.605
+information_gathering_efficiency   new=0.328 no_model=0.353 no_compe=0.261 no_count=0.340 no_tempo=0.356 no_hidde=0.312 no_infor=  NA  no_plann=0.261 no_graph=0.299 no_cyber=  NA  no_memor=0.360 no_compu=0.328 no_uncer=0.415 no_root_=0.330
+planning_quality                   new=0.537 no_model=0.534 no_compe=0.487 no_count=0.541 no_tempo=0.592 no_hidde=0.556 no_infor=0.537 no_plann=0.519 no_graph=0.518 no_cyber=0.557 no_memor=0.442 no_compu=0.537 no_uncer=0.409 no_root_=0.518
+calibration                        new=0.032 no_model=0.036 no_compe=0.030 no_count=0.000 no_tempo=0.076 no_hidde=0.021 no_infor=0.028 no_plann=0.024 no_graph=0.045 no_cyber=0.031 no_memor=0.004 no_compu=0.032 no_uncer=0.031 no_root_=0.023
+knowledge_retention                new=0.116 no_model=0.037 no_compe=0.037 no_count=0.152 no_tempo=0.151 no_hidde=0.116 no_infor=0.064 no_plann=0.114 no_graph=0.093 no_cyber=0.072 no_memor=0.004 no_compu=0.116 no_uncer=0.004 no_root_=0.137
+recovery_quality                   new=0.738 no_model=0.855 no_compe=0.703 no_count=0.767 no_tempo=0.718 no_hidde=0.744 no_infor=0.717 no_plann=0.640 no_graph=0.677 no_cyber=0.713 no_memor=0.759 no_compu=0.738 no_uncer=0.661 no_root_=0.759
+capability_per_compute             new=0.001 no_model=0.001 no_compe=0.001 no_count=0.001 no_tempo=0.002 no_hidde=0.001 no_infor=0.001 no_plann=0.001 no_graph=0.001 no_cyber=0.001 no_memor=0.001 no_compu=0.001 no_uncer=0.001 no_root_=0.001
+safety_compliance                  new=1.000 no_model=1.000 no_compe=1.000 no_count=1.000 no_tempo=1.000 no_hidde=1.000 no_infor=1.000 no_plann=1.000 no_graph=1.000 no_cyber=1.000 no_memor=1.000 no_compu=1.000 no_uncer=1.000 no_root_=1.000
+
+ablations (full minus ablated, paired per seed; positive = the mechanism helps):
+   no_competing_hypotheses    dSkill=+0.058 (se 0.022)  dComposite=+0.023 (se 0.058)  dUtility=+190  n=8
+   no_compute_meta            dSkill=+0.000 (se 0.000)  dComposite=+0.000 (se 0.000)  dUtility=+0  n=8
+   no_counterfactuals         dSkill=-0.005 (se 0.010)  dComposite=+0.192 (se 0.037)  dUtility=-18  n=8
+   no_cyber_tools             dSkill=-0.050 (se 0.028)  dComposite=-0.000 (se 0.058)  dUtility=-92  n=8
+   no_graph                   dSkill=+0.019 (se 0.011)  dComposite=-0.004 (se 0.057)  dUtility=+81  n=8
+   no_hidden_state            dSkill=-0.023 (se 0.014)  dComposite=-0.003 (se 0.016)  dUtility=-75  n=8
+   no_information_gain        dSkill=-0.026 (se 0.021)  dComposite=+0.003 (se 0.057)  dUtility=-34  n=8
+   no_memory                  dSkill=+0.088 (se 0.031)  dComposite=+0.073 (se 0.055)  dUtility=+309  n=8
+   no_model_learning          dSkill=-0.018 (se 0.031)  dComposite=+0.009 (se 0.054)  dUtility=-5  n=8
+   no_planning                dSkill=+0.005 (se 0.033)  dComposite=-0.000 (se 0.051)  dUtility=+73  n=8
+   no_root_cause              dSkill=+0.011 (se 0.017)  dComposite=-0.012 (se 0.043)  dUtility=+36  n=8
+   no_temporal                dSkill=-0.070 (se 0.039)  dComposite=+0.192 (se 0.037)  dUtility=-152  n=8
+   no_uncertainty             dSkill=+0.135 (se 0.070)  dComposite=+0.062 (se 0.057)  dUtility=+591  n=8

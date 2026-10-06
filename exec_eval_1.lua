@@ -41851,11 +41851,12 @@ Env.PROTOCOL = {
 }
 Env.protocol_hash = U.sha256(U.to_literal({Env.PROTOCOL, W.PARAMS, W.BASE_ACT_COST, W.BASE_TOOL_COST, W.BASE_VERIFY}))
 -- Fresh held-out sets drawn from the same generator and parameters as the frozen sets. They are NOT part of the frozen protocol (its hash is
--- unchanged); each is meant to be run once. heldC confirms the final controller after the first held-out pass had shown a defect (see the
--- reports); heldD is still unused.
+-- unchanged); each is meant to be run once. heldC, heldD and heldE confirm successive controller revisions after earlier passes had shown
+-- defects (see reports/cyber); heldE is the set the final controller is confirmed on.
 Env.RESERVE = {
   heldC = {9201, 9202, 9203, 9204, 9205, 9206, 9207, 9208, 9209, 9210, 9211, 9212, 9213, 9214, 9215, 9216},
   heldD = {9301, 9302, 9303, 9304, 9305, 9306, 9307, 9308, 9309, 9310, 9311, 9312, 9313, 9314, 9315, 9316},
+  heldE = {9401, 9402, 9403, 9404, 9405, 9406, 9407, 9408, 9409, 9410, 9411, 9412, 9413, 9414, 9415, 9416},
 }
 function Env.seeds(set) return Env.PROTOCOL.sets[set] or Env.RESERVE[set] end
 
@@ -42860,7 +42861,7 @@ function G.install(P, cfg)
     f:set(h, 49 - f:ld(R.RND)); f:iff(h:gt(10), function() f:set(h, 10) end); f:iff(h:lt(1), function() f:set(h, 1) end)
     if cfg.no_planning then f:iff(h:gt(3), function() f:set(h, 3) end) end                -- no multi-step consequence model: a short horizon
     f:st(R.HZN, h)
-    f:set(h, 40 - 8 * f:ld(R.NPOS) - 3 * f:ld(R.NNEG)); f:iff(h:lt(0), function() f:set(h, 0) end)
+    f:set(h, (cfg.explb or 20) - 8 * f:ld(R.NPOS) - 3 * f:ld(R.NNEG)); f:iff(h:lt(0), function() f:set(h, 0) end)
     f:st(R.EXPLB, h)
   end)
   -- prior guess of the downtime cost per tick of host h until a SIMULATE result is known (public inventory only)

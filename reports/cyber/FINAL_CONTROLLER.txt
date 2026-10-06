@@ -13,3 +13,8 @@ heldC (9201-9216) and heldD (9301-9316, unused) are fresh sets outside the froze
 CONTROLLER v3 (recorded before heldD was ever run): guest image sha256 cf2f188d45424f719301a3d522f446683fdc4d19da8a6ae71d98fc7670cc73b5  (412192 bits, 6397 words)
 Changes from v2 (defects found on heldC): per-round tool-allowance guard in c_tool; predictive compute pacing in c_meta (per-mode cost moving averages; most thorough mode whose projected cost fits 90% of the work left); reported persistence beliefs shrunk (0.024 + 0.35 p). Selected/checked on dev, diag, val, ood, adv (completion at 1/4 budget 100% on every set, zero violations).
 heldD (9301-9316): baselines recorded (reports/cyber/baselines_heldD.*) before the controller is run on it.
+
+CONTROLLER v4 (recorded before heldE was ever run): guest image sha256 c0fc8ea291c259b539ed9d75542bbfb00b332e533fb050ef73643163ab093915  (412192 bits, 6397 words)
+Change from v3 (finding on heldD: probing did not pay for itself): the epistemic exploration bonus of the value-of-information rule starts at 20 (was 40) and decays with verified labels.
+Selection evidence (mean defensive skill over dev,diag,val,ood,adv): EXPLB 0: 0.533, 10: 0.531, 15: 0.547, 20: 0.558, 25: 0.549, 30: 0.521, 40: 0.530, 80: 0.461; the decision floor PMIN=205 stayed best (180: 0.554, 205: 0.558, 230: 0.547, 260: 0.540).
+heldE (9401-9416): baselines recorded (reports/cyber/baselines_heldE.*) before the controller is run on it. This is the LAST confirmation set; whatever it shows is reported.
