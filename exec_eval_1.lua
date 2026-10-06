@@ -221,7 +221,8 @@ CYBER REASONING LAYER (asi.cyber.*; commands cyber-run / cyber-eval / cyber-repo
     Gates: selftest 100,162 passed (the 98,443 pre-existing checks unchanged, plus 1,719 in suite `cyber`); the existing generation-3 held, diagnostic and
     generated evaluations print byte-identical output to the pre-upgrade bundle (reports/gates, reports/pre_upgrade). No change to the generation-3 reasoner
     was kept: five small modifications (mixture forecasts over competing rules, per-bin forecast calibration, rule-score prior, memory window, population
-    size / economy threshold) were measured on its development seeds and none cleared the gate (>= +0.01 composite without regression), so all were removed.
+    size / economy threshold) were measured on its development seeds, and a sweep of 20 of its tunables on 48 frozen-family streams stayed within +-0.005 composite of the default
+    (0.2485; best +0.0047); none cleared the gate (>= +0.01 composite without regression), so nothing was changed.
     Clean confirmation set heldE (16 streams, controller v4 run once, baselines recorded before): defensive skill 0.500 against OLD 0.175 (2.9x) and TRIAGE 0.200
     (2.5x). Composite ratio against OLD over the 8 jointly supported axes with a positive OLD denominator: 1.99x (95% paired-bootstrap CI 1.56-2.58); against
     TRIAGE 1.47x (1.02-2.01). Pooled over the five held-out sets held..heldE (80 streams; they also guided three controller revisions, so this is optimistic):
@@ -44860,7 +44861,7 @@ package.preload["asi.bundle_info"] = function()
   return {
  ["built_from"]="in-place upgraded single-file Lua project",
  ["hashes"]={
-  ["README.lua"]="13fe8ab3536736e1d78068f0a92efe8ba9e5589811745e70c85ce58a45d1103d",
+  ["README.lua"]="34b3c41df73e42b69f0ec13f6f1a7edef0394a029ade2c43c238ce7642cbca82",
   ["asi/archive.lua"]="ef1a88b77029df0d48339c41f1f134ba2d6f8046c51970e91c11487ed34a9fcf",
   ["asi/asm.lua"]="8cf4cd3e0781b7b9c283572408cf4350d0f11a9b6ea755bf5d6c7eb112f6a21b",
   ["asi/astx.lua"]="3df93ba12cf326f90ce16a620a6a40c3c7cedb6a9f73aeb481d764bf93d6dace",
