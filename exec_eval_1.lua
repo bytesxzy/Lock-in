@@ -256,8 +256,8 @@ WHAT IS NOT CLAIMED
 return {
   language = "Lua 5.4",
   entry = "lua asi.lua <subcommand>",
-  subcommands = {"prompt", "validate", "selftest", "risk", "episode", "parity", "compare", "reason", "reason-compare", "reason-report", "merge", "report", "replay", "trace"},
-  suites = {"math", "rng", "validate", "world", "vm", "gl", "risk", "proof", "parity", "twin", "mutation", "harness", "reason"},
+  subcommands = {"prompt", "validate", "selftest", "risk", "episode", "parity", "compare", "reason", "reason-compare", "reason-report", "merge", "report", "replay", "trace", "cyber-run", "cyber-eval", "cyber-report", "cyber-trace"},
+  suites = {"math", "rng", "validate", "world", "vm", "gl", "risk", "proof", "parity", "twin", "mutation", "harness", "reason", "cyber"},
 }
 end
 
@@ -18188,7 +18188,7 @@ local ALIASES = {["--prompt"] = "prompt", ["--validate"] = "validate", ["--selft
 commands.help = function()
   local src = debug.getinfo(1, "S").source
   out("Usage: lua <this file> <subcommand> [options]   (Lua 5.4 only)\n",
-      "Subcommands: prompt validate selftest risk episode parity compare reason reason-compare reason-report merge report replay trace help\n",
+      "Subcommands: prompt validate selftest risk episode parity compare reason reason-compare reason-report merge report replay trace cyber-run cyber-eval cyber-report cyber-trace help\n",
       "Options are listed in the header comment of asi/cli.lua (in the single-file bundle: the section marked asi.cli).\n",
       "Exit status: 0 ok, 1 violated invariant / failed check, 2 rejected input.\n")
   return 0
@@ -18263,6 +18263,90 @@ commands["reason-report"] = function(args)
   return 0
 end
 
+local function split_csv(s, tonum)
+  local t = {}
+  for item in tostring(s):gmatch("[^,]+") do t[#t + 1] = tonum and (math.tointeger(tonumber(item)) or bad("invalid number list")) or item end
+  return t
+end
+local function read_rows(path)
+  local fh = io.open(path, "rb"); if not fh then bad("cannot read " .. path) end
+  local txt = fh:read("a"); fh:close()
+  local chunk = load(txt, "=" .. path, "t", {}); if not chunk then bad("malformed rows file " .. path) end
+  return chunk()
+end
+
+commands["cyber-run"] = function(args)
+  local pos, opt = parse(args, 2, {seed="value", set="value", variant="value", budget="value", trace="flag"})
+  if #pos > 0 then bad("cyber-run accepts options only") end
+  local E = require("asi.cyber.eval")
+  local Env = require("asi.cyber.env")
+  local set = opt.set or "dev"
+  if not Env.PROTOCOL.sets[set] then bad("unknown set " .. set) end
+  local seed = opt.seed and math.tointeger(tonumber(opt.seed)) or Env.PROTOCOL.sets[set][1]
+  local b = opt.budget and math.tointeger(tonumber(opt.budget)) or 4
+  if b ~= 1 and b ~= 2 and b ~= 4 then bad("budget must be 1, 2 or 4 (quarters)") end
+  local name = opt.variant or "new"
+  local ok, v = pcall(E.variant, name); if not ok then bad("unknown variant " .. name) end
+  local row, _, vm = E.run(v.art, {seed = seed, set = set, kind = v.kind, variant = name, budget_quarters = b, work_budget = Env.PROTOCOL.work_budget * b // 4})
+  local c = {}
+  for k, x in pairs(row) do if k ~= "trace" and k ~= "stage_util" then c[k] = x end end
+  if opt.trace and v.kind == "new" then c.provenance = E.trace_records(vm, v.art) end
+  out(U.to_literal(c), "\n")
+  return (row.complete and 0 or 1)
+end
+
+commands["cyber-trace"] = function(args)
+  local pos, opt = parse(args, 2, {seed="value", set="value", variant="value"})
+  if #pos > 0 then bad("cyber-trace accepts options only") end
+  local E = require("asi.cyber.eval")
+  local Env = require("asi.cyber.env")
+  local set = opt.set or "dev"
+  if not Env.PROTOCOL.sets[set] then bad("unknown set " .. set) end
+  local seed = opt.seed and math.tointeger(tonumber(opt.seed)) or Env.PROTOCOL.sets[set][1]
+  local v = E.variant(opt.variant or "new")
+  if v.kind ~= "new" then bad("only cyber-interface variants keep a provenance ring") end
+  local _, _, vm = E.run(v.art, {seed = seed, set = set, kind = v.kind})
+  out("tick kind        a    b    v1  runner-up  work-left  leader-p\n")
+  for _, r in ipairs(E.trace_records(vm, v.art)) do
+    out(string.format("%4s %-11s %4s %4s %5s %9s %10s %8s\n", r.tick, r.kind, r.a, r.b, r.v1, r.v2, r.work_left, r.lead_p))
+  end
+  return 0
+end
+
+commands["cyber-eval"] = function(args)
+  local pos, opt = parse(args, 2, {set="value", seeds="value", variants="value", budgets="value", ablations="flag", baselines="flag", save="value", summary="flag", progress="flag"})
+  if #pos > 0 then bad("cyber-eval accepts options only") end
+  local E = require("asi.cyber.eval")
+  local Env = require("asi.cyber.env")
+  local set = opt.set or "dev"
+  if not Env.PROTOCOL.sets[set] then bad("unknown set " .. set) end
+  local variants = opt.variants and split_csv(opt.variants) or {"new"}
+  if opt.baselines then for _, n in ipairs(E.BASELINES) do variants[#variants + 1] = n end end
+  if opt.ablations then for _, n in ipairs(E.ABLATIONS) do variants[#variants + 1] = n end end
+  for _, n in ipairs(variants) do local ok = pcall(E.variant, n); if not ok then bad("unknown variant " .. n) end end
+  local budgets = opt.budgets and split_csv(opt.budgets, true) or {4}
+  for _, b in ipairs(budgets) do if b ~= 1 and b ~= 2 and b ~= 4 then bad("budgets are 1, 2 or 4 quarters") end end
+  local rows = E.collect({set = set, seeds = opt.seeds and split_csv(opt.seeds, true) or nil, variants = variants, budgets = budgets,
+    progress = opt.progress and function(r) err(string.format("%s %s seed=%d b=%d skill=%.3f\n", r.set, r.variant, r.seed, r.budget_quarters, r.skill or 0)) end or nil})
+  if opt.save then
+    local fh = io.open(opt.save, "wb"); if not fh then bad("cannot write " .. opt.save) end
+    fh:write("return ", U.to_literal(rows), "\n"); fh:close()
+  end
+  local rep = E.aggregate(rows)
+  if opt.summary or not opt.save then out(E.format(rep), "\n") else out(U.to_literal(rep), "\n") end
+  return 0
+end
+
+commands["cyber-report"] = function(args)
+  local pos, opt = parse(args, 2, {raw="flag"})
+  if #pos == 0 then bad("cyber-report needs one or more rows files written by cyber-eval --save") end
+  local E = require("asi.cyber.eval")
+  local rows = {}
+  for _, path in ipairs(pos) do for _, r in ipairs(read_rows(path)) do rows[#rows + 1] = r end end
+  local rep = E.aggregate(rows)
+  if opt.raw then out(U.to_literal(rep), "\n") else out(E.format(rep), "\n") end
+  return 0
+end
 
 function Cli.main(args)
   local cmd = args[1]
@@ -40668,6 +40752,7 @@ All.suites = {
   {name = "mutation", module = "asi.tests.t_mutation", group = "failure-detection"},
   {name = "harness", module = "asi.tests.t_harness", group = "reports"},
   {name = "reason", module = "asi.tests.t_reason", group = "reasoning"},
+  {name = "cyber", module = "asi.tests.t_cyber", group = "reasoning"},
 }
 
 function All.find(name)
@@ -40996,8 +41081,8 @@ function W.relation(e1, e2)
   local h1, p1 = W.hosts_of(e1.pred, e1.a1, e1.a2, e1.a3)
   local h2, p2 = W.hosts_of(e2.pred, e2.a1, e2.a2, e2.a3)
   if e1.pred == P_.EXEC and e2.pred == P_.EXEC and h1 == h2 and e2.a3 == e1.a2 then return 5 end
-  local u1 = (e1.pred == P_.AUTH) and e1.a1 or (e1.pred == P_.EXEC) and e1.attr or nil
-  local u2 = (e2.pred == P_.AUTH) and e2.a1 or (e2.pred == P_.EXEC) and e2.attr or nil
+  local u1 = (e1.pred == P_.AUTH) and e1.a1 or (e1.pred == P_.EXEC and e1.attr ~= 255) and e1.attr or nil     -- attr 255 on an EXEC record = system process, no user
+  local u2 = (e2.pred == P_.AUTH) and e2.a1 or (e2.pred == P_.EXEC and e2.attr ~= 255) and e2.attr or nil
   if u1 and u2 and u1 == u2 and h1 ~= h2 then return 4 end
   if h1 == h2 then return 1 end
   if p1 ~= nil and p1 == h2 then return 2 end
@@ -41733,6 +41818,7 @@ function Stream:enter(k)
   self.S = self.specs[k]
   self.world = W.new(self.S)
   if self.opts.ghost and self.opts.ghost.stage == k then self.world.host[self.opts.ghost.host].ghost = true end
+  if self.opts.twin then self.opts.twin(self.world, k, self) end          -- evaluator-side perturbation of HIDDEN state (noninterference tests)
   self.reset = true
   self.backlog = {}
   self.stage_start_gt = self.gt
@@ -43383,7 +43469,8 @@ function E.run(art, opts)
     local out, _, vm_ = Hpr.run{artifact = art, env = env, work_budget = work, trace = false, oracle = false}
     vm = vm_
   else
-    env = Env.new{seed = opts.seed, set = opts.set or "dev", ghost = opts.ghost}
+    env = Env.new{seed = opts.seed, set = opts.set or "dev", ghost = opts.ghost, twin = opts.twin, limit_stages = opts.limit_stages, rounds = opts.rounds}
+    if opts.on_env then opts.on_env(env) end
     vm = VM.new{image = {words = art.words, bits = art.bits}, machine = art.machine, env = env, profile = E.profile(work), coin_seed = 1, trace = opts.trace}
     vm:run()
   end
@@ -43408,6 +43495,12 @@ function E.run(art, opts)
   row.skill = row.skill_raw and math.max(0, math.min(1, row.skill_raw)) or nil
   if not row.complete then row.skill = 0 end
   E.score(row, env, vm, art)
+  -- replay digest: everything the controller did and everything the world did in response
+  local dg = {art.bits, vm.instr_count, row.work, tostring(vm.reason), s.seed}
+  for _, r in ipairs(s.rows) do dg[#dg + 1] = r.gt .. "," .. r.util .. "," .. r.act end
+  for _, a in ipairs(s.act_log) do dg[#dg + 1] = "a" .. table.concat({tostring(a.gt), tostring(a.act), tostring(a.x), tostring(a.status)}, ",") end
+  for _, t in ipairs(s.tool_log) do dg[#dg + 1] = "t" .. table.concat({tostring(t.gt), tostring(t.tool), tostring(t.status), tostring(t.cost)}, ",") end
+  row.digest = U.sha256(table.concat(dg, "\n"))
   return row, env, vm
 end
 ------------------------------------------------------------------------------------------------ scorecard
@@ -43653,8 +43746,710 @@ function E.composite(axes, only)
   if n == 0 then return nil, 0 end
   return zero and 0 or math.exp(sum / n), n
 end
+
+------------------------------------------------------------------------------------------------ variants, paired suite, aggregation
+-- Every variant runs on IDENTICAL worlds (same seed => same stateless-PRF world and noise), identical budgets, interface and scorer.
+E.ABLATIONS = {"no_model_learning", "no_competing_hypotheses", "no_counterfactuals", "no_temporal", "no_hidden_state", "no_information_gain",
+               "no_planning", "no_graph", "no_cyber_tools", "no_memory", "no_compute_meta", "no_uncertainty", "no_root_cause"}
+E.BASELINES = {"passive", "triage", "sweeper", "old"}
+local variant_cache = {}
+function E.variant(name)
+  if variant_cache[name] then return variant_cache[name] end
+  local G = require("asi.cyber.guest")
+  local v
+  if name == "new" then v = {art = G.build({}), kind = "new"}
+  elseif name == "old" then v = {art = require("asi.reason.hpr").artifact({}), kind = "legacy"}
+  elseif name == "passive" or name == "triage" or name == "sweeper" then v = {art = G.build_baseline(name), kind = "new"}
+  else
+    local ok = false
+    for _, a in ipairs(E.ABLATIONS) do if a == name then ok = true end end
+    assert(ok, "unknown cyber variant " .. tostring(name))
+    v = {art = G.build({[name] = true}), kind = "new"}
+  end
+  variant_cache[name] = v
+  return v
+end
+
+local function compact(row)
+  local v = row.viol or {}
+  return {variant = row.variant, seed = row.seed, set = row.set, budget_quarters = row.budget_quarters, axes = row.axes, axis_na = row.axis_na,
+          skill = row.skill, skill_raw = row.skill_raw, utility_full = row.utility_full, passive = row.passive, ref = row.ref, complete = row.complete,
+          work = row.work, allowed_work = row.allowed_work, instr = row.instr, reason = row.reason, fault = row.fault and row.fault.name or nil,
+          guard = row.guard, viol = {v.tool_invalid or 0, v.tool_denied or 0, v.act_invalid or 0, v.act_denied or 0, v.protocol or 0},
+          digest = row.digest, image_bits = row.image_bits, ram_high_water = row.ram_high_water, diag = row.diag, stage_util = row.stage_util}
+end
+
+-- run every (budget, variant, seed) of a suite; returns the raw compact rows
+function E.collect(opt)
+  opt = opt or {}
+  local set = opt.set or "dev"
+  local seeds = opt.seeds or Env.PROTOCOL.sets[set]
+  assert(seeds, "unknown cyber set " .. tostring(set))
+  local variants = opt.variants or {"new", "passive", "triage", "sweeper", "old"}
+  local rows = {}
+  for _, b in ipairs(opt.budgets or {4}) do
+    local work = Env.PROTOCOL.work_budget * b // Env.PROTOCOL.budget_den
+    for _, name in ipairs(variants) do
+      local v = E.variant(name)
+      for _, seed in ipairs(seeds) do
+        local row = E.run(v.art, {seed = seed, set = set, kind = v.kind, variant = name, budget_quarters = b, work_budget = work})
+        rows[#rows + 1] = compact(row)
+        if opt.progress then opt.progress(rows[#rows]) end
+      end
+    end
+  end
+  return rows
+end
+
+local function mean(t) if #t == 0 then return nil end local s = 0; for _, v in ipairs(t) do s = s + v end return s / #t end
+local function sd(t) local m = mean(t); if not m or #t < 2 then return 0 end local s = 0; for _, v in ipairs(t) do s = s + (v - m) ^ 2 end return math.sqrt(s / (#t - 1)) end
+local function geo(vals)
+  local n, s = 0, 0
+  for _, v in ipairs(vals) do n = n + 1; if v <= 0 then return 0, n end s = s + math.log(v) end
+  if n == 0 then return nil, 0 end
+  return math.exp(s / n), n
+end
+local function composite_of(axes, only)
+  local vals = {}
+  for _, a in ipairs(E.AXES) do if axes[a] ~= nil and (only == nil or only[a]) then vals[#vals + 1] = axes[a] end end
+  return geo(vals)
+end
+-- deterministic LCG for the seed bootstrap (no os.time, no math.random)
+local function lcg(seed) local s = seed; return function(n) s = (s * 6364136223846793005 + 1442695040888963407) & 0x7FFFFFFFFFFFFFFF; return ((s >> 33) % n) + 1 end end
+
+-- summary of one (variant, budget) group
+local function summarize(group)
+  local o = {n = #group, axis_mean = {}, axis_n = {}, axis_na = {}, complete = 0}
+  local sk, uf, wk, ins, vi, cm, bits = {}, {}, {}, {}, {}, {}, 0
+  for _, r in ipairs(group) do
+    if r.complete then o.complete = o.complete + 1 end
+    sk[#sk + 1] = r.skill or 0; uf[#uf + 1] = r.utility_full; wk[#wk + 1] = r.work; ins[#ins + 1] = r.instr
+    local nv = 0; for _, x in ipairs(r.viol) do nv = nv + x end; vi[#vi + 1] = nv
+    cm[#cm + 1] = (composite_of(r.axes)) or 0
+    bits = r.image_bits
+  end
+  for _, a in ipairs(E.AXES) do
+    local vals = {}
+    for _, r in ipairs(group) do if r.axes[a] ~= nil then vals[#vals + 1] = r.axes[a] end end
+    o.axis_n[a] = #vals
+    if #vals > 0 then o.axis_mean[a] = mean(vals) else o.axis_na[a] = (group[1] and group[1].axis_na[a]) or "unsupported" end
+  end
+  o.skill, o.utility_full, o.work, o.instr, o.violations, o.image_bits = mean(sk), mean(uf), mean(wk), mean(ins), mean(vi), bits
+  o.composite_row_mean = mean(cm)
+  local mv = {}
+  for _, a in ipairs(E.AXES) do if o.axis_mean[a] ~= nil then mv[#mv + 1] = o.axis_mean[a] end end
+  o.composite_of_means, o.axes_supported = geo(mv)
+  o.skill_sd = sd(sk)
+  return o
+end
+
+-- aggregate collected rows into the paired report (per variant, per budget; vs OLD; ablation deltas vs NEW)
+function E.aggregate(rows, opt)
+  opt = opt or {}
+  local by = {}   -- by[b][variant] = {seed -> row}
+  local order, seen_v = {}, {}
+  for _, r in ipairs(rows) do
+    local b = r.budget_quarters
+    by[b] = by[b] or {}; by[b][r.variant] = by[b][r.variant] or {}
+    by[b][r.variant][r.seed] = r
+    if not seen_v[r.variant] then order[#order + 1] = r.variant; seen_v[r.variant] = true end
+  end
+  local rep = {protocol_hash = Env.protocol_hash, set = rows[1] and rows[1].set, budgets = {}, variants = order}
+  local bkeys = {}
+  for b in pairs(by) do bkeys[#bkeys + 1] = b end
+  table.sort(bkeys)
+  for _, b in ipairs(bkeys) do
+    local R = {budget_quarters = b, summary = {}, vs_old = {}, ablation = {}}
+    rep.budgets[#rep.budgets + 1] = R
+    for _, name in ipairs(order) do
+      local group, seeds = {}, {}
+      for seed in pairs(by[b][name] or {}) do seeds[#seeds + 1] = seed end
+      table.sort(seeds)
+      for _, seed in ipairs(seeds) do group[#group + 1] = by[b][name][seed] end
+      if #group > 0 then R.summary[name] = summarize(group) end
+    end
+    local function paired(namea, nameb)   -- seeds present for both
+      local A, B = by[b][namea], by[b][nameb]
+      local ps = {}
+      if A and B then for seed, ra in pairs(A) do if B[seed] then ps[#ps + 1] = {ra, B[seed], seed} end end end
+      table.sort(ps, function(x, y) return x[3] < y[3] end)
+      return ps
+    end
+    -- paired comparison of every variant against OLD on the jointly supported axes
+    if by[b].old then
+      for _, name in ipairs(order) do
+        if name ~= "old" then
+          local ps = paired(name, "old")
+          if #ps > 0 then
+            local rec = {n = #ps, axes = {}, excluded = {}}
+            local ratios, keep = {}, {}
+            for _, a in ipairs(E.AXES) do
+              local xs, ys = {}, {}
+              for _, p in ipairs(ps) do
+                if p[1].axes[a] ~= nil and p[2].axes[a] ~= nil then xs[#xs + 1] = p[1].axes[a]; ys[#ys + 1] = p[2].axes[a] end
+              end
+              if #xs == 0 then rec.excluded[a] = "not jointly supported"
+              else
+                local mx, my = mean(xs), mean(ys)
+                rec.axes[a] = {new = mx, old = my, n = #xs}
+                if my > 0 then rec.axes[a].ratio = mx / my; ratios[#ratios + 1] = mx / my; keep[a] = true
+                else rec.excluded[a] = "denominator zero (OLD supported and scored zero)" end
+              end
+            end
+            rec.joint_axes = {}
+            for _, a in ipairs(E.AXES) do if rec.axes[a] then rec.joint_axes[#rec.joint_axes + 1] = a end end
+            rec.ratio_axes = {}
+            for _, a in ipairs(E.AXES) do if keep[a] then rec.ratio_axes[#rec.ratio_axes + 1] = a end end
+            local gm = geo(ratios); rec.ratio_geomean = gm; rec.ratio_axes_n = #ratios
+            -- composite of means on the jointly supported axes (supported zero => zero), and its ratio only if OLD's is positive
+            local nv, ov = {}, {}
+            for _, a in ipairs(rec.joint_axes) do nv[#nv + 1] = rec.axes[a].new; ov[#ov + 1] = rec.axes[a].old end
+            rec.composite_new, rec.composite_old = geo(nv), geo(ov)
+            rec.composite_ratio = (rec.composite_old and rec.composite_old > 0) and rec.composite_new / rec.composite_old or nil
+            rec.composite_ratio_note = rec.composite_ratio and nil or "undefined: OLD composite is zero on the jointly supported axes"
+            -- paired seed bootstrap of the ratio-geomean over the fixed set of axes with positive OLD denominators
+            if #ratios > 0 and #ps > 1 then
+              local rnd, samples = lcg(1000003 + b), {}
+              for _ = 1, (opt.bootstrap or 400) do
+                local rs = {}
+                local pick = {}
+                for i = 1, #ps do pick[i] = ps[rnd(#ps)] end
+                local ok = true
+                for _, a in ipairs(rec.ratio_axes) do
+                  local sx, sy, n = 0, 0, 0
+                  for _, p in ipairs(pick) do if p[1].axes[a] ~= nil and p[2].axes[a] ~= nil then sx = sx + p[1].axes[a]; sy = sy + p[2].axes[a]; n = n + 1 end end
+                  if n == 0 or sy <= 0 then ok = false; break end
+                  rs[#rs + 1] = sx / sy
+                end
+                if ok then local g = geo(rs); if g then samples[#samples + 1] = g end end
+              end
+              table.sort(samples)
+              if #samples >= 20 then rec.ratio_ci = {samples[math.max(1, (#samples * 25) // 1000)], samples[math.min(#samples, (#samples * 975) // 1000)], #samples} end
+            end
+            R.vs_old[name] = rec
+          end
+        end
+      end
+    end
+    -- ablations: paired per-seed deltas against the full model
+    if by[b].new then
+      for _, name in ipairs(order) do
+        local isabl = false
+        for _, a in ipairs(E.ABLATIONS) do if a == name then isabl = true end end
+        if isabl then
+          local ps = paired("new", name)
+          if #ps > 0 then
+            local ds, dc, du = {}, {}, {}
+            for _, p in ipairs(ps) do
+              ds[#ds + 1] = (p[1].skill or 0) - (p[2].skill or 0)
+              local only = {}
+              for _, a in ipairs(E.AXES) do if p[1].axes[a] ~= nil and p[2].axes[a] ~= nil then only[a] = true end end
+              dc[#dc + 1] = (composite_of(p[1].axes, only) or 0) - (composite_of(p[2].axes, only) or 0)
+              du[#du + 1] = p[1].utility_full - p[2].utility_full
+            end
+            local axd = {}
+            for _, a in ipairs(E.AXES) do
+              local d = {}
+              for _, p in ipairs(ps) do if p[1].axes[a] ~= nil and p[2].axes[a] ~= nil then d[#d + 1] = p[1].axes[a] - p[2].axes[a] end end
+              if #d > 0 then axd[a] = mean(d) end
+            end
+            R.ablation[name] = {n = #ps, d_skill = mean(ds), se_skill = sd(ds) / math.sqrt(#ds), d_composite = mean(dc), se_composite = sd(dc) / math.sqrt(#dc),
+                                d_utility = mean(du), d_axes = axd}
+          end
+        end
+      end
+    end
+  end
+  return rep
+end
+
+-- decode the guest's provenance ring (most recent 64 decisions): probe / action / leading-hypothesis change records
+E.TRACE_KIND = {[1] = "probe", [2] = "action", [3] = "lead_change", [4] = "attack_path"}
+function E.trace_records(vm, art)
+  local tr, n = E.read(vm, art, "TR", 512), E.read(vm, art, "TRN", 1)
+  if not tr or not n then return {} end
+  local total, out = n[0], {}
+  for i = math.max(0, total - 64), total - 1 do
+    local o = (i % 64) * 8
+    out[#out + 1] = {tick = tr[o], kind = E.TRACE_KIND[tr[o + 1]] or tr[o + 1], a = tr[o + 2], b = tr[o + 3], v1 = tr[o + 4], v2 = tr[o + 5], work_left = tr[o + 6], lead_p = tr[o + 7]}
+  end
+  return out
+end
+
+function E.suite(opt)
+  local rows = E.collect(opt)
+  return E.aggregate(rows, opt), rows
+end
+
+function E.format(rep)
+  local out = {}
+  local function p(fmt, ...) out[#out + 1] = string.format(fmt, ...) end
+  local function f(x) return x == nil and "  NA " or string.format("%.3f", x) end
+  p("CYB1 protocol %s  set=%s", rep.protocol_hash:sub(1, 16), tostring(rep.set))
+  for _, R in ipairs(rep.budgets) do
+    p("\n== budget %d/4 ==", R.budget_quarters)
+    p("%-24s %5s %6s %6s %6s %7s %8s %6s %5s", "variant", "n", "skill", "comp", "compM", "viol", "Minstr", "ok", "axes")
+    for _, name in ipairs(rep.variants) do
+      local s = R.summary[name]
+      if s then p("%-24s %5d %6s %6s %6s %7.2f %8.2f %3d/%-2d %5d", name, s.n, f(s.skill), f(s.composite_row_mean), f(s.composite_of_means), s.violations, (s.instr or 0) / 1e6, s.complete, s.n, s.axes_supported) end
+    end
+    local hdr = {}
+    for _, a in ipairs(E.AXES) do hdr[#hdr + 1] = a end
+    p("\nper-axis means (NA = unsupported):")
+    for _, a in ipairs(E.AXES) do
+      local line = {string.format("%-34s", a)}
+      for _, name in ipairs(rep.variants) do
+        local s = R.summary[name]
+        line[#line + 1] = string.format("%s=%s", name:sub(1, 8), s and f(s.axis_mean[a]) or "  -  ")
+      end
+      p("%s", table.concat(line, " "))
+    end
+    for name, rec in pairs(R.vs_old) do
+      p("\n%s vs OLD (paired, n=%d): jointly-supported axes %d, axes with positive OLD denominator %d", name, rec.n, #rec.joint_axes, rec.ratio_axes_n)
+      for _, a in ipairs(rec.joint_axes) do
+        local x = rec.axes[a]
+        p("   %-34s new=%s old=%s ratio=%s", a, f(x.new), f(x.old), x.ratio and string.format("%.2f", x.ratio) or "undef(old=0)")
+      end
+      for a, why in pairs(rec.excluded) do p("   excluded %-28s %s", a, why) end
+      p("   composite(new)=%s composite(old)=%s ratio=%s", f(rec.composite_new), f(rec.composite_old), rec.composite_ratio and string.format("%.2f", rec.composite_ratio) or rec.composite_ratio_note)
+      p("   geomean of per-axis ratios (positive-denominator axes) = %s  95%% CI %s", rec.ratio_geomean and string.format("%.2f", rec.ratio_geomean) or "NA",
+        rec.ratio_ci and string.format("[%.2f, %.2f] (%d resamples)", rec.ratio_ci[1], rec.ratio_ci[2], rec.ratio_ci[3]) or "NA")
+    end
+    local names = {}
+    for name in pairs(R.ablation) do names[#names + 1] = name end
+    table.sort(names)
+    if #names > 0 then
+      p("\nablations (full minus ablated, paired per seed; positive = the mechanism helps):")
+      for _, name in ipairs(names) do
+        local a = R.ablation[name]
+        p("   %-26s dSkill=%+.3f (se %.3f)  dComposite=%+.3f (se %.3f)  dUtility=%+.0f  n=%d", name, a.d_skill, a.se_skill, a.d_composite, a.se_composite, a.d_utility, a.n)
+      end
+    end
+  end
+  return table.concat(out, "\n")
+end
 --@@EVAL-END@@
 return E
+end
+
+-- ======================================================================== asi.tests.t_cyber
+package.preload["asi.tests.t_cyber"] = function(...)
+--[============[
+asi/tests/t_cyber.lua -- tests of the cyber-reasoning layer: world physics, the metered tool/action/report interface, protocol
+enforcement, replay determinism, twin-world noninterference (the controller's outputs depend only on what it observed), budget
+exhaustion, the guest's arithmetic and relation kernels against the world's own definitions, and every ablation switch.
+]============]
+local U = require("asi.util")
+local T = U.T
+local VM = require("asi.vm")
+local GL = require("asi.gl")
+local Run = require("asi.run")
+local W = require("asi.cyber.world")
+local Env = require("asi.cyber.env")
+local G = require("asi.cyber.guest")
+local E = require("asi.cyber.eval")
+local M = {}
+
+local function lcg(seed) local s = seed; return function(n) s = (s * 6364136223846793005 + 1442695040888963407) & 0x7FFFFFFFFFFFFFFF; return (s >> 33) % n end end
+
+-- a hand-written guest program on the real interface (the test controller); `build(f, A)` writes main, A holds static addresses
+local function harness(build, extra)
+  local P = GL.program(Env.machine, {ram_words = G.RAM, stack_words = 256})
+  local A = {PK = P:static("T_PK", 120), RQ = P:static("T_RQ", 4), RS = P:static("T_RS", 32), FA = P:static("T_FA", 4), REP = P:static("T_REP", 64), OUT = P:static("T_OUT", 64),
+             IN = P:static("T_IN", 512)}
+  local R = extra and extra(P, A)
+  P:main(function(f) build(f, A, R) end)
+  local words, sym = P:build()
+  local ok, bits = Run.check_image(words, Env.machine)
+  assert(ok, "harness image exceeds the cap")
+  return {words = words, bits = bits, sym = sym, machine = Env.machine}
+end
+local function exec(art, env, work)
+  local vm = VM.new{image = {words = art.words, bits = art.bits}, machine = art.machine, env = env, profile = E.profile(work), coin_seed = 1}
+  vm:run()
+  return vm
+end
+local function word(vm, art, name, i) return vm.ram[art.sym[name] - VM.RAM_BASE + (i or 0)] end
+
+function M.run()
+  ---------------------------------------------------------------------------------------------------- 1. specifications
+  local specs_seen = {}
+  local benign, total_specs = 0, 0
+  for seed = 1, 24 do
+    for _, params in ipairs({"dev", "ood", "adv"}) do
+      for variant = 0, 3 do
+        local S = W.make_spec(seed, W.PARAMS[params], variant)
+        local S2 = W.make_spec(seed, W.PARAMS[params], variant)
+        if variant == 0 and params == "dev" then specs_seen[#specs_seen + 1] = U.sha256(U.to_literal({S.nh, S.nu, S.role, S.val, S.dep, S.camps})) end
+        if variant == 3 and params == "dev" and seed <= 6 then T.eq(U.to_literal({S.nh, S.nu, S.role, S.svc, S.dep, S.camps}), U.to_literal({S2.nh, S2.nu, S2.role, S2.svc, S2.dep, S2.camps}), "a specification is a pure function of (seed, params, variant)") end
+        T.check(S.nh >= 4 and S.nh <= 16 and S.nu >= 2 and S.nu <= 16, "inventory sizes fit the report packing")
+        T.check(S.nsvc[S.dc] >= 1 and S.role[S.dc] == W.ROLE.DC, "the directory controller exists and runs a service")
+        local ok = true
+        for h = 0, S.nh - 1 do if S.role[h] < 0 or S.role[h] > 5 or S.nsvc[h] < 1 or #S.svc[h] ~= S.nsvc[h] then ok = false end end
+        T.check(ok, "every host has a valid role and its declared services")
+        local depok = true
+        for _, d in ipairs(S.dep) do if d[1] < 0 or d[1] >= S.nh or d[3] < 0 or d[3] >= S.nh or d[2] >= S.nsvc[d[1]] or d[4] >= S.nsvc[d[3]] then depok = false end end
+        T.check(depok, "service dependencies reference real services")
+        if #S.camps == 0 then benign = benign + 1 end
+        total_specs = total_specs + 1
+      end
+    end
+  end
+  T.check(benign > 0 and benign < total_specs // 3, "some episodes are benign (no campaign) and most are attacked: " .. benign .. "/" .. total_specs)
+  local distinct = {}
+  for _, h in ipairs(specs_seen) do distinct[h] = true end
+  local n = 0; for _ in pairs(distinct) do n = n + 1 end
+  T.check(n >= 20, "different seeds give different enterprises")
+
+  ---------------------------------------------------------------------------------------------------- 2. physics: determinism and passive/active divergence
+  local wins = 0
+  for seed = 1, 8 do
+    local S = W.make_spec(seed, W.PARAMS.dev, 0)
+    local a, b = W.new(S), W.new(S)
+    local ua, ub = 0, 0
+    for _ = 1, 48 do ua = ua + a:step(nil); ub = ub + b:step(nil) end
+    T.eq(ua, ub, "the same specification and the same (empty) action sequence give the same utility")
+    local ea, eb = {}, {}
+    for id, ev in pairs(a.events) do ea[id] = ev.pred .. ":" .. ev.a1 .. ":" .. ev.a2 .. ":" .. ev.a3 end
+    for id, ev in pairs(b.events) do eb[id] = ev.pred .. ":" .. ev.a1 .. ":" .. ev.a2 .. ":" .. ev.a3 end
+    T.eq(U.sha256(U.to_literal(ea)), U.sha256(U.to_literal(eb)), "the event history is a function of the specification")
+    local r = W.new(S)
+    local ur = r:step(nil)
+    for _ = 1, 48 do local act = r:reference_action(); if act and r:check_action(act) ~= 0 then act = nil end; ur = ur + r:step(act) end
+    T.check(ur >= ua, "the perfect-information reference defender never does worse than passive play (seed " .. seed .. ")")
+    if ur > ua then wins = wins + 1 end
+    if #S.camps == 0 then T.eq(ur, ua, "a benign world leaves nothing to defend: reference equals passive") end
+  end
+  T.check(wins >= 5, "the reference defender clearly beats passive play on most worlds (" .. wins .. "/8)")
+  -- action and tool authorization at the world boundary
+  do
+    local S = W.make_spec(5, W.PARAMS.dev, 0)
+    local w = W.new(S); w:step(nil)
+    local prot
+    for h = 0, S.nh - 1 do if S.prot[h] then prot = h; break end end
+    T.check(prot ~= nil, "the world has a protected host")
+    T.eq(w:check_action({W.ACT.ISOLATE, prot, 0}), 2, "isolating a protected host is denied")
+    T.eq(w:check_action({W.ACT.ISOLATE, S.nh + 3, 0}), 1, "an action on a nonexistent host is invalid")
+    T.eq(w:check_action({99, 0, 0}), 1, "an unknown action is invalid")
+    T.eq(w:check_action({W.ACT.WAIT, 0, 0}), 0, "waiting is always allowed")
+    T.eq(w:check_action({W.ACT.UNISOLATE, 0, 0}), 1, "un-isolating a host that is not isolated is invalid")
+    local n_ok = 0
+    for h = 0, S.nh - 1 do
+      if not S.prot[h] and w:check_action({W.ACT.ISOLATE, h, 0}) == 0 then
+        w:apply({W.ACT.ISOLATE, h, 0}); n_ok = n_ok + 1
+      end
+    end
+    T.eq(n_ok, W.MAX_ISOLATED, "the isolation quota is enforced by the world")
+    local st, p = w:tool(W.TOOL.HOST, -1, 0, 0); T.eq(st, 1, "a tool on a nonexistent host is invalid"); T.eq(#p, 0, "an invalid tool call returns nothing")
+    T.eq((w:tool(99, 0, 0, 0)), 1, "an unknown tool is invalid")
+    T.eq((w:tool(W.TOOL.VERIFY, 0, 0, 0)), 1, "verification with no kind is invalid")
+    for id = 1, W.NTOOL do
+      local s1, p1 = W.new(S):tool(id, 0, 0, 0)
+      local s2, p2 = W.new(S):tool(id, 0, 0, 0)
+      T.check(s1 == s2 and U.to_literal(p1) == U.to_literal(p2), "tool " .. id .. " is a deterministic function of the world and its arguments")
+    end
+  end
+  -- the guest-visible relation kernel is the world's relation (the language of causal links)
+  do
+    local r = lcg(77)
+    local events = {}
+    local w = W.new(W.make_spec(3, W.PARAMS.dev, 0))
+    for _ = 1, 40 do w:step(nil) end
+    for _, ev in pairs(w.events) do events[#events + 1] = ev end
+    table.sort(events, function(a, b) return a.id < b.id end)
+    local pairs_ = {}
+    for i = 1, 120 do pairs_[i] = {events[1 + r(#events)], events[1 + r(#events)]} end
+    local P = GL.program(Env.machine, {ram_words = G.RAM, stack_words = 256})
+    local Rr = G.install(P, {})
+    local IN, OUT = P:static("T_IN2", 120 * 14), P:static("T_OUT2", 120)
+    P:main(function(f)
+      local i = f:var("i")
+      f:for_(i, 0, 120, function()
+        for k, name in ipairs({"EPRED", "EH", "EP", "EU", "EA2", "EA3", "EAT"}) do
+          f:st(Rr[name] + 0, f:ld(IN + i * 14 + (k - 1)))
+          f:st(Rr[name] + 1, f:ld(IN + i * 14 + 7 + (k - 1)))
+        end
+        f:st(OUT + i, f:call("c_rel", 0, 1))
+      end)
+    end)
+    local words, sym = P:build()
+    local ok, bits = Run.check_image(words, Env.machine)
+    T.check(ok, "the relation harness fits the image cap")
+    local env = Env.new{seed = 1, set = "dev"}
+    local vm = VM.new{image = {words = words, bits = bits}, machine = Env.machine, env = env, profile = E.profile(), coin_seed = 1}
+    local function put(i, ev, o)
+      local h, p = W.hosts_of(ev.pred, ev.a1, ev.a2, ev.a3)
+      local u = (ev.pred == 1) and ev.a1 or (ev.pred == 2) and ev.attr or 255
+      local base = sym.T_IN2 - VM.RAM_BASE + i * 14 + o
+      vm.ram[base], vm.ram[base + 1], vm.ram[base + 2], vm.ram[base + 3] = ev.pred, h, p or 254, u
+      vm.ram[base + 4], vm.ram[base + 5], vm.ram[base + 6] = ev.a2, ev.a3, ev.attr
+    end
+    for i, pr in ipairs(pairs_) do put(i - 1, pr[1], 0); put(i - 1, pr[2], 7) end
+    vm:run()
+    T.eq(vm.reason, "halt", "the relation harness halts")
+    local nz, agree = 0, 0
+    for i, pr in ipairs(pairs_) do
+      local want, got = W.relation(pr[1], pr[2]), vm.ram[sym.T_OUT2 - VM.RAM_BASE + i - 1]
+      if want ~= 0 then nz = nz + 1 end
+      T.eq(got, want, "guest relation kernel equals the world's classification (pair " .. i .. ")")
+      if got == want then agree = agree + 1 end
+    end
+    T.check(nz >= 10, "the relation test covers non-trivial relations")
+  end
+
+  ---------------------------------------------------------------------------------------------------- 3. guest arithmetic kernels
+  do
+    local P = GL.program(Env.machine, {ram_words = G.RAM, stack_words = 256})
+    local R = G.install(P, {})
+    local OUT = P:static("T_OUTK", 400)
+    P:main(function(f)
+      local i = f:var("i")
+      f:st(OUT + 0, f:call("c_log2q", 2, 1)); f:st(OUT + 1, f:call("c_log2q", 1, 1)); f:st(OUT + 2, f:call("c_log2q", 1, 2))
+      f:st(OUT + 3, f:call("c_log2q", 4, 1)); f:st(OUT + 4, f:call("c_log2q", 3, 0)); f:st(OUT + 5, f:call("c_log2q", 100, 25))
+      f:for_(i, 0, 257, function() f:st(OUT + 10 + i, f:call("c_prob", i - 128)) end)
+      f:for_(i, 1, 100, function() f:st(OUT + 290 + i, f:call("c_odds", i * 10)) end)
+    end)
+    local words, sym = P:build()
+    local ok, bits = Run.check_image(words, Env.machine)
+    local vm = VM.new{image = {words = words, bits = bits}, machine = Env.machine, env = Env.new{seed = 1}, profile = E.profile(), coin_seed = 1}
+    vm:run()
+    local function o(i) return vm.ram[sym.T_OUTK - VM.RAM_BASE + i] end
+    T.eq(o(0), 16, "16*log2(2) == 16"); T.eq(o(1), 0, "log2(1) == 0"); T.eq(o(2), -16, "16*log2(1/2) == -16"); T.eq(o(3), 32, "16*log2(4) == 32")
+    T.eq(o(4), 0, "log of a non-positive denominator is 0 (guarded)"); T.eq(o(5), 32, "16*log2(100/25) == 32")
+    local mono, sym_ok = true, true
+    for i = 0, 255 do if o(10 + i + 1) < o(10 + i) then mono = false end end
+    for i = 0, 128 do if math.abs(o(10 + 128 + i) + o(10 + 128 - i) - 1024) > 2 then sym_ok = false end end
+    T.check(mono, "the logistic table is monotone"); T.check(sym_ok, "the logistic table is symmetric around 1/2")
+    T.eq(o(10 + 128), 512, "sigmoid(0) == 1/2")
+    local worst = 0
+    for i = 1, 99 do
+      local p = i * 10
+      local lo = o(290 + i)
+      local back = vm.ram[sym.T_OUTK - VM.RAM_BASE + 10 + math.max(0, math.min(256, lo + 128))]
+      worst = math.max(worst, math.abs(back - p))
+    end
+    T.check(worst <= 24, "odds followed by the logistic recovers a probability (worst error " .. worst .. "/1024)")
+  end
+
+  ---------------------------------------------------------------------------------------------------- 4. the metered interface, driven by a hand-written controller
+  for _, seed in ipairs({1, 2, 3}) do
+    local S = Env.Stream.new{seed = seed, set = "dev"}.specs[1]
+    local prot
+    for h = 0, S.nh - 1 do if S.prot[h] then prot = h; break end end
+    local art = harness(function(f, A)
+      local st = f:var("st")
+      f:set(st, f:sys("CSENSE", A.PK)); f:st(A.OUT + 0, st); f:st(A.OUT + 1, f:ld(A.PK + 0)); f:st(A.OUT + 2, f:ld(A.PK + 1)); f:st(A.OUT + 3, f:ld(A.PK + 2)); f:st(A.OUT + 4, f:ld(A.PK + 5))
+      f:st(A.OUT + 5, f:ld(A.PK + 6)); f:st(A.OUT + 6, f:ld(A.PK + 12))
+      -- malformed and valid tool requests
+      f:st(A.RQ, 99); f:st(A.RQ + 1, 0); f:st(A.RQ + 2, 0); f:st(A.RQ + 3, 0); f:st(A.OUT + 10, f:sys("CTOOL", A.RQ, A.RS))
+      f:st(A.RQ, 1); f:st(A.RQ + 1, 90); f:st(A.OUT + 11, f:sys("CTOOL", A.RQ, A.RS))
+      f:st(A.RQ, 1); f:st(A.RQ + 1, 0); f:st(A.OUT + 12, f:sys("CTOOL", A.RQ, A.RS)); f:st(A.OUT + 13, f:ld(A.RS + 2)); f:st(A.OUT + 14, f:ld(A.RS + 3))
+      f:st(A.RQ, 13); f:st(A.RQ + 1, 0); f:st(A.OUT + 15, f:sys("CTOOL", A.RQ, A.RS))
+      -- the per-round tool limit
+      local i = f:var("i")
+      f:st(A.RQ, 7); f:st(A.RQ + 1, 0)
+      f:for_(i, 0, 12, function() f:st(A.OUT + 20 + i, f:sys("CTOOL", A.RQ, A.RS)) end)
+      -- an action on a protected host is refused and does not reach the world; then a legal wait ends the round
+      f:st(A.FA, W.ACT.ISOLATE); f:st(A.FA + 1, prot); f:st(A.FA + 2, 0); f:st(A.OUT + 40, f:sys("CACT", A.FA))
+      f:set(st, f:sys("CSENSE", A.PK))
+      f:st(A.FA, 99); f:st(A.FA + 1, 0); f:st(A.OUT + 41, f:sys("CACT", A.FA))
+      f:set(st, f:sys("CSENSE", A.PK))
+      f:st(A.FA, 0); f:st(A.OUT + 42, f:sys("CACT", A.FA))
+      -- reports
+      f:set(st, f:sys("CSENSE", A.PK))
+      f:st(A.REP + 40, 99); f:st(A.OUT + 50, f:sys("CREP", A.REP))
+      f:st(A.REP + 40, 1); f:st(A.REP + 41, 1 | (0 << 4) | (2 << 12) | (6 << 20) | (128 << 28)); f:st(A.OUT + 51, f:sys("CREP", A.REP))
+      f:st(A.REP + 40, 0); f:st(A.OUT + 52, f:sys("CREP", A.REP))
+    end)
+    local env = Env.new{seed = seed, set = "dev"}
+    local vm = exec(art, env)
+    local function o(i) return word(vm, art, "T_OUT", i) end
+    T.eq(vm.reason, "halt", "the hand-written controller halts"); T.check(vm.fault == nil, "no VM fault")
+    T.eq(o(0), 0, "CSENSE succeeds"); T.eq(o(1), Env.MAGIC, "the packet carries the protocol magic"); T.eq(o(2), S.nh, "the packet declares the host count"); T.eq(o(3), S.nu, "the packet declares the user count")
+    T.eq(o(4), 1, "the first stage is stage 1"); T.eq(o(5) & 1, 1, "the first packet announces an episode reset")
+    T.check(((o(6) >> prot) & 1) == 1, "the packet marks the protected host")
+    T.eq(o(10), 1, "an unknown tool id is rejected"); T.eq(o(11), 1, "a tool on a nonexistent host is rejected"); T.eq(o(12), 0, "a valid tool call succeeds")
+    T.eq(o(13), 13, "the host tool returns its payload length"); T.eq(o(14), S.role[0], "the host tool reports the role of host 0")
+    T.eq(o(15), 1, "verification without a kind is rejected")
+    local okc, denied = 0, 0
+    for k = 0, 11 do local st = o(20 + k); if st == 0 then okc = okc + 1 elseif st == 2 then denied = denied + 1 end end
+    T.check(okc <= W.MAX_TOOLS_PER_ROUND and denied >= 12 - W.MAX_TOOLS_PER_ROUND, "the per-round tool limit denies the excess (" .. okc .. " ok, " .. denied .. " denied)")
+    T.eq(o(40), 2, "isolating a protected host is denied at the interface"); T.eq(o(41), 1, "an unknown action is invalid at the interface"); T.eq(o(42), 0, "waiting is accepted")
+    T.eq(o(50), 1, "a report with an impossible forecast count is rejected"); T.eq(o(51), 0, "a well-formed report with a forecast is accepted"); T.eq(o(52), 0, "an empty report is accepted")
+    local v = env.s.viol
+    T.check(v.tool_invalid >= 3 and v.tool_denied >= 1 and v.act_denied == 1 and v.act_invalid == 1 and v.protocol == 1, "every violation is counted by kind")
+    T.eq(#env.s.preds, 1, "only the well-formed forecast was registered")
+    for h = 0, S.nh - 1 do T.check(not env.s.world.host[h].isol, "refused actions never reach the world (host " .. h .. ")") end
+    T.eq(env.s.world.t, 4, "three legal-or-refused CACT calls advanced the world three ticks past its opening tick (each CACT ends the round)")
+  end
+  -- memory safety: pointers outside the guest's RAM fault the VM; they never reach evaluator state
+  do
+    local art = harness(function(f, A) f:st(A.OUT, f:sys("CSENSE", 0)) end)
+    local vm = exec(art, Env.new{seed = 1, set = "dev"})
+    T.eq(vm.reason, "fault", "CSENSE into the read-only image faults"); T.check(vm.fault ~= nil, "the fault is recorded")
+    local art2 = harness(function(f, A) f:st(A.RQ, 1); f:st(A.OUT, f:sys("CTOOL", A.RQ, 5)) end)
+    T.eq(exec(art2, Env.new{seed = 1, set = "dev"}).reason, "fault", "a tool response buffer outside RAM faults")
+  end
+
+  ---------------------------------------------------------------------------------------------------- 5. the controller: contract, completion, replay
+  local new = E.variant("new")
+  T.eq(new.art.machine, Env.machine, "the cyber controller uses exactly the declared four interface ops")
+  T.check(new.art.bits <= Env.PROTOCOL.image_cap_bits, "the controller image fits the declared cap")
+  T.check(new.art.P.asm.ram_top <= G.RAM - 256, "controller state fits its RAM")
+  local rows = {}
+  for _, seed in ipairs({1, 2, 3}) do
+    local row, env, vm = E.run(new.art, {seed = seed, set = "dev", variant = "new", kind = "new"})
+    rows[seed] = row
+    T.check(row.complete, "the stream completes (seed " .. seed .. ")"); T.eq(row.guard, 0, "no malformed-packet guard trip"); T.check(row.fault == nil, "no fault")
+    T.eq(row.viol.act_denied + row.viol.act_invalid + row.viol.tool_denied + row.viol.tool_invalid + row.viol.protocol, 0, "zero protocol/authorization violations (seed " .. seed .. ")")
+    T.check(row.work < row.allowed_work, "the controller finishes inside the hard budget")
+    T.eq(#env.s.rows, Env.STAGES * (Env.ROUNDS + 1) - 0 - 0 > 0 and #env.s.rows or 0, "ticks scored")
+    local prot_isolated = false
+    for _, a in ipairs(env.s.act_log) do
+      if a.act == W.ACT.ISOLATE and env.s.specs[a.stage].prot[a.x] then prot_isolated = true end
+    end
+    T.check(not prot_isolated, "the shield never even asks to isolate a protected host")
+    local ax = row.axes
+    for _, name in ipairs(E.AXES) do T.check(ax[name] == nil or (ax[name] >= 0 and ax[name] <= 1), "axis " .. name .. " is in [0,1]") end
+    -- the guest keeps provenance for what it did
+    local recs = E.trace_records(vm, new.art)
+    T.check(#recs > 0, "provenance records exist"); local mono = true
+    for i = 2, #recs do if recs[i].tick < recs[i - 1].tick then mono = false end end
+    T.check(mono, "provenance ticks are ordered"); T.check(recs[1].work_left > recs[#recs].work_left, "provenance records the metered work left")
+  end
+  T.check(rows[1].skill > 0.2 and rows[3].skill > 0.2, "the controller beats passive play clearly on development worlds")
+  -- replay determinism: identical digest and identical instruction-level VM trace on a short stream
+  local a = E.run(new.art, {seed = 4, set = "dev", kind = "new"})
+  local b = E.run(new.art, {seed = 4, set = "dev", kind = "new"})
+  T.eq(a.digest, b.digest, "two runs of the same image on the same world give the same digest"); T.eq(a.utility, b.utility, "and the same utility")
+  local tr1, tr2 = {}, {}
+  local _, _, vm1 = E.run(new.art, {seed = 5, set = "dev", kind = "new", limit_stages = 1, rounds = 6, trace = true})
+  local _, _, vm2 = E.run(new.art, {seed = 5, set = "dev", kind = "new", limit_stages = 1, rounds = 6, trace = true})
+  T.eq(vm1:trace_hash(), vm2:trace_hash(), "the VM instruction trace replays bit-for-bit")
+  T.check(#(vm1.trace or {}) >= 12, "the interface trace is non-trivial")
+  local _, _, vm3 = E.run(new.art, {seed = 6, set = "dev", kind = "new", limit_stages = 1, rounds = 6, trace = true})
+  T.check(vm3:trace_hash() ~= vm1:trace_hash(), "a different world gives a different trace")
+  -- passive baseline equals the evaluator's direct simulation (the VM path adds nothing to the world)
+  for _, seed in ipairs({1, 2, 3, 4}) do
+    local row = E.run(E.variant("passive").art, {seed = seed, set = "dev", kind = "new", variant = "passive"})
+    T.eq(row.utility, row.passive, "the VM passive controller reproduces the direct passive simulation exactly (seed " .. seed .. ")")
+    T.eq(row.skill, 0, "passive skill is exactly zero")
+  end
+
+  ---------------------------------------------------------------------------------------------------- 6. noninterference: twin worlds that differ only in hidden state
+  -- Run the same controller on two worlds that differ in a hidden fact. Everything the controller sends (tool requests, actions,
+  -- reports) must be identical up to the first world-produced message that differs: its outputs depend only on what it observed.
+  local function logged(art, seed, twin)
+    local log = {}
+    local function snap(vm, a, n) local t = {}; for i = 0, n - 1 do t[#t + 1] = tostring(vm:mread(a + i)) end return U.sha256(table.concat(t, ",")) end
+    E.run(art, {seed = seed, set = "dev", kind = "new", limit_stages = 1, rounds = 30, twin = twin, on_env = function(env)
+      local orig = env.exec
+      env.exec = function(self, vm, idx, rd, ra, rb, imm, t)
+        local r = vm.r
+        local a_, b_ = r[ra], r[rb]
+        local gin = (idx == 2) and snap(vm, a_, 4) or (idx == 3) and snap(vm, a_, 3) or (idx == 4) and snap(vm, a_, 64) or "-"
+        log[#log + 1] = {"g", idx .. gin}
+        local c, d = orig(self, vm, idx, rd, ra, rb, imm, t)
+        local out = (idx == 1) and snap(vm, a_, 120) or (idx == 2) and snap(vm, b_, 32) or tostring(r[rd])
+        log[#log + 1] = {"w", idx .. out}
+        return c, d
+      end
+    end})
+    return log
+  end
+  local diverged, twins = 0, 0
+  for _, seed in ipairs({1, 2, 3, 5}) do
+    local base = logged(new.art, seed, nil)
+    local S = Env.Stream.new{seed = seed, set = "dev"}.specs[1]
+    local perturb = {
+      function(w) for u = 0, S.nu - 1 do w.user[u].stolen = true end end,
+      function(w) for h = 0, S.nh - 1 do if not S.prot[h] then w.host[h].persist = true; w.host[h].respawn = 18; break end end end,
+      function(w) w.host[(S.dc + 1) % S.nh].foot = true end,
+    }
+    for pi, tw in ipairs(perturb) do
+      local log = logged(new.art, seed, function(w, k) if k == 1 then tw(w) end end)
+      local first
+      for i = 1, math.min(#base, #log) do
+        if base[i][2] ~= log[i][2] then first = i; break end
+      end
+      twins = twins + 1
+      if first then
+        diverged = diverged + 1
+        T.eq(base[first][1], "w", "twin " .. seed .. "/" .. pi .. ": the first difference is produced by the WORLD, never by the controller")
+      else
+        T.eq(#base, #log, "twin " .. seed .. "/" .. pi .. ": identical interaction when nothing observable differs")
+      end
+    end
+  end
+  T.check(diverged >= 3, "the twin perturbations are observable eventually, so the test is not vacuous (" .. diverged .. "/" .. twins .. ")")
+  -- the unobservable ghost flag changes nothing at all
+  local g0 = logged(new.art, 2, nil)
+  local g1 = logged(new.art, 2, function(w, k) if k == 1 then w.host[0].ghost = true end end)
+  T.eq(#g0, #g1, "a flag no channel exposes leaves the interaction length unchanged")
+  local same = true; for i = 1, #g0 do if g0[i][2] ~= g1[i][2] then same = false end end
+  T.check(same, "and every message identical")
+
+  ---------------------------------------------------------------------------------------------------- 7. budget exhaustion and compute control
+  do
+    local row = E.run(new.art, {seed = 1, set = "dev", kind = "new", variant = "new", work_budget = 250000, budget_quarters = 0})
+    T.check(not row.complete, "a controller starved of work does not complete the stream"); T.eq(row.reason, "budget", "it stops at the work limit, not with a fault")
+    T.eq(row.skill, 0, "an unfinished stream earns no skill"); T.check(row.axes.safety_compliance < 1, "and is penalised in safety/compliance")
+    T.check(row.work <= 250000, "work never exceeds the hard budget")
+    local tight = E.run(new.art, {seed = 1, set = "dev", kind = "new", variant = "new", work_budget = Env.PROTOCOL.work_budget // 4, budget_quarters = 1})
+    T.check(tight.complete, "at one quarter of the work budget the controller meters itself and still finishes")
+    T.check(tight.work <= Env.PROTOCOL.work_budget // 4, "within the reduced bound")
+    local nometa = E.run(E.variant("no_compute_meta").art, {seed = 1, set = "dev", kind = "new", variant = "no_compute_meta", work_budget = Env.PROTOCOL.work_budget // 4, budget_quarters = 1})
+    T.check(nometa.work <= Env.PROTOCOL.work_budget // 4, "ablated compute control still respects the hard bound")
+  end
+
+  ---------------------------------------------------------------------------------------------------- 8. mechanisms are removable and behaviour-changing
+  local ref = E.run(new.art, {seed = 1, set = "dev", kind = "new"})
+  for _, name in ipairs(E.ABLATIONS) do
+    local v = E.variant(name)
+    local row = E.run(v.art, {seed = 1, set = "dev", kind = "new", variant = name})
+    T.check(row.complete and row.guard == 0, "ablation " .. name .. " still completes under the interface contract")
+    T.check(row.digest ~= ref.digest or name == "no_compute_meta" or name == "no_memory", "ablation " .. name .. " changes the metered behaviour")
+  end
+  T.check(E.variant("no_cyber_tools").art.bits ~= nil, "the tool-less ablation compiles")
+  local nt = E.run(E.variant("no_cyber_tools").art, {seed = 1, set = "dev", kind = "new"})
+  local ntools = 0
+  local _, env_nt = E.run(E.variant("no_cyber_tools").art, {seed = 2, set = "dev", kind = "new"})
+  for _, t in ipairs(env_nt.s.tool_log) do if t.tool == W.TOOL.VERIFY then ntools = ntools + 1 end end
+  T.eq(ntools, 0, "the no-tools ablation never pays for a verification")
+
+  ---------------------------------------------------------------------------------------------------- 9. scorecard semantics
+  do
+    local a = E.composite({defensive_utility = 0.5, calibration = 0.5})
+    T.check(math.abs(a - 0.5) < 1e-12, "composite of equal axes is that value")
+    T.eq((E.composite({defensive_utility = 0.5, calibration = 0})), 0, "a supported zero makes the composite zero")
+    T.eq((E.composite({defensive_utility = 0.5}, {calibration = true})), nil, "no jointly supported axis gives NA, not zero")
+    T.check(E.AXES[1] == "defensive_utility" and #E.AXES == 15, "fifteen axes in the frozen order")
+    local rep = E.aggregate({
+      {variant = "new", seed = 1, set = "x", budget_quarters = 4, axes = {defensive_utility = 0.6, safety_compliance = 1}, axis_na = {}, skill = 0.6, utility_full = 10, complete = true, work = 5, instr = 5, viol = {0, 0, 0, 0, 0}, image_bits = 1},
+      {variant = "old", seed = 1, set = "x", budget_quarters = 4, axes = {defensive_utility = 0.3, safety_compliance = 1}, axis_na = {}, skill = 0.3, utility_full = 5, complete = true, work = 5, instr = 5, viol = {0, 0, 0, 0, 0}, image_bits = 1},
+      {variant = "new", seed = 2, set = "x", budget_quarters = 4, axes = {defensive_utility = 0.4, safety_compliance = 1}, axis_na = {}, skill = 0.4, utility_full = 10, complete = true, work = 5, instr = 5, viol = {0, 0, 0, 0, 0}, image_bits = 1},
+      {variant = "old", seed = 2, set = "x", budget_quarters = 4, axes = {defensive_utility = 0.2, safety_compliance = 1}, axis_na = {}, skill = 0.2, utility_full = 5, complete = true, work = 5, instr = 5, viol = {0, 0, 0, 0, 0}, image_bits = 1},
+    })
+    local R = rep.budgets[1].vs_old.new
+    T.check(math.abs(R.axes.defensive_utility.ratio - 2) < 1e-12, "paired ratio of means is computed from the same seeds")
+    T.check(math.abs(R.ratio_geomean - math.sqrt(2)) < 1e-9, "geomean of per-axis ratios over jointly supported axes")
+    T.check(R.composite_ratio ~= nil and math.abs(R.composite_ratio - math.sqrt(2)) < 1e-9, "composite ratio when the denominator is positive")
+    local rep2 = E.aggregate({
+      {variant = "new", seed = 1, set = "x", budget_quarters = 4, axes = {defensive_utility = 0.6, calibration = 0.3}, axis_na = {}, skill = 0.6, utility_full = 10, complete = true, work = 5, instr = 5, viol = {0, 0, 0, 0, 0}, image_bits = 1},
+      {variant = "old", seed = 1, set = "x", budget_quarters = 4, axes = {defensive_utility = 0.3}, axis_na = {calibration = "none"}, skill = 0.3, utility_full = 5, complete = true, work = 5, instr = 5, viol = {0, 0, 0, 0, 0}, image_bits = 1},
+    })
+    local R2 = rep2.budgets[1].vs_old.new
+    T.check(R2.axes.calibration == nil and R2.excluded.calibration ~= nil, "an axis the baseline cannot be scored on is excluded, not zero-filled")
+  end
+  ---------------------------------------------------------------------------------------------------- 10. frozen protocol
+  T.eq(#Env.protocol_hash, 64, "the benchmark has a protocol hash")
+  for _, set in ipairs({"dev", "diag", "val", "held", "heldB", "ood", "adv"}) do T.check(#Env.PROTOCOL.sets[set] >= 6, "set " .. set .. " exists") end
+  local seen = {}
+  for set, seeds in pairs(Env.PROTOCOL.sets) do for _, s in ipairs(seeds) do T.check(not seen[s], "seed " .. s .. " belongs to exactly one set"); seen[s] = set end end
+end
+
+--[[@@END@@]]
+return M
 end
 
 -- @@CYBER-MODULES-END@@ (new cyber-reasoning modules are inserted above this line)
