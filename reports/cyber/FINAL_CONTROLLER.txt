@@ -18,3 +18,12 @@ CONTROLLER v4 (recorded before heldE was ever run): guest image sha256 c0fc8ea29
 Change from v3 (finding on heldD: probing did not pay for itself): the epistemic exploration bonus of the value-of-information rule starts at 20 (was 40) and decays with verified labels.
 Selection evidence (mean defensive skill over dev,diag,val,ood,adv): EXPLB 0: 0.533, 10: 0.531, 15: 0.547, 20: 0.558, 25: 0.549, 30: 0.521, 40: 0.530, 80: 0.461; the decision floor PMIN=205 stayed best (180: 0.554, 205: 0.558, 230: 0.547, 260: 0.540).
 heldE (9401-9416): baselines recorded (reports/cyber/baselines_heldE.*) before the controller is run on it. This is the LAST confirmation set; whatever it shows is reported.
+
+CONTROLLER v5 = GENERATION 5 (recorded before heldF was ever run): guest image sha256 1a10b21530a78b263592a0dbeed3bb986d1d9d146e987961d97d111b7034d094  (514272 bits, 7992 words, static RAM top 14072; G.build({}) with G.DEFAULTS)
+Generation 4 = G.build({legacy_defaults = true}): image sha256 ebb23466e41729d2d325cd17f86f5f611a3d2c69371fc55e3959538e94bf1c54 (440288 bits, 6836 words). Its code layout differs from the v4 image recorded above (dead rows removed, tables made conditional),
+but its decisions are identical: 158 streams (development sets, devX/devY and the burned held sets) give the same utility, skill and replay digest as the pre-upgrade bundle; the metered work differs by at most 0.13%.
+Change from v4: the generation-5 mechanisms, each a cfg flag turned on in G.DEFAULTS after paired measurement on the development streams only: onset evidence from inbound flows / credential use / persistence records (inb inbu inbp onset_adapt stale pmin2 wmask),
+exact persistence read and early exposure closure (cfgp cfghost expo scan scanrole beacon norec uhz upmin), calibrated report beliefs and posterior-gated decisions (qr qsh qvo), activity forecasts (fq2 fcpool), login pairing (upair),
+incident-timeline selection (tlsel), nearest-cause link crediting (lnear).
+Selection evidence: development sets dev diag val ood adv (46 streams: skill 0.583 -> 0.931), devX/devY (32 streams, re-checked several times), 96 never-used seeds and the five burned held sets were used by the audits for robustness, not for tuning.
+heldF (9501-9516): baselines recorded (reports/cyber/baselines_heldF.*) BEFORE this controller is run on it; it is run ONCE, whatever it shows is reported. heldG (9601-9616) is reserved and unused.
