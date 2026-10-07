@@ -19,7 +19,11 @@ HOW TO USE (Replit or any Lua 5.4):
         lua main.lua cyber-report rows1.lua rows2.lua                 merge saved rows into the paired report (ratios vs OLD, ablation deltas)
         lua main.lua cyber-trace --seed 201 --set val                 decoded decision-provenance ring of the cyber controller
         lua main.lua cyber-replay rows.lua --row 3                    re-run one saved row (or --all) and check its replay digest
-        lua main.lua cyber-stress --set val --works 6000000,4194304   metered controller vs its compute-ablated twin under tight work budgets
+        lua main.lua cyber-stress --set val --works 6000000,4000000   metered controller vs its compute-ablated twin under tight work budgets
+        lua main.lua sketch-new                                        create the workspace: sketch.lua (the file the system writes) + sketch.ws (its audit state)
+        lua main.lua sketch-solve task.lua                             the coding agent writes code for a task (examples -> a function in sketch.lua), tests it in the sandbox, logs every call
+        lua main.lua sketch-call edit --args '{from = 3, to = 3, text = "-- fixed"}'    one metered, policy-checked tool call (read edit replace append check run test synth fill repair ...)
+        lua main.lua sketch-show --log 5     lua main.lua sketch-replay     lua main.lua sketch-import     lua main.lua sketch-bench --baseline --sketches
         lua main.lua compare --only parity --limit 8 --out out.lua     part of the pre-registered evaluation (writes a Lua-table report)
         lua main.lua report out.lua            read a report;   lua main.lua replay out.lua --row 1   re-run a row, check its trace hash
         lua main.lua prompt                    print the implementation prompt embedded in the handoff
@@ -77,6 +81,13 @@ CONTENTS: the preserved and upgraded sources below are wrapped as package.preloa
 --   asi.cyber.guest               <- NEW cyber reasoner (GL program): relational/temporal evidence engine, hypotheses, VOI, shield, graph, provenance
 --   asi.cyber.eval                <- NEW cyber scorecard (15 axes), paired suite, aggregation vs OLD, frozen benchmark pins
 --   asi.tests.t_cyber             <- NEW tests of the cyber layer (suite `cyber`)
+--   asi.sketch                    <- asi/sketch.lua
+--   asi.sketch.synth              <- asi/sketch/synth.lua
+--   asi.sketch.fix                <- asi/sketch/fix.lua
+--   asi.sketch.agent              <- asi/sketch/agent.lua
+--   asi.sketch.bench              <- asi/sketch/bench.lua
+--   asi.sketch.cli                <- asi/sketch/cli.lua
+--   asi.tests.t_sketch            <- asi/tests/t_sketch.lua
 --   asi.tests.t_reason_core        <- asi/tests/t_reason_core.lua
 --   asi.tests.t_reason_plan        <- asi/tests/t_reason_plan.lua
 --   asi.tests.t_reason_env         <- asi/tests/t_reason_env.lua
@@ -176,6 +187,7 @@ THE SINGLE ENTRY POINT
   lua asi.lua report FILE                 summary, claims and limitations of a report
   lua asi.lua replay FILE [--row N]       deterministic replay; trace hashes must reproduce
   lua asi.lua trace FILE --row N          provenance and the first interface calls of a recorded row
+  lua asi.lua sketch-new|sketch-call|sketch-solve|sketch-show|sketch-replay|sketch-import|sketch-bench    the sketch.lua workspace (section SKETCH WORKSPACE below)
   Exit status 0 = everything demanded held, 1 = violated invariant / failed check / replay mismatch, 2 = rejected input.
 
 SINGLE-FILE BUNDLE (for pasting into one file, e.g. on Replit)
@@ -209,16 +221,60 @@ CYBER REASONING LAYER (asi.cyber.*; commands cyber-run / cyber-eval / cyber-repo
   KB, credential), a deterministic shield (authorisation, quota, reversibility, confidence floor), a world library keyed by a structural fingerprint
   (retention and transfer), self-resolved forecast calibration, a 64-entry decision-provenance ring (`cyber-trace`) and predictive compute pacing
   (deep / normal / economy modes chosen from per-mode cost moving averages against the work left).
+  GENERATION 5 (default controller; everything below is a cfg flag of asi.cyber.guest, ON through G.DEFAULTS, found in parallel lab explorations, measured on the
+  development streams only, kept only when it passed paired gates, and switched off as a group by cfg.legacy_defaults = true, which restores the generation-4 decisions (metered work differs by at most 0.13%);
+  the variant `gen4` of cyber-eval runs it). What each part does and why it helps:
+    onset evidence (inb inbu inbp onset_adapt stale pmin2 wmask): an inbound flow from outside the inventory is evidence about its destination host, a login from
+      outside about its user, a new persistence record about its host; the weight is the learned surprise of such an event under the rate observed so far; the
+      evidence is sticky (a state change is not cancelled by quiet ticks) and decays; records older than the last remediation of their entity are ignored.
+    exact reads and early exposure closure (cfgp cfghost expo scan scanrole beacon norec uhz upmin): the configuration/host tool returns the autostart flag, so
+      persistence is read instead of guessed; hosts whose configuration shows an exposure are closed; the first rounds of an episode read the most valuable hosts and
+      their vulnerability entries; repeated outbound connections count as a beacon; stolen-credential horizon and floor are set separately.
+    calibrated beliefs (qr qsh qvo): the evidence engine's log-odds are overconfident (an evidence state reported at 0.8 was right 5% of the time), so the REPORT
+      uses its own monotone map of them, probe evidence at published strength, persistence from exact reads, and a revoked credential is held at its pre-revoke
+      belief for the reissue window; hosts whose calibrated posterior is below 0.1 are not remediation candidates and the value of a verification probe is computed
+      on that posterior.
+    login pairing (upair): a login from outside that rides on an inbound connection from outside to the same host at the same event time (+-1 tick) is a break-in
+      through an exposed service, not a stolen credential; an unpaired one is a stolen credential.
+    activity forecasts (fq2 fcpool): per host and event family a beta-binomial predictive shrunk to the network-wide rate; the best eight per round, where the expected
+      Brier skill over the guest's own estimate of the scorer's pooled climatology is large, are submitted; forecast reliability is inherited by the next world.
+    incident timeline (tlsel): every record in the ring is scored by learned evidence (strong feature family summed, correlated weak family bounded, surprise of
+      inbound flows, a decaying incident memory of the hosts it names, a process the system started shortly after a core record) and as many as clear a threshold
+      (2..8) are listed in reported-time order.
+    link crediting (lnear): a temporal link credits only the two nearest related earlier records instead of every coincidence in the window (dense periodic traffic
+      created thousands); the same change cuts metered work by about a quarter.
   Benchmark CYB1 (frozen, hashed, pinned in the tests). Streams of four episodes of 48 rounds: base world, structural novelty, a different world, return
   with a regime shock. Sets: dev, diag, val (development), ood and adv (structural-OOD / adversarial; consulted while developing), held and heldB
-  (first held-out sets), plus fresh sets heldC, heldD, heldE outside the frozen protocol. Fifteen scorecard axes (defensive utility, false-positive control,
+  (first held-out sets), plus fresh sets heldC, heldD, heldE (generation 4) and heldF (generation 5, run once) outside the frozen protocol, heldG reserved and unused. Fifteen scorecard axes (defensive utility, false-positive control,
   diagnosis, causal-model identification, temporal reconstruction, hidden-state inference, transfer, structural OOD, information efficiency, planning,
   calibration against climatology, retention, recovery, capability per compute, safety) from the simulator's truth and the controller's own outputs; an axis
   a controller cannot be scored on is NA (never zero-filled), a supported zero makes a composite zero, ratios exist only on jointly supported axes with a
   positive denominator. Baselines on identical worlds: passive, a fixed alert-score TRIAGE heuristic, a verification SWEEPER, and OLD = the unchanged
   generation-3 reasoner behind a fixed 4-field summarising adapter (its image is pinned to the pre-upgrade image).
-  RESULTS (measured; raw rows and paired reports in reports/cyber/, history in the sub-directories; all numbers are mean over streams, paired seeds).
-    Gates: selftest 100,162 passed (the 98,443 pre-existing checks unchanged, plus 1,719 in suite `cyber`); the existing generation-3 held, diagnostic and
+  RESULTS, GENERATION 5 (the default controller; the heldF rows and paired report in reports/cyber/gen5, the audits in reports/cyber/round2, the generation-4 rows in reports/cyber/final).
+    Clean confirmation set heldF (16 streams; the controller's image hash and the baselines were recorded before it was run, once): defensive skill 0.895 against OLD 0.171 (5.2x), TRIAGE 0.190 (4.7x) and generation 4
+    0.528. Composite by the pre-registered rule (geometric mean of the per-axis ratios over the axes on which the reference scores above zero, 8 axes): 3.73x against OLD (95% paired-bootstrap CI 2.76-4.60) and 2.27x
+    against TRIAGE (1.56-2.93); generation 4 on the same set 2.13x (1.72-2.55). The strict composite ratio is undefined there because OLD scores exactly 0 on knowledge_retention. THE 2x COMPOSITE TARGET IS MET on this set
+    (lower bound 2.76), with the qualifications below. Twenty-four further never-used streams (seeds 20001-20024): skill 0.935 against OLD 0.181, TRIAGE 0.239, generation 4 0.619; 4.51x against OLD (3.28-5.27).
+    Where the gain comes from (cumulative ladder over 158 streams: the development sets, devX/devY and the burned held sets; skill): generation 4 0.595 -> onset evidence 0.862 -> exact reads and early exposure
+    closure 0.926 -> calibrated beliefs 0.940 -> timeline and link crediting 0.942; geometric composite of the 15 axes on the 46 development streams 0.249 -> 0.337 -> 0.329 -> 0.461 -> 0.499. Leaving one group out of the
+    final controller costs 0.417 (onset evidence), 0.060 (exact reads and exposure closure), 0.015 (beliefs), 0.002 (timeline). Axes that moved most (development streams): hidden_state_inference 0.04 -> 0.53,
+    calibration 0.16 -> 0.84, false-positive control 0.45 -> 0.96, diagnosis 0.68 -> 0.95, information efficiency 0.38 -> 0.63, retention 0.17 -> 0.50, transfer 0.22 -> 0.60.
+    Honest qualifications. (1) The last two groups' skill gain over the cold-start controller shrinks out of sample: +0.021 on the development streams, +0.013 on 112 fresh named streams, +0.016 on 96 never-used
+    seeds (the large gains, onset evidence and exact reads, are about +0.33 everywhere). (2) 6 of 158 named streams (3.8%) and 8 of 96 never-used seeds are worse than the cold-start controller by more than 0.03 (worst
+    -0.16): a gateway compromised without an onset record is refused by the calibrated gates; no stream is worse than generation 4. (3) recovery_quality falls by 0.02 (fresh streams) to 0.06 (never-used seeds).
+    (4) Several gains rest on regularities of the simulator's interface: the exact persistence read (a tool payload bit), the pairing of an external login with an inbound connection (never a stolen credential in 52 of
+    52 cases), the 3-tick reissue window, the order of sequence numbers inside a tick, the EXEC attr = 255 convention. Each was perturbed in a copy of the world: when the pairing rule is broken the controller loses
+    0.036 skill but stays at 0.909 (generation 4: 0.612); with benign inbound flows injected the onset evidence still beats generation 4 (0.82 vs 0.57 skill at the lowest level) but false-positive control collapses
+    (0.96 -> 0.49); persistence reads that wrongly flag 15% of the hosts cost 0.011 skill and cut hidden_state 0.53 -> 0.11. (5) The frozen temporal-reconstruction scorer resolves records by sequence number alone
+    although the numbers restart in every stage (reports/cyber/round2/SCORER_DEFECT.md): it was not exploited and not changed; the frozen axis rises 0.10 -> 0.20, the same formula with records keyed by (stage, seq)
+    0.29 -> 0.72 (printed beside the axis by cyber-eval). (6) capability_per_compute is 0.004 (about 230x the minimum work); the fixed triage heuristic is 14x more frugal. (7) uhz and upmin are net-negative in the final
+    configuration (+0.003 to +0.010 skill when switched off); they stay in v5 as it was run on heldF and are the first change of the next revision (heldG is reserved to confirm it). (8) The code-review audit of the added
+    code did not complete (its agent hit a usage limit); the perturbation audit and the robustness audit did, summarised in reports/cyber/round2/AUDIT_SUMMARY.md.
+    Gates (this bundle): selftest 100,381 passed, 0 failed (the 98,443 checks that existed before the cyber layer, unchanged; 1,719 in suite `cyber`; 219 in suite `sketch`); the generation-3 held, diagnostic and generated
+    evaluations (`reason-compare --held|--diagnostic|--generated --summary`) print byte-identical output to the pre-upgrade bundle; the CYB1 protocol hash is unchanged; heldG was not run.
+  RESULTS, GENERATION 4 (the previous final controller, kept as measured; raw rows and paired reports in reports/cyber/, history in the sub-directories; all numbers are mean over streams, paired seeds).
+    Gates at generation 4: selftest 100,162 passed (the 98,443 pre-existing checks unchanged, plus 1,719 in suite `cyber`); the existing generation-3 held, diagnostic and
     generated evaluations print byte-identical output to the pre-upgrade bundle (reports/gates, reports/pre_upgrade). No change to the generation-3 reasoner
     was kept: five small modifications (mixture forecasts over competing rules, per-bin forecast calibration, rule-score prior, memory window, population
     size / economy threshold) were measured on its development seeds, and a sweep of 20 of its tunables on 48 frozen-family streams stayed within +-0.005 composite of the default
@@ -243,6 +299,48 @@ CYBER REASONING LAYER (asi.cyber.*; commands cyber-run / cyber-eval / cyber-repo
     Known limits: the controller is a hand-structured Bayesian reasoner with hand-set priors (feature prior multipliers, decision floor, report shrink for persistence)
     whose class rates are learned online; planning is receding-horizon with a two-step lookahead, not unrestricted search; silent credential theft is essentially
     undetectable and hidden-state skill is near zero; world generators are procedural, not real enterprises.
+
+SKETCH WORKSPACE (asi.sketch*; commands sketch-new / sketch-call / sketch-solve / sketch-show / sketch-replay / sketch-import / sketch-bench; suite `sketch`)
+  What it is. The reasoning system gets ONE file to write code in, `sketch.lua`, and a set of TOOLS to work on it. The tools are the only way in: the coding agent (asi.sketch.agent)
+  uses exactly the interface that an operator or any other program uses (`ws:call(tool, args)`), so every observation and every change is costed, checked against a POLICY, logged and
+  replayable. Pure Lua 5.4: no model, no network, no subprocess.
+      list read check diff log help      look at the file, its revisions and the audit trail
+      append edit replace write          change the file; edit (line ranges, several hunks at once) and replace (exact text, must be unique) PATCH it, write replaces all of it and costs more
+      run test                           execute an entry function / a table of cases in the sandbox (steps, memory and CPU limited; results come back as plain data)
+      snapshot rollback                  revision ring; a rollback is a new revision
+      synth fill repair                  REASONING tools that only PROPOSE code: program synthesis from examples, completion of a sketch with holes, mutation repair of a failing function
+      export                             write the stamped file to the path the OPERATOR configured (never to a path the caller chooses)
+  Access. S.POLICY says which capabilities exist (read edit write run test synth snapshot export; export is off by default), which file names exist (only sketch.lua), the size limits, a
+  total tool budget in deterministic cost units, a call limit and the sandbox limits. A call that names a missing capability or file is DENIED (status 2), a bad argument is INVALID (1), an
+  exhausted limit is a QUOTA error (3); none of them changes anything and all are counted. 4 = the tool ran and the content failed (syntax error, failing test, text not found), 5 = the
+  sandbox stopped the program. Costs are integers computed from the work (bytes written, steps run, candidates tried): no clock, so a session reproduces exactly.
+  Sandbox. Code is only executed by asi.sketch.sandbox_run: a fresh environment per run without os, io, debug, load, require, coroutine, package, collectgarbage and string patterns (their
+  backtracking cannot be metered); string.rep / format / find / table.concat check the size of their result BEFORE allocating it; math.random is a deterministic generator; the string
+  metatable is restricted to the same functions while the program runs; pcall and xpcall cannot swallow a limit; __gc is refused; error objects are never stringified. A per-INSTRUCTION
+  hook enforces the step limit, a memory limit (the `..` operator can double a string in one instruction, so a coarser hook is not safe) and a CPU safety net; a result is copied out as
+  plain bounded data (no functions, no metatables). The suite attacks it with 36 programs (infinite loops, swallowed errors, memory bombs, escapes through the string metatable, ...).
+  It is an in-process sandbox, not an operating-system boundary: the memory limit reads the interpreter's counter, and the CPU net uses os.clock, so outcomes at the very edge of a limit
+  can vary between machines (everything else is deterministic).
+  Audit. Every call is appended to a hash chain: head_n = sha256(head_{n-1}, tool, digest(args), status, cost, digest(result)). sketch-replay re-executes the logged calls on a fresh
+  workspace and checks every status, cost, result digest and the final chain head; the exported `sketch.lua` starts with a stamp (revision, digest of the body, chain head), so an edit made
+  outside the workspace is detected and must be adopted with sketch-import, which logs it as an ordinary write.
+  Program synthesis (asi.sketch.synth). Bottom-up enumeration over a typed DSL (integers, booleans, strings, lists of integers; arithmetic, comparisons, if-then-else, length / sum / product /
+  max / min / head / last / reverse / sort / take / drop / append / membership, string operations, range, and map / filter / count / any / all / fold with enumerated lambdas) in order of size; each
+  expression is evaluated on all examples at once and expressions that agree everywhere are the same expression (observational equivalence, a 64-bit fingerprint verified exactly at the
+  goal), so the first match is the SMALLEST program consistent with the examples. Phase 1 uses scalar and list/string primitives, phase 2 adds the higher-order operations. The result is
+  a proposal: the agent writes it with append / replace, checks that it compiles, tests it in the sandbox on the training examples (the sandbox must agree with the synthesizer's evaluator) and on
+  validation cases (given, or generated from a reference spec that itself runs in the sandbox), and feeds failing cases back as new examples (counter-example guided refinement). Helper
+  definitions already in the file are not written twice; a function the agent did not write is never overwritten.
+  Measured (sketch-bench: 54 small tasks, a few hand-picked examples each, 14 validation cases, 40 HIDDEN cases the agent never sees): a program for 52 tasks, 51 correct on ALL hidden cases,
+  hidden-case accuracy 0.958 (1.43M candidates in total, 67 s); a lookup table of the training examples is right on 11.7% of the hidden cases. Observational equivalence matters at tight per-task budgets (with it vs without it):
+  a program for 47 vs 43 tasks at 20,000 candidates, 51 vs 45 at 50,000 and 52 vs 51 at 200,000 (most tasks are small, so the gap closes as the budget grows). Not solved: odd_sq_sum (needs two nested higher-order operations) and sum_sq2
+  (a*a + b*b, not reached within the 200,000-candidate budget); one program fits the validation cases but not all hidden cases (all_pos, 30 of 40: a coincidence of the arithmetic). `fill` completed 4 of 6 sketches (the 3-hole ones with long branches are out of reach),
+  `repair` fixed 5 of 6 seeded bugs (the sixth is not exposed by the 10 random tests, and the repair is only as good as the tests: count_big is right on 35 of 40 hidden cases).
+  Limits. The DSL has no loops or recursion, so tasks like gcd or digit sums are out of reach; examples are a weak specification (a program that fits few examples can be a coincidence: that is what
+  validation, counter-examples and hidden cases measure); `fill` handles at most 3 integer / boolean holes; `repair` only makes single-token edits (and pairs of them).
+  Use: lua main.lua sketch-new ; lua main.lua sketch-solve task.lua ; lua main.lua sketch-show --log 5 ; lua main.lua sketch-replay ; lua main.lua sketch-call edit --args '{from = 3, to = 3, text = "-- fixed"}'
+  A task file is a data literal (never executed): {name = "f", params = {"xs"}, examples = {{args = {{1, 2}}, out = 3}, ...}, validate = {...}} or {name = "f", sketch = "function f(x) ... HOLE_INT(x) ... end", cases = {...}}.
+  Exit status of sketch-call: 0 ok, 3 the content failed (status 4), 1 invalid / denied / quota / limit, 2 rejected input.
 
 MODULE MAP
   asi/util.lua      u64 helpers, checked integers, bit I/O, SHA-256, canonical + Lua-literal serialisation, test framework
@@ -326,8 +424,8 @@ WHAT IS NOT CLAIMED
 return {
   language = "Lua 5.4",
   entry = "lua asi.lua <subcommand>",
-  subcommands = {"prompt", "validate", "selftest", "risk", "episode", "parity", "compare", "reason", "reason-compare", "reason-report", "merge", "report", "replay", "trace", "cyber-run", "cyber-eval", "cyber-report", "cyber-trace", "cyber-replay", "cyber-stress"},
-  suites = {"math", "rng", "validate", "world", "vm", "gl", "risk", "proof", "parity", "twin", "mutation", "harness", "reason", "cyber"},
+  subcommands = {"prompt", "validate", "selftest", "risk", "episode", "parity", "compare", "reason", "reason-compare", "reason-report", "merge", "report", "replay", "trace", "cyber-run", "cyber-eval", "cyber-report", "cyber-trace", "cyber-replay", "cyber-stress", "sketch-new", "sketch-call", "sketch-solve", "sketch-show", "sketch-replay", "sketch-import", "sketch-bench"},
+  suites = {"math", "rng", "validate", "world", "vm", "gl", "risk", "proof", "parity", "twin", "mutation", "harness", "reason", "cyber", "sketch"},
 }
 end
 
@@ -18258,7 +18356,7 @@ local ALIASES = {["--prompt"] = "prompt", ["--validate"] = "validate", ["--selft
 commands.help = function()
   local src = debug.getinfo(1, "S").source
   out("Usage: lua <this file> <subcommand> [options]   (Lua 5.4 only)\n",
-      "Subcommands: prompt validate selftest risk episode parity compare reason reason-compare reason-report merge report replay trace cyber-run cyber-eval cyber-report cyber-trace cyber-replay cyber-stress help\n",
+      "Subcommands: prompt validate selftest risk episode parity compare reason reason-compare reason-report merge report replay trace cyber-run cyber-eval cyber-report cyber-trace cyber-replay cyber-stress sketch-new sketch-call sketch-solve sketch-show sketch-replay sketch-import sketch-bench help\n",
       "Options are listed in the header comment of asi/cli.lua (in the single-file bundle: the section marked asi.cli).\n",
       "Exit status: 0 ok, 1 violated invariant / failed check, 2 rejected input.\n")
   return 0
@@ -18471,6 +18569,8 @@ commands["cyber-report"] = function(args)
   if opt.raw then out(U.to_literal(rep), "\n") else out(E.format(rep), "\n") end
   return 0
 end
+
+require("asi.sketch.cli").install(commands, {parse = parse, out = out, err = err, bad = bad})
 
 function Cli.main(args)
   local cmd = args[1]
@@ -40877,6 +40977,7 @@ All.suites = {
   {name = "harness", module = "asi.tests.t_harness", group = "reports"},
   {name = "reason", module = "asi.tests.t_reason", group = "reasoning"},
   {name = "cyber", module = "asi.tests.t_cyber", group = "reasoning"},
+  {name = "sketch", module = "asi.tests.t_sketch", group = "reasoning"},
 }
 
 function All.find(name)
@@ -42067,6 +42168,7 @@ function Env:packet()
     s.delivered[#s.delivered + 1] = {stage = s.stage, t = w.t, pred = rec.pred, host = (rec.pred == W.PRED.AUTH) and rec.a2 or rec.a1, seq = rec.seq, true_id = rec.true_id, fake = rec.fake,
                                      ext = (rec.a1 == 255 or rec.a2 == 255 or (rec.pred == W.PRED.AUTH and rec.a3 == 255))}
     s.rec_by_seq = s.rec_by_seq or {}; s.rec_by_seq[rec.seq] = rec
+    s.rec_by_key = s.rec_by_key or {}; s.rec_by_key[s.stage * 4194304 + rec.seq] = rec       -- the same record under (stage, seq): seq restarts in every stage (see E.score, SCORER_DEFECT.md)
   end
   for i = #p + 1, Env.PACKET_WORDS do p[i] = 0 end
   return p, #batch
@@ -42337,7 +42439,8 @@ G.NB = 12
 
 -- The controller's DEFAULT mechanisms (generation 5).  Each one is a cfg flag that was measured on the development streams only (paired against the controller
 -- without it) and kept because it passed the gates; cfg keys override these defaults (cfg.x = false switches one off) and cfg.legacy_defaults = true restores
--- generation 4 exactly (no new mechanism), which is what the ablation ladder and the baseline comparison use.
+-- the generation-4 decisions (no new mechanism; the metered work of a run differs from generation 4 by at most 0.13%), which is what the ablation ladder and
+-- the baseline comparison use.
 --   detect:   inb inbu inbp (inbound flows from outside, credential use from outside and persistence records as sticky onset evidence), onset_adapt (their weight is the
 --             learned surprise of such events), stale (records older than the last remediation of their entity are ignored), wmask / pmin2 (evidence split and decision floor)
 --   cold:     cfgp cfghost (exact persistence read through the configuration tool), expo (read the exposure of hosts), scan scanrole (inventory scan in the first rounds),
@@ -44449,11 +44552,15 @@ function E.score(row, env, vm, art)
     D.links_validated, D.links_true, D.links_hit = V, T, hit
   else put("causal_model_identification", nil, "controller keeps no causal model") end
   -- 5 temporal reconstruction: at every tick where the live attack chain has been visible (>= 2 delivered chain records in the last 12
-  -- ticks), the submitted incident timeline is scored for precision (is it attack activity), order (does it follow true time) and coverage
-  if nrep > 0 then
+  -- ticks), the submitted incident timeline is scored for precision (is it attack activity), order (does it follow true time) and coverage.
+  -- FROZEN DEFECT (disclosed, reports/cyber/round2/SCORER_DEFECT.md): the scorer resolves a record by its sequence number alone (s.rec_by_seq), but
+  -- the numbers restart in every stage and the table has one entry per number, so for stages 1-3 it scores against records of a later stage.  The
+  -- axis keeps the frozen lookup (every pinned number and every comparison stays valid); the same formula with records keyed by (stage, seq) is
+  -- computed beside it as the diagnostic D.temporal_keyed, and the report prints both.
+  local function temporal(lookup)
     local chainby = {}
     for _, d in ipairs(s.delivered) do
-      local rec = s.rec_by_seq[d.seq]
+      local rec = lookup(d.stage, d.seq)
       if rec and rec.chain then
         chainby[d.stage] = chainby[d.stage] or {}
         chainby[d.stage][d.t] = (chainby[d.stage][d.t] or 0) + 1
@@ -44470,10 +44577,10 @@ function E.score(row, env, vm, art)
           for i = 0, 7 do local q = r.words[9 + i]; if q and q ~= 0 then seqs[#seqs + 1] = q end end
           local good, ordered, pairs_ = 0, 0, 0
           for i, q in ipairs(seqs) do
-            local rec = s.rec_by_seq[q]
+            local rec = lookup(r.stage, q)
             if rec and rec.chain then good = good + 1 end
             if i > 1 then
-              local pr_ = s.rec_by_seq[seqs[i - 1]]
+              local pr_ = lookup(r.stage, seqs[i - 1])
               if rec and pr_ then pairs_ = pairs_ + 1; if rec.true_id and pr_.true_id and rec.true_id >= pr_.true_id then ordered = ordered + 1 end end
             end
           end
@@ -44483,8 +44590,13 @@ function E.score(row, env, vm, art)
         end
       end
     end
-    put("temporal_reconstruction", ns > 0 and clip(sc / ns) or nil, "no attack chain observed")
+    return ns > 0 and clip(sc / ns) or nil, ns
+  end
+  if nrep > 0 then
+    local frozen, ns = temporal(function(_, q) return s.rec_by_seq[q] end)
+    put("temporal_reconstruction", frozen, "no attack chain observed")
     D.timeline_ticks = ns
+    D.temporal_keyed, D.timeline_ticks_keyed = temporal(function(stage, q) return s.rec_by_key and s.rec_by_key[stage * 4194304 + q] end)
   else put("temporal_reconstruction", nil, "controller submits no timeline") end
   -- 7, 8, 12 transfer / structural OOD / retention from the per-tick utility traces
   local function stage_range(k, a, z) return (k - 1) * (Env.ROUNDS + 1) + a, (k - 1) * (Env.ROUNDS + 1) + z end
@@ -44674,6 +44786,9 @@ local function summarize(group)
   for _, a in ipairs(E.AXES) do if o.axis_mean[a] ~= nil then mv[#mv + 1] = o.axis_mean[a] end end
   o.composite_of_means, o.axes_supported = geo(mv)
   o.skill_sd = sd(sk)
+  local tk = {}                                                -- diagnostic beside the axes: temporal reconstruction with records keyed by (stage, seq)
+  for _, r in ipairs(group) do if r.diag and r.diag.temporal_keyed ~= nil then tk[#tk + 1] = r.diag.temporal_keyed end end
+  o.temporal_keyed, o.temporal_keyed_n = mean(tk), #tk
   return o
 end
 
@@ -44901,6 +45016,14 @@ function E.format(rep)
         line[#line + 1] = string.format("%s=%s", name:sub(1, 8), s and f(s.axis_mean[a]) or "  -  ")
       end
       p("%s", table.concat(line, " "))
+    end
+    local tkline = {}
+    for _, name in ipairs(rep.variants) do
+      local s = R.summary[name]
+      if s and s.temporal_keyed then tkline[#tkline + 1] = string.format("%s=%s (n=%d)", name:sub(1, 8), f(s.temporal_keyed), s.temporal_keyed_n) end
+    end
+    if #tkline > 0 then
+      p("diagnostic, not a scorecard axis: temporal_reconstruction with records keyed by (stage, seq) (the frozen axis above resolves records by seq alone, see reports/cyber/round2/SCORER_DEFECT.md): %s", table.concat(tkline, " "))
     end
     local reflist = {}
     for _, refname in ipairs({"old", "triage"}) do
@@ -45401,21 +45524,2859 @@ end
 return M
 end
 
+-- ======================================================================== asi.sketch  (the sketch.lua workspace: sandbox, metered authorised tools, hash-chained audit log)
+package.preload["asi.sketch"] = function(...)
+--[============[
+asi/sketch.lua -- SKETCH: the code-writing workspace of the reasoning system (pure Lua 5.4, no model, no network).
+
+The system gets ONE file to write code in, `sketch.lua`, and a small set of TOOLS to work on it. Everything it does goes through the same
+metered, authorised, logged interface that a human operator or any other program would use (`ws:call(tool, args)`); there is no privileged back door:
+
+    list read                       look                      edit replace append write       change the file (edit/replace patch it; write replaces all of it and costs more)
+    check run test                  syntax, execute, test it  snapshot rollback diff log      version control and the audit trail
+    synth fill repair               REASONING tools: propose code (program synthesis from examples, hole filling, mutation repair); they never touch the file
+    export                          write the file to disk (operator-enabled, to the operator's path only)
+
+ACCESS. A POLICY (S.POLICY) says which capabilities exist (read edit write run test synth snapshot export), which file names exist, the size limits, the total tool
+budget and the sandbox limits. A call that names a missing capability or file is DENIED, an invalid argument is INVALID, an exhausted limit is a QUOTA error; none of
+these changes anything, all are counted (ws.viol) and logged. Status codes: 0 ok, 1 invalid, 2 denied, 3 quota, 4 failed (the tool ran and the content failed: syntax error,
+failing test, text not found), 5 limit (the sandbox stopped the program).
+
+SANDBOX. Code is only ever executed by S.sandbox_run: a fresh environment without os io debug load require coroutine package or string patterns (their backtracking
+cannot be metered), a deterministic math.random, a string metatable restricted to the same functions, errors that cannot be swallowed once a limit has fired, and a
+per-INSTRUCTION hook that enforces a step limit, a memory limit (the string `..` operator can double a string in one instruction, so a coarser hook is not safe) and a CPU
+safety net. Results are copied out as plain data (no functions, no metatables, bounded size).
+
+AUDIT. Every call is appended to a hash-chained log (head_n = sha256(head_{n-1}, tool, digest(args), status, cost, digest(result))). S.replay re-executes the logged calls on a
+fresh workspace and checks every status, cost, result digest and the final chain head; export stamps `sketch.lua` with its revision, body digest and chain head so an edit made
+outside the workspace is detected on import. All costs are deterministic integers (no clock), so a session is exactly reproducible.
+]============]
+local U = require("asi.util")
+local S = {}
+
+S.FILE = "sketch.lua"
+S.STATUS = {ok = 0, invalid = 1, denied = 2, quota = 3, failed = 4, limit = 5}
+
+S.POLICY = {
+  can = {read = true, edit = true, write = true, run = true, test = true, synth = true, snapshot = true, export = false},
+  files = {["sketch.lua"] = true},
+  max_bytes = 65536, max_lines = 3000, read_lines = 400,
+  budget = 4000000, max_calls = 20000,
+  run_steps = 400000, run_kb = 16384, run_cpu = 2.0, out_bytes = 4096, rep_bytes = 65536, res_nodes = 4000, res_bytes = 8192, arg_nodes = 4000,
+  test_cases = 200, snaps = 32,
+  synth_candidates = 400000, synth_size = 14,
+}
+
+------------------------------------------------------------------------------------------------ helpers
+local function ser(v, seen)
+  local t = type(v)
+  if t == "nil" then return "nil"
+  elseif t == "boolean" then return v and "true" or "false"
+  elseif t == "number" then
+    if math.type(v) == "integer" then return string.format("%d", v) end
+    if v ~= v then return "nan" end
+    return string.format("%.17g", v)
+  elseif t == "string" then return string.format("%q", v)
+  elseif t == "table" then
+    seen = seen or {}
+    if seen[v] then error("cycle in data", 0) end
+    seen[v] = true
+    local keys = {}
+    for k in next, v do keys[#keys + 1] = k end
+    table.sort(keys, function(a, b)
+      local ta, tb = type(a), type(b)
+      if ta ~= tb then return ta < tb end
+      if ta == "boolean" then return (a and 1 or 0) < (b and 1 or 0) end
+      return a < b
+    end)
+    local parts = {}
+    for _, k in ipairs(keys) do parts[#parts + 1] = "[" .. ser(k, seen) .. "]=" .. ser(v[k], seen) end
+    seen[v] = nil
+    return "{" .. table.concat(parts, ",") .. "}"
+  end
+  error("unserializable value of type " .. t, 0)
+end
+S.ser = ser
+local function digest(v) return U.sha256(ser(v)) end
+S.digest = digest
+
+local function norm_text(s)
+  s = s:gsub("\r\n?", "\n")
+  if s ~= "" and s:sub(-1) ~= "\n" then s = s .. "\n" end
+  return s
+end
+local function split_lines(text)
+  local t = {}
+  for line in text:gmatch("([^\n]*)\n") do t[#t + 1] = line end
+  return t
+end
+local function join_lines(t) if #t == 0 then return "" end return table.concat(t, "\n") .. "\n" end
+S.split_lines, S.join_lines, S.norm_text = split_lines, join_lines, norm_text
+function S.deepcopy(v)
+  if type(v) ~= "table" then return v end
+  local out = {}
+  for k, x in next, v do out[k] = S.deepcopy(x) end
+  return out
+end
+local function ceil_div(a, b) return (a + b - 1) // b end
+local function isint(x) return math.type(x) == "integer" end
+local function clip(s, n) if #s > n then return s:sub(1, n) .. "..." end return s end
+
+-- plain data copy with limits: only nil booleans numbers strings and acyclic plain tables; rawget/next only (no metamethod can run)
+local function copy_data(v, lim, state, depth)
+  depth = depth or 0
+  local t = type(v)
+  state.nodes = state.nodes + 1
+  if state.nodes > lim then error("data too large", 0) end
+  if t == "table" then
+    if depth > 12 then error("data nested too deeply", 0) end
+    if state.seen[v] then error("cycle in data", 0) end
+    state.seen[v] = true
+    local out = {}
+    for k, x in next, v do
+      local tk = type(k)
+      if tk ~= "number" and tk ~= "string" and tk ~= "boolean" then error("table keys must be numbers, strings or booleans", 0) end
+      out[k] = copy_data(x, lim, state, depth + 1)
+    end
+    state.seen[v] = nil
+    return out
+  elseif t == "string" then
+    state.bytes = state.bytes + #v
+    if state.bytes > (state.max_bytes or 1 << 20) then error("data too large", 0) end
+    return v
+  elseif t == "nil" or t == "boolean" or t == "number" then return v
+  end
+  error("a value of type " .. t .. " cannot cross the sandbox boundary", 0)
+end
+local function copy_in(v, lim) return copy_data(v, lim, {nodes = 0, bytes = 0, seen = {}, max_bytes = 1 << 20}) end
+
+------------------------------------------------------------------------------------------------ the sandbox
+local LIM_STEPS, LIM_MEM, LIM_CPU = {kind = "steps"}, {kind = "memory"}, {kind = "cpu"}
+local LIMITS = {[LIM_STEPS] = true, [LIM_MEM] = true, [LIM_CPU] = true}
+
+local function lcg_random(seed)
+  local st = seed * 6364136223846793005 + 1442695040888963407
+  local function nxt() st = st * 6364136223846793005 + 1442695040888963407; return (st >> 33) & 0x7FFFFFFF end
+  return function(a, b)
+    if a == nil then return nxt() / 2147483648.0 end
+    if b == nil then a, b = 1, a end
+    if not (isint(a) and isint(b)) or a > b then error("bad arguments to math.random", 2) end
+    return a + nxt() % (b - a + 1)
+  end
+end
+
+local function build_env(lim, state, seed)
+  local env = {}
+  local rtype, rpcall, rxpcall, rerror = type, pcall, xpcall, error
+  local rgetmt, rsetmt, rrawget = getmetatable, setmetatable, rawget
+  env._G = env
+  env.type, env.tonumber, env.next, env.select = type, tonumber, next, select
+  env.rawequal, env.rawget, env.rawset, env.rawlen = rawequal, rawget, rawset, rawlen
+  env.assert, env.error, env.pairs, env.ipairs = assert, error, pairs, ipairs
+  env.unpack = table.unpack
+  env._VERSION = "Lua 5.4"
+  -- errors raised by a limit can never be swallowed
+  env.pcall = function(f, ...)
+    local r = table.pack(rpcall(f, ...))
+    if not r[1] and LIMITS[r[2]] then rerror(r[2], 0) end
+    return table.unpack(r, 1, r.n)
+  end
+  env.xpcall = function(f, h, ...)
+    local r = table.pack(rxpcall(f, function(e) if LIMITS[e] then return e end return h(e) end, ...))
+    if not r[1] and LIMITS[r[2]] then rerror(r[2], 0) end
+    return table.unpack(r, 1, r.n)
+  end
+  env.setmetatable = function(t, mt)
+    if rtype(t) ~= "table" then rerror("bad argument #1 to 'setmetatable' (table expected)", 2) end
+    if mt ~= nil then
+      if rtype(mt) ~= "table" then rerror("bad argument #2 to 'setmetatable' (nil or table expected)", 2) end
+      if rrawget(mt, "__gc") ~= nil then rerror("__gc is not available in the sandbox", 2) end
+    end
+    return rsetmt(t, mt)
+  end
+  env.getmetatable = function(x) if rtype(x) ~= "table" then return nil end return rgetmt(x) end
+  env.tostring = function(v)
+    local t = rtype(v)
+    if t == "function" or t == "thread" or t == "userdata" then return t end
+    if t == "table" then
+      local mt = rgetmt(v)
+      if not (mt and (rrawget(mt, "__tostring") or rrawget(mt, "__name"))) then return "table" end
+    end
+    return tostring(v)
+  end
+  local rtostring = env.tostring
+  env.print = function(...)
+    local n = select("#", ...)
+    local parts = {}
+    for i = 1, n do parts[i] = rtostring((select(i, ...))) end
+    local line = table.concat(parts, "\t") .. "\n"
+    if state.outn < lim.out_bytes then
+      state.out[#state.out + 1] = line
+      state.outn = state.outn + #line
+    end
+  end
+  -- math: exact functions only, a deterministic random
+  local m = {}
+  for _, k in ipairs({"abs", "ceil", "floor", "max", "min", "fmod", "tointeger", "type", "ult", "sqrt", "huge", "pi", "maxinteger", "mininteger"}) do m[k] = math[k] end
+  m.random = lcg_random(seed or 1)
+  m.randomseed = function() end
+  env.math = m
+  -- string: no patterns (their backtracking cannot be metered), bounded rep, no %p
+  local str = {}
+  for _, k in ipairs({"len", "sub", "byte", "char", "upper", "lower", "reverse"}) do str[k] = string[k] end
+  str.rep = function(s, n, sep)
+    if rtype(s) ~= "string" and rtype(s) ~= "number" then rerror("bad argument #1 to 'rep' (string expected)", 2) end
+    n = math.tointeger(n)
+    if not n then rerror("bad argument #2 to 'rep' (number has no integer representation)", 2) end
+    if sep ~= nil and rtype(sep) ~= "string" then rerror("bad argument #3 to 'rep' (string expected)", 2) end
+    local total = (#tostring(s) + #(sep or "")) * (n > 0 and n or 0)
+    if total > lim.rep_bytes then rerror("string.rep: result too large for the sandbox", 2) end
+    return string.rep(s, n, sep)
+  end
+  str.format = function(f, ...)
+    if rtype(f) ~= "string" then rerror("bad argument #1 to 'format' (string expected)", 2) end
+    if f:find("%p", 1, true) then rerror("string.format: %p is not available", 2) end
+    local r = string.format(f, ...)
+    if #r > lim.rep_bytes then rerror("string.format: result too large for the sandbox", 2) end
+    return r
+  end
+  str.find = function(s, p, init)
+    if rtype(s) == "string" and rtype(p) == "string" and #s * #p > 40000000 then rerror("string.find: the product of the lengths is too large for the sandbox", 2) end
+    return string.find(s, p, init, true)
+  end
+  env.string = str
+  -- table
+  local tb = {}
+  for _, k in ipairs({"insert", "remove", "unpack", "pack", "sort"}) do tb[k] = table[k] end
+  -- concat: the size of the result is checked BEFORE the single C call that would allocate it (a long separator times many entries is a memory bomb)
+  tb.concat = function(t, sep, i, j)
+    if rtype(t) ~= "table" then rerror("bad argument #1 to 'concat' (table expected)", 2) end
+    if sep == nil then sep = "" end
+    if rtype(sep) ~= "string" and rtype(sep) ~= "number" then rerror("bad argument #2 to 'concat' (string expected)", 2) end
+    i, j = i == nil and 1 or i, j == nil and #t or j
+    if not (isint(i) and isint(j)) then rerror("bad argument to 'concat' (integer expected)", 2) end
+    local n = j - i + 1
+    if n > 0 then
+      local total = (n - 1) * #tostring(sep)
+      if total > lim.rep_bytes then rerror("table.concat: result too large for the sandbox", 2) end
+      for k = i, j do
+        local v = t[k]
+        local tv = rtype(v)
+        if tv == "string" then total = total + #v elseif tv == "number" then total = total + 24 else rerror("invalid value (at index " .. k .. ") in table for 'concat'", 2) end
+        if total > lim.rep_bytes then rerror("table.concat: result too large for the sandbox", 2) end
+      end
+    end
+    return table.concat(t, sep, i, j)
+  end
+  env.table = tb
+  return env
+end
+
+-- run `text` in a fresh sandbox, then call global function `entry` with `args` (an array; args.n = count). Returns a result table:
+--   ok=true,  values={...}, steps, out                       or
+--   ok=false, kind="syntax"|"runtime"|"limit"|"entry"|"result", err, line, limit="steps"|"memory"|"cpu", steps, out
+function S.sandbox_run(text, entry, args, opts)
+  local lim = setmetatable(opts or {}, {__index = S.POLICY})
+  local state = {steps = 0, out = {}, outn = 0}
+  local env = build_env(lim, state, lim.seed or 1)
+  local chunk, perr = load(text, "=sketch", "t", env)
+  if not chunk then
+    local line = tonumber(tostring(perr):match("^sketch:(%d+):"))
+    return {ok = false, kind = "syntax", err = clip(tostring(perr), 400), line = line, steps = 0, out = ""}
+  end
+  args = args or {n = 0}
+  local okc, sargs = pcall(copy_in, args, lim.arg_nodes)
+  if not okc then return {ok = false, kind = "entry", err = "arguments: " .. tostring(sargs), steps = 0, out = ""} end
+  local nargs = args.n or #args
+  local co = coroutine.create(function()
+    chunk()
+    if entry == nil then return end
+    local f = rawget(env, entry)
+    if type(f) ~= "function" then error("entry '" .. tostring(entry) .. "' is not defined as a function", 0) end
+    return f(table.unpack(sargs, 1, nargs))
+  end)
+  local smt = getmetatable("")
+  local old_index = smt.__index
+  local limit_kb = collectgarbage("count") + lim.run_kb
+  local max_steps, cpu_cap, t0 = lim.run_steps, lim.run_cpu, os.clock()
+  local steps = 0
+  local function hook()
+    steps = steps + 1
+    if steps > max_steps then error(LIM_STEPS, 0) end
+    if collectgarbage("count") > limit_kb then
+      collectgarbage("collect")
+      if collectgarbage("count") > limit_kb then error(LIM_MEM, 0) end
+    end
+    if steps & 1023 == 0 and os.clock() - t0 > cpu_cap then error(LIM_CPU, 0) end
+  end
+  smt.__index = env.string
+  debug.sethook(co, hook, "", 1)
+  local r = table.pack(coroutine.resume(co))
+  smt.__index = old_index
+  local outs = table.concat(state.out)
+  if not r[1] then
+    local e = r[2]
+    if LIMITS[e] then return {ok = false, kind = "limit", limit = e.kind, err = "the program hit the " .. e.kind .. " limit", steps = steps, out = outs} end
+    if type(e) == "string" then
+      local line = tonumber(e:match("^sketch:(%d+):"))
+      return {ok = false, kind = (e:find("is not defined as a function", 1, true) and "entry") or "runtime", err = clip(e, 400), line = line, steps = steps, out = outs}
+    end
+    return {ok = false, kind = "runtime", err = "error object of type " .. type(e), steps = steps, out = outs}
+  end
+  local vals = {n = r.n - 1}
+  local oks, err = pcall(function()
+    local st = {nodes = 0, bytes = 0, seen = {}, max_bytes = lim.res_bytes}
+    for i = 2, r.n do vals[i - 1] = copy_data(r[i], lim.res_nodes, st) end
+  end)
+  if not oks then return {ok = false, kind = "result", err = clip(tostring(err), 200), steps = steps, out = outs} end
+  return {ok = true, values = vals, steps = steps, out = outs}
+end
+
+-- compare a result value with an expected value (deep, numbers by value)
+local function same(a, b)
+  if type(a) ~= type(b) then return false end
+  if type(a) == "number" then return a == b end
+  if type(a) ~= "table" then return a == b end
+  for k, x in next, a do if not same(x, b[k]) then return false end end
+  for k in next, b do if a[k] == nil then return false end end
+  return true
+end
+S.same = same
+
+------------------------------------------------------------------------------------------------ diff
+-- line diff as hunks {from, to, old = {lines}, new = {lines}} (old numbering): common prefix/suffix, LCS in the middle (single hunk beyond 4e6 cells)
+function S.diff(a, b)
+  local n, m = #a, #b
+  local p = 0
+  while p < n and p < m and a[p + 1] == b[p + 1] do p = p + 1 end
+  local s = 0
+  while s < n - p and s < m - p and a[n - s] == b[m - s] do s = s + 1 end
+  local an, bn = n - p - s, m - p - s
+  local hunks = {}
+  if an == 0 and bn == 0 then return hunks end
+  if an * bn > 4000000 then
+    local o, nw = {}, {}
+    for i = 1, an do o[i] = a[p + i] end
+    for j = 1, bn do nw[j] = b[p + j] end
+    return {{from = p + 1, to = p + an, old = o, new = nw}}
+  end
+  local L = {}
+  for i = 0, an do L[i] = {} for j = 0, bn do L[i][j] = 0 end end
+  for i = an - 1, 0, -1 do
+    for j = bn - 1, 0, -1 do
+      if a[p + i + 1] == b[p + j + 1] then L[i][j] = L[i + 1][j + 1] + 1
+      else L[i][j] = math.max(L[i + 1][j], L[i][j + 1]) end
+    end
+  end
+  local i, j = 0, 0
+  local cur
+  local function flush() if cur then hunks[#hunks + 1] = cur; cur = nil end end
+  while i < an or j < bn do
+    if i < an and j < bn and a[p + i + 1] == b[p + j + 1] then flush(); i = i + 1; j = j + 1
+    else
+      cur = cur or {from = p + i + 1, to = p + i, old = {}, new = {}}
+      if j < bn and (i >= an or L[i][j + 1] >= L[i + 1][j]) then cur.new[#cur.new + 1] = b[p + j + 1]; j = j + 1
+      else cur.old[#cur.old + 1] = a[p + i + 1]; cur.to = cur.to + 1; i = i + 1 end
+    end
+  end
+  flush()
+  return hunks
+end
+
+------------------------------------------------------------------------------------------------ data literals
+-- S.parse_data(src): a Lua-table-constructor-like DATA syntax parsed (never executed): nested tables with `key = value`, `[k] = v` and positional entries separated by , or ;,
+-- strings ("..", '..', [[..]] with the usual escapes), integers, floats, true / false / nil, -- comments. No names, calls or operators other than a leading minus.
+function S.parse_data(src)
+  local pos, n = 1, #src
+  local function fail(msg) error("data: " .. msg .. " at byte " .. pos, 0) end
+  local function skip()
+    while true do
+      local c = src:sub(pos, pos)
+      if c:match("^%s$") then pos = pos + 1
+      elseif src:sub(pos, pos + 1) == "--" then
+        local lvl = src:match("^%-%-%[(=*)%[", pos)
+        if lvl then
+          local _, e = src:find("]" .. lvl .. "]", pos, true)
+          pos = (e or n) + 1
+        else pos = (src:find("\n", pos, true) or n) + 1 end
+      else return end
+    end
+  end
+  local value
+  local function str()
+    local q = src:sub(pos, pos)
+    if q == "[" then
+      local lvl = src:match("^%[(=*)%[", pos)
+      if not lvl then fail("bad string") end
+      local s, e = src:find("]" .. lvl .. "]", pos, true)
+      if not s then fail("unterminated long string") end
+      local body = src:sub(pos + #lvl + 2, s - 1)
+      pos = e + 1
+      return (body:gsub("^\n", ""))
+    end
+    pos = pos + 1
+    local buf = {}
+    while true do
+      local c = src:sub(pos, pos)
+      if c == "" then fail("unterminated string") end
+      if c == q then pos = pos + 1; break end
+      if c == "\\" then
+        local d = src:sub(pos + 1, pos + 1)
+        local map = {n = "\n", t = "\t", r = "\r", ["\\"] = "\\", ['"'] = '"', ["'"] = "'", ["0"] = "\0"}
+        if d:match("%d") then
+          local digits = src:match("^%d%d?%d?", pos + 1)
+          local code = tonumber(digits)
+          if code > 255 then fail("bad escape") end
+          buf[#buf + 1] = string.char(code); pos = pos + 1 + #digits
+        elseif map[d] then buf[#buf + 1] = map[d]; pos = pos + 2
+        else fail("unsupported escape") end
+      else buf[#buf + 1] = c; pos = pos + 1 end
+    end
+    return table.concat(buf)
+  end
+  function value()
+    skip()
+    local c = src:sub(pos, pos)
+    if c == "{" then
+      pos = pos + 1
+      local t, idx = {}, 1
+      while true do
+        skip()
+        local d = src:sub(pos, pos)
+        if d == "}" then pos = pos + 1; return t end
+        if d == "" then fail("unterminated table") end
+        local key
+        if d == "[" and not src:match("^%[=*%[", pos) then
+          pos = pos + 1
+          key = value(); skip()
+          if src:sub(pos, pos) ~= "]" then fail("expected ]") end
+          pos = pos + 1; skip()
+          if src:sub(pos, pos) ~= "=" then fail("expected =") end
+          pos = pos + 1
+          t[key] = value()
+        else
+          local name = src:match("^[%a_][%w_]*", pos)
+          local after = name and src:match("^%s*()", pos + #name)
+          if name and src:sub(after, after) == "=" and src:sub(after + 1, after + 1) ~= "=" then
+            pos = after + 1
+            t[name] = value()
+          else
+            local v = value()
+            t[idx] = v; idx = idx + 1
+          end
+        end
+        skip()
+        local e = src:sub(pos, pos)
+        if e == "," or e == ";" then pos = pos + 1 elseif e ~= "}" then fail("expected , or }") end
+      end
+    elseif c == '"' or c == "'" or (c == "[" and src:match("^%[=*%[", pos)) then return str()
+    elseif c == "-" or c:match("%d") then
+      local num = src:match("^%-?%d+%.?%d*[eE]?[%+%-]?%d*", pos)
+      if not num or num == "-" then fail("bad number") end
+      if src:match("^%-?0[xX]%x+", pos) then num = src:match("^%-?0[xX]%x+", pos) end
+      pos = pos + #num
+      local v = math.tointeger(tonumber(num)) or tonumber(num)
+      if v == nil then fail("bad number " .. num) end
+      return v
+    elseif src:match("^true%f[%W]", pos) then pos = pos + 4; return true
+    elseif src:match("^false%f[%W]", pos) then pos = pos + 5; return false
+    elseif src:match("^nil%f[%W]", pos) then pos = pos + 3; return nil
+    end
+    fail("unexpected '" .. c .. "'")
+  end
+  local v = value()
+  skip()
+  if pos <= n then fail("trailing text") end
+  return v
+end
+
+------------------------------------------------------------------------------------------------ the workspace
+local WS = {}; WS.__index = WS
+
+local function merge_policy(over)
+  local p = {}
+  for k, v in pairs(S.POLICY) do p[k] = v end
+  p.can, p.files = {}, {}
+  for k, v in pairs(S.POLICY.can) do p.can[k] = v end
+  for k, v in pairs(S.POLICY.files) do p.files[k] = v end
+  for k, v in pairs(over or {}) do
+    if k == "can" or k == "files" then for kk, vv in pairs(v) do p[k][kk] = vv end else p[k] = v end
+  end
+  return p
+end
+
+function S.new(opts)
+  opts = opts or {}
+  if not S.tools_loaded then                      -- the reasoning tools (synth, fill, repair) register themselves when their modules are loaded
+    S.tools_loaded = true
+    for _, m in ipairs({"asi.sketch.synth", "asi.sketch.fix"}) do pcall(require, m) end
+  end
+  local ws = setmetatable({}, WS)
+  ws.policy = merge_policy(opts.policy)
+  ws.seed = opts.seed or 1
+  ws.files = {["sketch.lua"] = ""}
+  ws.rev = 0
+  ws.sha = U.sha256("")
+  ws.hist = {{rev = 0, sha = ws.sha, text = "", label = "genesis", tool = "new"}}
+  ws.log = {}
+  ws.head = U.sha256("sketch-genesis")
+  ws.spent, ws.calls = 0, 0
+  ws.viol = {invalid = 0, denied = 0, quota = 0}
+  ws.export_path = opts.export_path
+  return ws
+end
+
+local function find_hist(ws, rev)
+  for _, h in ipairs(ws.hist) do if h.rev == rev then return h end end
+end
+
+-- every successful change of the file: new revision, ring of snapshots
+local function commit(ws, name, text, tool, label)
+  ws.files[name] = text
+  ws.rev = ws.rev + 1
+  ws.sha = U.sha256(text)
+  ws.hist[#ws.hist + 1] = {rev = ws.rev, sha = ws.sha, text = text, label = label or tool, tool = tool}
+  while #ws.hist > ws.policy.snaps do table.remove(ws.hist, 1) end
+end
+
+local function size_ok(ws, text)
+  local p = ws.policy
+  if #text > p.max_bytes then return false, "file would exceed " .. p.max_bytes .. " bytes" end
+  local n = 0
+  for _ in text:gmatch("\n") do n = n + 1 end
+  if n > p.max_lines then return false, "file would exceed " .. p.max_lines .. " lines" end
+  return true
+end
+
+------------------------------------------------------------------------------------------------ tools
+-- each tool: cap (capability), quote(ws, a) -> maximal cost, run(ws, a) -> status, result, cost
+local TOOLS = {}
+S.TOOLS = TOOLS
+
+local function fname(ws, a)
+  local f = a.file
+  if f == nil then return S.FILE end
+  return f
+end
+
+local function bad(msg) return 1, {err = msg}, 1 end
+
+TOOLS.list = {cap = "read", doc = "list{} -> the files with size, line count and digest",
+  quote = function() return 1 end,
+  run = function(ws)
+    local fs = {}
+    for name, text in pairs(ws.files) do
+      local n = 0; for _ in text:gmatch("\n") do n = n + 1 end
+      fs[#fs + 1] = {name = name, bytes = #text, lines = n, sha = U.sha256(text)}
+    end
+    table.sort(fs, function(x, y) return x.name < y.name end)
+    return 0, {files = fs}, 1
+  end}
+
+TOOLS.read = {cap = "read", doc = "read{file?, from?, to?, numbered?} -> text of lines from..to (at most policy.read_lines per call)",
+  quote = function(ws) return 1 + ceil_div(ws.policy.read_lines * 80, 256) end,
+  run = function(ws, a)
+    local name = fname(ws, a)
+    local lines = split_lines(ws.files[name])
+    local n = #lines
+    local from = a.from == nil and 1 or a.from
+    local to = a.to == nil and math.min(n, from + ws.policy.read_lines - 1) or a.to
+    if not (isint(from) and isint(to)) then return bad("from/to must be integers") end
+    if n == 0 then return 0, {text = "", from = 1, to = 0, total = 0}, 1 end
+    if from < 1 or to > n or from > to then return bad("range " .. from .. ".." .. to .. " outside 1.." .. n) end
+    if to - from + 1 > ws.policy.read_lines then return bad("at most " .. ws.policy.read_lines .. " lines per read") end
+    local out = {}
+    for i = from, to do out[#out + 1] = a.numbered and string.format("%4d  %s", i, lines[i]) or lines[i] end
+    local text = table.concat(out, "\n") .. "\n"
+    return 0, {text = text, from = from, to = to, total = n}, 1 + ceil_div(#text, 256)
+  end}
+
+local function edit_cost(bytes) return 2 + ceil_div(bytes, 64) end
+
+local function apply_hunks(ws, name, hunks)
+  local lines = split_lines(ws.files[name])
+  local n = #lines
+  if #hunks == 0 then return nil, "no hunks" end
+  local hs = {}
+  for i, h in ipairs(hunks) do
+    if type(h) ~= "table" or not isint(h.from) or not isint(h.to) or type(h.text) ~= "string" then return nil, "hunk " .. i .. " needs integer from, integer to and string text" end
+    if h.from < 1 or h.from > n + 1 or h.to < h.from - 1 or h.to > n then return nil, "hunk " .. i .. " range " .. h.from .. ".." .. h.to .. " outside 1.." .. n end
+    hs[#hs + 1] = {from = h.from, to = h.to, new = split_lines(norm_text(h.text)), idx = i}
+  end
+  table.sort(hs, function(x, y) if x.from ~= y.from then return x.from < y.from end return x.idx < y.idx end)
+  for i = 2, #hs do
+    if hs[i].from <= hs[i - 1].to or (hs[i].from == hs[i - 1].from) then return nil, "hunks overlap" end
+  end
+  for i = #hs, 1, -1 do
+    local h = hs[i]
+    for _ = h.from, h.to do table.remove(lines, h.from) end
+    for k = #h.new, 1, -1 do table.insert(lines, h.from, h.new[k]) end
+  end
+  return join_lines(lines)
+end
+
+TOOLS.edit = {cap = "edit", doc = "edit{file?, from, to, text} or edit{file?, hunks={{from,to,text}...}} -> replace lines from..to (to=from-1 inserts before from); hunks use the numbering of the file before the edit",
+  quote = function(ws, a)
+    local bytes = 0
+    if type(a.text) == "string" then bytes = #a.text end
+    if type(a.hunks) == "table" then for _, h in ipairs(a.hunks) do if type(h) == "table" and type(h.text) == "string" then bytes = bytes + #h.text end end end
+    return edit_cost(bytes)
+  end,
+  run = function(ws, a)
+    local name = fname(ws, a)
+    local hunks = a.hunks
+    if hunks == nil then hunks = {{from = a.from, to = a.to, text = a.text}} end
+    if type(hunks) ~= "table" then return bad("hunks must be a list") end
+    local text, e = apply_hunks(ws, name, hunks)
+    if not text then return bad(e) end
+    local ok, why = size_ok(ws, text)
+    if not ok then return 3, {err = why}, 1 end
+    if text == ws.files[name] then return 4, {err = "the edit changes nothing"}, 2 end
+    commit(ws, name, text, "edit")
+    local bytes = 0
+    for _, h in ipairs(hunks) do bytes = bytes + #(h.text or "") end
+    return 0, {bytes = #text}, edit_cost(bytes)
+  end}
+
+TOOLS.replace = {cap = "edit", doc = "replace{file?, old, new, all?} -> exact text replacement; without all=true the old text must occur exactly once",
+  quote = function(ws, a) return edit_cost((type(a.new) == "string" and #a.new or 0) + 32) end,
+  run = function(ws, a)
+    local name = fname(ws, a)
+    if type(a.old) ~= "string" or a.old == "" or type(a.new) ~= "string" then return bad("old (non-empty) and new must be strings") end
+    local text = ws.files[name]
+    local old, new = norm_text(a.old), a.new
+    if a.old:sub(-1) ~= "\n" then old = old:sub(1, -2) end
+    if new:sub(-1) == "\n" and a.old:sub(-1) ~= "\n" then new = new:sub(1, -2) end
+    local count, pos = 0, 1
+    local at = {}
+    while true do
+      local s = text:find(old, pos, true)
+      if not s then break end
+      count = count + 1; at[#at + 1] = s
+      pos = s + #old
+    end
+    if count == 0 then return 4, {err = "old text not found"}, 2 end
+    if count > 1 and not a.all then return 4, {err = "old text occurs " .. count .. " times (use all=true or a longer text)", count = count}, 2 end
+    local out, last = {}, 1
+    for _, s in ipairs(at) do out[#out + 1] = text:sub(last, s - 1); out[#out + 1] = new; last = s + #old end
+    out[#out + 1] = text:sub(last)
+    local res = norm_text(table.concat(out))
+    local ok, why = size_ok(ws, res)
+    if not ok then return 3, {err = why}, 1 end
+    if res == text then return 4, {err = "the replacement changes nothing"}, 2 end
+    commit(ws, name, res, "replace")
+    return 0, {count = count, bytes = #res}, edit_cost(#new)
+  end}
+
+TOOLS.append = {cap = "edit", doc = "append{file?, text} -> add text at the end of the file",
+  quote = function(ws, a) return edit_cost(type(a.text) == "string" and #a.text or 0) end,
+  run = function(ws, a)
+    local name = fname(ws, a)
+    if type(a.text) ~= "string" or a.text == "" then return bad("text must be a non-empty string") end
+    local text = ws.files[name] .. norm_text(a.text)
+    local ok, why = size_ok(ws, text)
+    if not ok then return 3, {err = why}, 1 end
+    commit(ws, name, text, "append")
+    return 0, {bytes = #text}, edit_cost(#a.text)
+  end}
+
+TOOLS.write = {cap = "write", doc = "write{file?, text} -> replace the WHOLE file (costs more than edit; prefer edit/replace/append)",
+  quote = function(ws, a) return 8 + ceil_div(type(a.text) == "string" and #a.text or 0, 32) end,
+  run = function(ws, a)
+    local name = fname(ws, a)
+    if type(a.text) ~= "string" then return bad("text must be a string") end
+    local text = norm_text(a.text)
+    local ok, why = size_ok(ws, text)
+    if not ok then return 3, {err = why}, 1 end
+    commit(ws, name, text, "write")
+    return 0, {bytes = #text}, 8 + ceil_div(#a.text, 32)
+  end}
+
+local function defs_of(text)
+  local names, seen = {}, {}
+  for line in text:gmatch("([^\n]*)\n") do
+    local n = line:match("^%s*local%s+function%s+([%a_][%w_]*)") or line:match("^%s*function%s+([%a_][%w_%.:]*)")
+    if n and not seen[n] then seen[n] = true; names[#names + 1] = n end
+  end
+  return names
+end
+S.defs_of = defs_of
+
+TOOLS.check = {cap = "read", doc = "check{file?} -> does the file compile? lists the functions it defines",
+  quote = function(ws) return 2 + ceil_div(ws.policy.max_bytes, 128) end,
+  run = function(ws, a)
+    local name = fname(ws, a)
+    local text = ws.files[name]
+    local chunk, perr = load(text, "=sketch", "t", {})
+    local cost = 2 + ceil_div(#text, 128)
+    if not chunk then return 4, {err = clip(tostring(perr), 400), line = tonumber(tostring(perr):match("^sketch:(%d+):"))}, cost end
+    return 0, {bytes = #text, defs = defs_of(text)}, cost
+  end}
+
+local function run_cost(steps) return 4 + steps // 200 end
+
+TOOLS.run = {cap = "run", doc = "run{file?, entry, args?, seed?} -> call global function entry(args...) in the sandbox; returns its values (plain data), printed output and the steps used",
+  quote = function(ws) return run_cost(ws.policy.run_steps) end,
+  run = function(ws, a)
+    local name = fname(ws, a)
+    if type(a.entry) ~= "string" then return bad("entry must be a string") end
+    local args = a.args or {}
+    if type(args) ~= "table" then return bad("args must be a list") end
+    local r = S.sandbox_run(ws.files[name], a.entry, {n = a.nargs or #args, table.unpack(args)}, {run_steps = ws.policy.run_steps, run_kb = ws.policy.run_kb, run_cpu = ws.policy.run_cpu,
+      out_bytes = ws.policy.out_bytes, rep_bytes = ws.policy.rep_bytes, res_nodes = ws.policy.res_nodes, res_bytes = ws.policy.res_bytes, arg_nodes = ws.policy.arg_nodes, seed = a.seed or ws.seed})
+    local cost = run_cost(r.steps)
+    if r.ok then return 0, {values = r.values, steps = r.steps, out = r.out}, cost end
+    return (r.kind == "limit") and 5 or 4, {kind = r.kind, err = r.err, line = r.line, limit = r.limit, steps = r.steps, out = r.out}, cost
+  end}
+
+TOOLS.test = {cap = "test", doc = "test{file?, entry, cases={{args={...}, out=v | outs={v1,v2}}|{args=..., err=true}}...} -> run every case in a fresh sandbox; reports passed/total and the first failures",
+  quote = function(ws, a)
+    local n = type(a.cases) == "table" and math.min(#a.cases, ws.policy.test_cases) or 0
+    return 4 + n * run_cost(ws.policy.run_steps // 8)
+  end,
+  run = function(ws, a)
+    local name = fname(ws, a)
+    if type(a.entry) ~= "string" then return bad("entry must be a string") end
+    if type(a.cases) ~= "table" or #a.cases == 0 then return bad("cases must be a non-empty list") end
+    if #a.cases > ws.policy.test_cases then return 3, {err = "at most " .. ws.policy.test_cases .. " cases per test call"}, 1 end
+    local passed, total, fails, steps = 0, #a.cases, {}, 0
+    local cost = 4
+    local text = ws.files[name]
+    local chunk, perr = load(text, "=sketch", "t", {})
+    if not chunk then return 4, {err = clip(tostring(perr), 400), line = tonumber(tostring(perr):match("^sketch:(%d+):")), passed = 0, total = total}, cost end
+    for i, c in ipairs(a.cases) do
+      if type(c) ~= "table" or type(c.args) ~= "table" then return bad("case " .. i .. " needs an args list") end
+      local r = S.sandbox_run(text, a.entry, {n = c.nargs or #c.args, table.unpack(c.args)}, {run_steps = ws.policy.run_steps // 8, run_kb = ws.policy.run_kb, run_cpu = ws.policy.run_cpu,
+        out_bytes = 256, rep_bytes = ws.policy.rep_bytes, res_nodes = ws.policy.res_nodes, res_bytes = ws.policy.res_bytes, arg_nodes = ws.policy.arg_nodes, seed = (a.seed or ws.seed) + i})
+      steps = steps + r.steps
+      cost = cost + run_cost(r.steps)
+      local good, got
+      if c.err then good = not r.ok and r.kind ~= "limit" and r.kind ~= "syntax" and r.kind ~= "entry"
+      elseif r.ok then
+        got = r.values
+        if c.outs then good = same(got, c.outs) else good = (got.n >= 1) and same(got[1], c.out) end
+      end
+      if good then passed = passed + 1
+      elseif #fails < 5 then
+        fails[#fails + 1] = {case = i, args = c.args, want = c.err and "an error" or (c.outs or c.out), got = r.ok and (got.n >= 1 and got[1] or "no value") or ("error: " .. tostring(r.err))}
+      end
+    end
+    local res = {passed = passed, total = total, fails = fails, steps = steps, all = passed == total}
+    return (passed == total) and 0 or 4, res, cost
+  end}
+
+TOOLS.snapshot = {cap = "snapshot", doc = "snapshot{label?} -> mark the current revision (the ring keeps the last policy.snaps revisions)",
+  quote = function() return 2 end,
+  run = function(ws, a)
+    local h = find_hist(ws, ws.rev)
+    if h then h.label = type(a.label) == "string" and clip(a.label, 80) or h.label end
+    return 0, {rev = ws.rev, sha = ws.sha}, 2
+  end}
+
+TOOLS.rollback = {cap = "snapshot", doc = "rollback{to} -> restore the text of revision `to` (as a NEW revision)",
+  quote = function() return 3 end,
+  run = function(ws, a)
+    if not isint(a.to) then return bad("to must be a revision number") end
+    local h = find_hist(ws, a.to)
+    if not h then return bad("revision " .. a.to .. " is not in the snapshot ring") end
+    if h.text == ws.files[S.FILE] then return 4, {err = "that revision is the current text"}, 2 end
+    commit(ws, S.FILE, h.text, "rollback", "rollback to " .. a.to)
+    return 0, {rev = ws.rev, bytes = #h.text}, 3
+  end}
+
+TOOLS.diff = {cap = "read", doc = "diff{from?, to?} -> line diff between two revisions of the ring (default: previous and current)",
+  quote = function() return 6 end,
+  run = function(ws, a)
+    local to = a.to == nil and ws.rev or a.to
+    local from = a.from == nil and (to - 1) or a.from
+    if not (isint(from) and isint(to)) then return bad("from/to must be revision numbers") end
+    local hf, ht = find_hist(ws, from), find_hist(ws, to)
+    if not hf or not ht then return bad("revision not in the snapshot ring") end
+    local hunks = S.diff(split_lines(hf.text), split_lines(ht.text))
+    local out = {}
+    for i, h in ipairs(hunks) do
+      if i > 40 then break end
+      out[#out + 1] = {from = h.from, to = h.to, old = h.old, new = h.new}
+    end
+    return 0, {from = from, to = to, hunks = out, nhunks = #hunks}, 2 + math.min(#hunks, 40)
+  end}
+
+TOOLS.log = {cap = "read", doc = "log{n?} -> the last n audit entries (default 10)",
+  quote = function() return 3 end,
+  run = function(ws, a)
+    local n = a.n == nil and 10 or a.n
+    if not isint(n) or n < 1 or n > 100 then return bad("n must be 1..100") end
+    local out = {}
+    for i = math.max(1, #ws.log - n + 1), #ws.log do
+      local e = ws.log[i]
+      out[#out + 1] = {n = i, tool = e.tool, status = e.status, cost = e.cost, head = e.head:sub(1, 16)}
+    end
+    return 0, {entries = out, total = #ws.log, head = ws.head:sub(1, 16)}, 3
+  end}
+
+TOOLS.export = {cap = "export", doc = "export{} -> write the file (with an integrity header) to the path the operator configured",
+  quote = function() return 16 end,
+  run = function(ws)
+    if not ws.export_path then return 2, {err = "no export path is configured"}, 1 end
+    if not ws.replaying then
+      local ok, e = S.write_file(ws, ws.export_path)
+      if not ok then return 4, {err = tostring(e)}, 16 end
+    end
+    return 0, {rev = ws.rev, sha = ws.sha}, 16
+  end}
+
+TOOLS.help = {cap = "read", doc = "help{} -> the tool catalogue and the policy",
+  quote = function() return 1 end,
+  run = function(ws)
+    local names = {}
+    for name in pairs(TOOLS) do names[#names + 1] = name end
+    table.sort(names)
+    local out = {}
+    for _, n in ipairs(names) do out[#out + 1] = {tool = n, cap = TOOLS[n].cap, doc = TOOLS[n].doc} end
+    return 0, {tools = out, left = ws.policy.budget - ws.spent}, 1
+  end}
+
+-- reasoning tools are installed by asi.sketch.synth (so that this module has no dependency on it): S.register(name, spec)
+function S.register(name, spec) TOOLS[name] = spec end
+
+------------------------------------------------------------------------------------------------ calling a tool
+local function entry_result(res)
+  -- the part of a result that is hashed: everything except long texts is kept whole (digest covers it)
+  return res
+end
+
+function WS:call(tool, args)
+  args = args or {}
+  local p = self.policy
+  local spec = TOOLS[tool]
+  local status, res, cost
+  if type(tool) ~= "string" or spec == nil or type(args) ~= "table" then
+    status, res, cost = 1, {err = "unknown tool or arguments"}, 1
+  elseif self.calls >= p.max_calls then
+    status, res, cost = 3, {err = "call limit reached"}, 0
+  elseif not p.can[spec.cap] then
+    status, res, cost = 2, {err = "capability '" .. spec.cap .. "' is not granted"}, 1
+  elseif args.file ~= nil and (type(args.file) ~= "string" or not p.files[args.file]) then
+    status, res, cost = 2, {err = "file '" .. tostring(args.file) .. "' does not exist in this workspace"}, 1
+  else
+    local q = spec.quote(self, args)
+    if self.spent + q > p.budget then
+      status, res, cost = 3, {err = "tool budget exhausted (needs up to " .. q .. ", " .. (p.budget - self.spent) .. " left)"}, 1
+    else
+      local ok, s, r, c = pcall(spec.run, self, args)
+      if ok then status, res, cost = s, r, c
+      else status, res, cost = 1, {err = clip(tostring(s), 300)}, 1 end
+      if cost > q then cost = q end
+    end
+  end
+  if cost > p.budget - self.spent then cost = math.max(0, p.budget - self.spent) end
+  self.spent = self.spent + cost
+  self.calls = self.calls + 1
+  if status == 1 then self.viol.invalid = self.viol.invalid + 1
+  elseif status == 2 then self.viol.denied = self.viol.denied + 1
+  elseif status == 3 then self.viol.quota = self.viol.quota + 1 end
+  local okd, rd = pcall(digest, res)
+  rd = okd and rd or "unhashable"
+  local ad = pcall(digest, args) and digest(args) or "unhashable"
+  local head = U.sha256(table.concat({self.head, tostring(tool), ad, status, cost, rd}, "|"))
+  self.head = head
+  local logargs = args
+  if not pcall(ser, args) then logargs = {} else logargs = S.deepcopy(args) end      -- the log keeps its own copy: callers reuse and mutate their tables
+  self.log[#self.log + 1] = {tool = tostring(tool), args = logargs, status = status, cost = cost, res = rd, head = head}
+  res.status, res.ok, res.cost = status, status == 0, cost
+  res.left, res.rev, res.sha = p.budget - self.spent, self.rev, self.sha:sub(1, 16)
+  return res
+end
+
+function WS:text(name) return self.files[name or S.FILE] end
+
+------------------------------------------------------------------------------------------------ files, state, replay
+local HEADER = "^%-%- sketch%.lua | rev (%d+) | sha256 (%x+) | chain (%x+) | calls (%d+) | cost (%d+)\n"
+
+function S.render_file(ws)
+  local body = ws.files[S.FILE]
+  return string.format("-- sketch.lua | rev %d | sha256 %s | chain %s | calls %d | cost %d\n", ws.rev, ws.sha, ws.head:sub(1, 16), ws.calls, ws.spent) .. body
+end
+
+function S.write_file(ws, path)
+  local f, e = io.open(path, "wb")
+  if not f then return false, e end
+  f:write(S.render_file(ws)); f:close()
+  return true
+end
+
+-- parse a sketch.lua read from disk: {body=, stamped=bool, intact=bool|nil, rev=, chain=}
+function S.parse_file(text)
+  local rev, sha, chain, calls, cost = text:match(HEADER)
+  if not rev then return {body = norm_text(text), stamped = false} end
+  local body = text:sub(text:find("\n", 1, true) + 1)
+  return {body = body, stamped = true, intact = U.sha256(body) == sha, rev = tonumber(rev), chain = chain, calls = tonumber(calls), cost = tonumber(cost)}
+end
+
+function WS:state()
+  local hist = {}
+  for i, h in ipairs(self.hist) do hist[i] = {rev = h.rev, sha = h.sha, text = h.text, label = h.label, tool = h.tool} end
+  local log = {}
+  for i, e in ipairs(self.log) do log[i] = {tool = e.tool, args = e.args, status = e.status, cost = e.cost, res = e.res, head = e.head} end
+  return {format = "sketch-workspace-1", policy = self.policy, seed = self.seed, files = self.files, rev = self.rev, sha = self.sha, hist = hist, log = log,
+          head = self.head, spent = self.spent, calls = self.calls, viol = self.viol, export_path = self.export_path}
+end
+
+function S.from_state(st)
+  assert(type(st) == "table" and st.format == "sketch-workspace-1", "not a sketch workspace state")
+  local ws = S.new({policy = st.policy, seed = st.seed, export_path = st.export_path})
+  ws.policy = merge_policy(st.policy)
+  ws.files, ws.rev, ws.sha, ws.hist, ws.log = st.files, st.rev, st.sha, st.hist, st.log
+  ws.head, ws.spent, ws.calls, ws.viol = st.head, st.spent, st.calls, st.viol
+  return ws
+end
+
+function S.save(ws, path)
+  local f, e = io.open(path, "wb")
+  if not f then return false, e end
+  f:write("return ", U.to_literal(ws:state()), "\n"); f:close()
+  return true
+end
+
+function S.load(path)
+  local f, e = io.open(path, "rb")
+  if not f then return nil, e end
+  local src = f:read("a"); f:close()
+  src = src:gsub("^return%s+", "")
+  local ok, st = pcall(U.from_literal, src)
+  if not ok then return nil, tostring(st) end
+  local ok2, ws = pcall(S.from_state, st)
+  if not ok2 then return nil, tostring(ws) end
+  return ws
+end
+
+-- re-execute the logged calls on a fresh workspace: every status, cost, result digest and the final chain head must agree
+function S.replay(st)
+  local ws = S.new({policy = st.policy, seed = st.seed, export_path = st.export_path})
+  ws.replaying = true
+  local bad_at
+  for i, e in ipairs(st.log) do
+    ws:call(e.tool, e.args)
+    local mine = ws.log[i]
+    if mine.status ~= e.status or mine.cost ~= e.cost or mine.res ~= e.res or mine.head ~= e.head then bad_at = i; break end
+  end
+  local ok = bad_at == nil and ws.head == st.head and #ws.log == #st.log and ws.files[S.FILE] == st.files[S.FILE]
+  return ok, bad_at, ws
+end
+
+--[[@@END@@]]
+return S
+end
+
+-- ======================================================================== asi.sketch.synth  (program synthesis from examples: typed enumerative search with observational equivalence)
+package.preload["asi.sketch.synth"] = function(...)
+--[============[
+asi/sketch/synth.lua -- program synthesis for the sketch workspace: examples in, a Lua function out (pure Lua, deterministic, no model).
+
+Bottom-up ENUMERATIVE synthesis with OBSERVATIONAL EQUIVALENCE over a small typed DSL (integers, booleans, strings, lists of integers; arithmetic, comparisons, if-then-else,
+list and string operations, and map / filter / count / any / all / fold with small enumerated lambdas). Expressions are built in order of size; every expression is evaluated on
+all examples at once and two expressions that agree on every example are the same expression for the search (only the smaller one is kept), which is what makes the search
+tractable. The first expression of the goal type whose values equal the required outputs is the answer: the SMALLEST consistent program (Occam), found in a fixed order, so the same
+task always yields the same code. A staged search (phase 1: scalar and list/string primitives; phase 2: adds range and the higher-order operations) keeps easy tasks cheap.
+
+The result is only a PROPOSAL: the caller (the agent in asi.sketch.agent) writes it into sketch.lua with the workspace tools, runs it in the sandbox, tests it on examples the
+synthesizer never saw, and feeds counter-examples back (CEGIS). An expression that agrees with the examples may still be wrong elsewhere; that is what the held-out tests measure.
+]============]
+local Y = {}
+
+------------------------------------------------------------------------------------------------ values
+local function vkey(v)
+  local t = type(v)
+  if t == "number" then return tostring(v)
+  elseif t == "boolean" then return v and "T" or "F"
+  elseif t == "string" then return "s" .. #v .. ":" .. v
+  end
+  local p = {}
+  for i = 1, #v do p[i] = tostring(v[i]) end
+  return "[" .. table.concat(p, ",") .. "]"
+end
+Y.vkey = vkey
+
+local function tyof(v)
+  local t = type(v)
+  if t == "number" then return math.type(v) == "integer" and "int" or nil
+  elseif t == "boolean" then return "bool"
+  elseif t == "string" then return "str"
+  elseif t == "table" then
+    local n = 0
+    for k, x in pairs(v) do
+      n = n + 1
+      if math.type(x) ~= "integer" or math.type(k) ~= "integer" then return nil end
+    end
+    if n ~= #v then return nil end
+    return "ilist"
+  end
+end
+Y.tyof = tyof
+
+------------------------------------------------------------------------------------------------ operators
+-- f(args...) -> value or nil (nil = the expression is undefined on this input: the candidate is dropped)
+local function mk(name, group, ret, args, f, emit, comm) return {name = name, group = group, ret = ret, args = args, f = f, emit = emit, comm = comm} end
+local OPS, HELPERS, HELPER_ORDER = {}, {}, {}
+local function helper(name, src) HELPERS[name] = src; HELPER_ORDER[#HELPER_ORDER + 1] = name end
+local function op(...) OPS[#OPS + 1] = mk(...) end
+local function fmt2(t) return function(a, b) return string.format(t, a, b) end end
+
+-- integers
+op("add", "core", "int", {"int", "int"}, function(a, b) return a + b end, fmt2("(%s + %s)"), true)
+op("sub", "core", "int", {"int", "int"}, function(a, b) return a - b end, fmt2("(%s - %s)"))
+op("mul", "core", "int", {"int", "int"}, function(a, b) return a * b end, fmt2("(%s * %s)"), true)
+op("idiv", "core", "int", {"int", "int"}, function(a, b) if b ~= 0 then return a // b end end, fmt2("(%s // %s)"))
+op("mod", "core", "int", {"int", "int"}, function(a, b) if b ~= 0 then return a % b end end, fmt2("(%s %% %s)"))
+op("min2", "core", "int", {"int", "int"}, function(a, b) return a < b and a or b end, fmt2("math.min(%s, %s)"), true)
+op("max2", "core", "int", {"int", "int"}, function(a, b) return a > b and a or b end, fmt2("math.max(%s, %s)"), true)
+op("neg", "core", "int", {"int"}, function(a) return -a end, function(a) return "(-" .. a .. ")" end)
+op("abs", "core", "int", {"int"}, function(a) return a < 0 and -a or a end, function(a) return "math.abs(" .. a .. ")" end)
+-- booleans
+op("lt", "core", "bool", {"int", "int"}, function(a, b) return a < b end, fmt2("(%s < %s)"))
+op("le", "core", "bool", {"int", "int"}, function(a, b) return a <= b end, fmt2("(%s <= %s)"))
+op("eq", "core", "bool", {"int", "int"}, function(a, b) return a == b end, fmt2("(%s == %s)"), true)
+op("ne", "core", "bool", {"int", "int"}, function(a, b) return a ~= b end, fmt2("(%s ~= %s)"), true)
+op("not", "core", "bool", {"bool"}, function(a) return not a end, function(a) return "(not " .. a .. ")" end)
+op("and", "core", "bool", {"bool", "bool"}, function(a, b) return a and b end, fmt2("(%s and %s)"), true)
+op("or", "core", "bool", {"bool", "bool"}, function(a, b) return a or b end, fmt2("(%s or %s)"), true)
+op("iteI", "core", "int", {"bool", "int", "int"}, function(c, a, b) if c then return a end return b end, function(c, a, b) return "(" .. c .. " and " .. a .. " or " .. b .. ")" end)
+-- lists of integers
+op("len", "list", "int", {"ilist"}, function(xs) return #xs end, function(a) return "(#" .. a .. ")" end)
+helper("sum", "local function sum(xs) local s = 0 for i = 1, #xs do s = s + xs[i] end return s end")
+op("sum", "list", "int", {"ilist"}, function(xs) local s = 0 for i = 1, #xs do s = s + xs[i] end return s end, function(a) return "sum(" .. a .. ")" end)
+helper("prod", "local function prod(xs) local s = 1 for i = 1, #xs do s = s * xs[i] end return s end")
+op("prod", "list", "int", {"ilist"}, function(xs) local s = 1 for i = 1, #xs do s = s * xs[i] end return s end, function(a) return "prod(" .. a .. ")" end)
+helper("maxl", "local function maxl(xs) local m = xs[1] for i = 2, #xs do if xs[i] > m then m = xs[i] end end return m end")
+op("maxl", "list", "int", {"ilist"}, function(xs) if #xs == 0 then return nil end local m = xs[1] for i = 2, #xs do if xs[i] > m then m = xs[i] end end return m end, function(a) return "maxl(" .. a .. ")" end)
+helper("minl", "local function minl(xs) local m = xs[1] for i = 2, #xs do if xs[i] < m then m = xs[i] end end return m end")
+op("minl", "list", "int", {"ilist"}, function(xs) if #xs == 0 then return nil end local m = xs[1] for i = 2, #xs do if xs[i] < m then m = xs[i] end end return m end, function(a) return "minl(" .. a .. ")" end)
+op("head", "list", "int", {"ilist"}, function(xs) return xs[1] end, function(a) return a .. "[1]" end)
+op("last", "list", "int", {"ilist"}, function(xs) return xs[#xs] end, function(a) return "last(" .. a .. ")" end)
+helper("last", "local function last(xs) return xs[#xs] end")
+op("at", "list", "int", {"ilist", "int"}, function(xs, i) return xs[i] end, function(a, i) return a .. "[" .. i .. "]" end)
+helper("rev", "local function rev(xs) local r = {} for i = #xs, 1, -1 do r[#r + 1] = xs[i] end return r end")
+op("rev", "list", "ilist", {"ilist"}, function(xs) local r = {} for i = #xs, 1, -1 do r[#r + 1] = xs[i] end return r end, function(a) return "rev(" .. a .. ")" end)
+helper("sorted", "local function sorted(xs) local r = {} for i = 1, #xs do r[i] = xs[i] end table.sort(r) return r end")
+op("sorted", "list", "ilist", {"ilist"}, function(xs) local r = {} for i = 1, #xs do r[i] = xs[i] end table.sort(r) return r end, function(a) return "sorted(" .. a .. ")" end)
+helper("tail", "local function tail(xs) local r = {} for i = 2, #xs do r[#r + 1] = xs[i] end return r end")
+op("tail", "list", "ilist", {"ilist"}, function(xs) local r = {} for i = 2, #xs do r[#r + 1] = xs[i] end return r end, function(a) return "tail(" .. a .. ")" end)
+helper("init", "local function init(xs) local r = {} for i = 1, #xs - 1 do r[#r + 1] = xs[i] end return r end")
+op("init", "list", "ilist", {"ilist"}, function(xs) local r = {} for i = 1, #xs - 1 do r[#r + 1] = xs[i] end return r end, function(a) return "init(" .. a .. ")" end)
+helper("take", "local function take(xs, n) local r = {} for i = 1, math.min(n, #xs) do r[i] = xs[i] end return r end")
+op("take", "list", "ilist", {"ilist", "int"}, function(xs, n) local r = {} for i = 1, math.min(n, #xs) do r[i] = xs[i] end return r end, function(a, n) return "take(" .. a .. ", " .. n .. ")" end)
+helper("drop", "local function drop(xs, n) local r = {} for i = math.max(n, 0) + 1, #xs do r[#r + 1] = xs[i] end return r end")
+op("drop", "list", "ilist", {"ilist", "int"}, function(xs, n) local r = {} for i = math.max(n, 0) + 1, #xs do r[#r + 1] = xs[i] end return r end, function(a, n) return "drop(" .. a .. ", " .. n .. ")" end)
+helper("append", "local function append(xs, v) local r = {} for i = 1, #xs do r[i] = xs[i] end r[#r + 1] = v return r end")
+op("append", "list", "ilist", {"ilist", "int"}, function(xs, v) local r = {} for i = 1, #xs do r[i] = xs[i] end r[#r + 1] = v return r end, function(a, v) return "append(" .. a .. ", " .. v .. ")" end)
+helper("cat", "local function cat(xs, ys) local r = {} for i = 1, #xs do r[#r + 1] = xs[i] end for i = 1, #ys do r[#r + 1] = ys[i] end return r end")
+op("cat", "list", "ilist", {"ilist", "ilist"}, function(xs, ys) local r = {} for i = 1, #xs do r[#r + 1] = xs[i] end for i = 1, #ys do r[#r + 1] = ys[i] end return r end, function(a, b) return "cat(" .. a .. ", " .. b .. ")" end)
+helper("countv", "local function countv(xs, v) local c = 0 for i = 1, #xs do if xs[i] == v then c = c + 1 end end return c end")
+op("countv", "list", "int", {"ilist", "int"}, function(xs, v) local c = 0 for i = 1, #xs do if xs[i] == v then c = c + 1 end end return c end, function(a, v) return "countv(" .. a .. ", " .. v .. ")" end)
+op("has", "list", "bool", {"ilist", "int"}, function(xs, v) for i = 1, #xs do if xs[i] == v then return true end end return false end, function(a, v) return "has(" .. a .. ", " .. v .. ")" end)
+helper("has", "local function has(xs, v) for i = 1, #xs do if xs[i] == v then return true end end return false end")
+-- higher-order (lambdas are enumerated separately; see lambdas())
+op("range", "hof", "ilist", {"int"}, function(n) if n > 40 then return nil end local r = {} for i = 1, n do r[i] = i end return r end, function(n) return "range(" .. n .. ")" end)
+helper("range", "local function range(n) local r = {} for i = 1, n do r[i] = i end return r end")
+op("map", "hof", "ilist", {"lamII", "ilist"}, function(f, xs) local r = {} for i = 1, #xs do local v = f(xs[i]); if v == nil then return nil end r[i] = v end return r end, function(f, a) return "map(" .. f .. ", " .. a .. ")" end)
+helper("map", "local function map(f, xs) local r = {} for i = 1, #xs do r[i] = f(xs[i]) end return r end")
+op("filter", "hof", "ilist", {"lamIB", "ilist"}, function(f, xs) local r = {} for i = 1, #xs do local v = f(xs[i]); if v == nil then return nil end if v then r[#r + 1] = xs[i] end end return r end, function(f, a) return "filter(" .. f .. ", " .. a .. ")" end)
+helper("filter", "local function filter(f, xs) local r = {} for i = 1, #xs do if f(xs[i]) then r[#r + 1] = xs[i] end end return r end")
+op("countby", "hof", "int", {"lamIB", "ilist"}, function(f, xs) local c = 0 for i = 1, #xs do local v = f(xs[i]); if v == nil then return nil end if v then c = c + 1 end end return c end, function(f, a) return "countby(" .. f .. ", " .. a .. ")" end)
+helper("countby", "local function countby(f, xs) local c = 0 for i = 1, #xs do if f(xs[i]) then c = c + 1 end end return c end")
+op("anyby", "hof", "bool", {"lamIB", "ilist"}, function(f, xs) for i = 1, #xs do local v = f(xs[i]); if v == nil then return nil end if v then return true end end return false end, function(f, a) return "anyby(" .. f .. ", " .. a .. ")" end)
+helper("anyby", "local function anyby(f, xs) for i = 1, #xs do if f(xs[i]) then return true end end return false end")
+op("allby", "hof", "bool", {"lamIB", "ilist"}, function(f, xs) for i = 1, #xs do local v = f(xs[i]); if v == nil then return nil end if not v then return false end end return true end, function(f, a) return "allby(" .. f .. ", " .. a .. ")" end)
+helper("allby", "local function allby(f, xs) for i = 1, #xs do if not f(xs[i]) then return false end end return true end")
+op("fold", "hof", "int", {"lam2", "int", "ilist"}, function(f, z, xs) local a = z for i = 1, #xs do a = f(a, xs[i]); if a == nil then return nil end end return a end, function(f, z, a) return "fold(" .. f .. ", " .. z .. ", " .. a .. ")" end)
+helper("fold", "local function fold(f, z, xs) local a = z for i = 1, #xs do a = f(a, xs[i]) end return a end")
+-- strings
+op("slen", "str", "int", {"str"}, function(s) return #s end, function(a) return "#" .. a end)
+op("upper", "str", "str", {"str"}, function(s) return s:upper() end, function(a) return "(" .. a .. "):upper()" end)
+op("lower", "str", "str", {"str"}, function(s) return s:lower() end, function(a) return "(" .. a .. "):lower()" end)
+op("srev", "str", "str", {"str"}, function(s) return s:reverse() end, function(a) return "(" .. a .. "):reverse()" end)
+op("scat", "str", "str", {"str", "str"}, function(a, b) return a .. b end, fmt2("(%s .. %s)"))
+op("ssub", "str", "str", {"str", "int", "int"}, function(s, i, j) return s:sub(i, j) end, function(a, i, j) return "(" .. a .. "):sub(" .. i .. ", " .. j .. ")" end)
+op("srep", "str", "str", {"str", "int"}, function(s, n) if n < 0 or n * #s > 64 then return nil end return s:rep(n) end, function(a, n) return "(" .. a .. "):rep(" .. n .. ")" end)
+op("tostr", "str", "str", {"int"}, function(n) return tostring(n) end, function(a) return "tostring(" .. a .. ")" end)
+op("seq", "str", "bool", {"str", "str"}, function(a, b) return a == b end, fmt2("(%s == %s)"), true)
+op("iteS", "str", "str", {"bool", "str", "str"}, function(c, a, b) if c then return a end return b end, function(c, a, b) return "(" .. c .. " and " .. a .. " or " .. b .. ")" end)
+op("scount", "str", "int", {"str", "str"}, function(s, c) if #c ~= 1 then return nil end local n = 0 for i = 1, #s do if s:sub(i, i) == c then n = n + 1 end end return n end, function(a, c) return "scount(" .. a .. ", " .. c .. ")" end)
+helper("scount", "local function scount(s, c) local n = 0 for i = 1, #s do if s:sub(i, i) == c then n = n + 1 end end return n end")
+Y.OPS, Y.HELPERS = OPS, HELPERS
+
+------------------------------------------------------------------------------------------------ expression trees
+-- node: {op=, ty=, size=, args={child nodes}, vec={values per example}, name=(variable) , value=(constant), lam=true}
+local function leaf_var(name, ty, vec) return {kind = "var", name = name, ty = ty, size = 1, vec = vec} end
+local function leaf_const(value, ty, n)
+  local vec = {}
+  for e = 1, n do vec[e] = value end
+  return {kind = "const", value = value, ty = ty, size = 1, vec = vec}
+end
+
+local emit_node
+local function emit_const(v, ty)
+  if ty == "int" then return v < 0 and ("(" .. v .. ")") or tostring(v)
+  elseif ty == "bool" then return tostring(v)
+  elseif ty == "str" then return string.format("%q", v)
+  end
+  local p = {}
+  for i = 1, #v do p[i] = tostring(v[i]) end
+  return "{" .. table.concat(p, ", ") .. "}"
+end
+function emit_node(n, used)
+  if n.kind == "var" then return n.name
+  elseif n.kind == "const" then return emit_const(n.value, n.ty)
+  elseif n.kind == "lam" then
+    local body = emit_node(n.body, used)
+    return "function(" .. table.concat(n.params, ", ") .. ") return " .. body .. " end"
+  end
+  local o = n.op
+  local parts = {}
+  for i, a in ipairs(n.args) do parts[i] = emit_node(a, used) end
+  if HELPERS[o.name] then used[o.name] = true end
+  if o.name == "scount" or o.name == "last" then used[o.name] = true end
+  return o.emit(table.unpack(parts))
+end
+Y.emit_expr = function(n) local used = {}; local s = emit_node(n, used); return s, used end
+
+-- evaluate a tree on one binding {name -> value}; nil = undefined
+local function eval_tree(n, env)
+  if n.kind == "var" then return env[n.name]
+  elseif n.kind == "const" then return n.value
+  end
+  local vals = {}
+  for i, a in ipairs(n.args) do
+    if a.kind == "lam" then
+      local lam = a
+      vals[i] = function(...)
+        local e2 = {}
+        local args = {...}
+        for k, p in ipairs(lam.params) do e2[p] = args[k] end
+        return eval_tree(lam.body, e2)
+      end
+    else
+      local v = eval_tree(a, env)
+      if v == nil then return nil end
+      vals[i] = v
+    end
+  end
+  return n.op.f(table.unpack(vals, 1, #n.args))
+end
+Y.eval_tree = eval_tree
+
+------------------------------------------------------------------------------------------------ the enumerator
+local GRID = {-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20}
+
+-- enumerate expressions over `vars` (list of leaf nodes with value vectors over E points) and `consts`, using the operator groups `groups`, up to max_size.
+-- Equivalence is decided by a 64-bit fingerprint of the value vector (per type); the goal (type rtype, fingerprint goalh, exact vector goalvec) is verified exactly.
+-- `budget.left` counts candidate evaluations; `lamlib[type][size]` holds the lambda arguments of the higher-order operations.
+local strid, nstr = {}, 0
+local function fp(v)
+  local t = type(v)
+  if t == "number" then return v
+  elseif t == "boolean" then return v and 1 or 0
+  elseif t == "string" then
+    local id = strid[v]
+    if not id then nstr = nstr + 1; id = nstr * 7919 + 104729; strid[v] = id end
+    return id
+  end
+  local h = #v + 17
+  for i = 1, #v do h = h * 1000003 + v[i] end
+  return h
+end
+local function fingerprint(vec, E)
+  local h = E
+  for e = 1, E do h = h * 1000003 + fp(vec[e]) end
+  return h
+end
+local function same_vec(a, b, E)
+  for e = 1, E do if vkey(a[e]) ~= vkey(b[e]) then return false end end
+  return true
+end
+
+local function enumerate(vars, consts, E, groups, max_size, budget, goal, lamlib, max_bank, nodedupe)
+  local banks = {}
+  local seen = {int = {}, bool = {}, str = {}, ilist = {}}
+  local found
+  local function bank(ty, size) banks[ty] = banks[ty] or {}; banks[ty][size] = banks[ty][size] or {}; return banks[ty][size] end
+  local function add(node, h)
+    local sn = seen[node.ty]
+    if sn[h] and not nodedupe then return end
+    sn[h] = true
+    local b = bank(node.ty, node.size)
+    if #b >= max_bank then return end
+    b[#b + 1] = node
+    if goal and node.ty == goal.ty and h == goal.h and same_vec(node.vec, goal.vec, E) then found = node end
+  end
+  for _, v in ipairs(vars) do add(v, fingerprint(v.vec, E)); if found then return banks, found end end
+  for _, c in ipairs(consts) do local n = leaf_const(c.value, c.ty, E); add(n, fingerprint(n.vec, E)); if found then return banks, found end end
+  local ops = {}
+  for _, o in ipairs(OPS) do if groups[o.group] then ops[#ops + 1] = o end end
+  local lamtypes = {lamII = true, lamIB = true, lam2 = true}
+  if lamlib then
+    for _, ty in ipairs({"lamII", "lamIB", "lam2"}) do
+      for _, list in pairs(lamlib[ty]) do for _, lam in ipairs(list) do lam.vec = {}; for e = 1, E do lam.vec[e] = lam.fn end end end
+    end
+  end
+  local function items(ty, size)
+    if lamtypes[ty] then return lamlib and lamlib[ty] and lamlib[ty][size] or {} end
+    return banks[ty] and banks[ty][size] or {}
+  end
+  local tmp = {}
+  for size = 2, max_size do
+    for _, o in ipairs(ops) do
+      local k, f, rt = #o.args, o.f, o.ret
+      local isint = rt == "int"
+      local sn = seen[rt]
+      local function finish(h, a1, a2, a3)
+        if sn[h] and not nodedupe then return end
+        local vec = {}
+        for e = 1, E do vec[e] = tmp[e] end
+        local node = {kind = "op", op = o, ty = rt, size = size, args = {a1, a2, a3}, vec = vec}
+        node.args = k == 1 and {a1} or (k == 2 and {a1, a2} or {a1, a2, a3})
+        add(node, h)
+      end
+      local function try1(a1)
+        budget.left = budget.left - 1
+        local v1, h = a1.vec, E
+        for e = 1, E do
+          local v = f(v1[e])
+          if v == nil then return end
+          tmp[e] = v
+          h = h * 1000003 + (isint and v or fp(v))
+        end
+        finish(h, a1)
+      end
+      local function try2(a1, a2)
+        budget.left = budget.left - 1
+        local v1, v2, h = a1.vec, a2.vec, E
+        for e = 1, E do
+          local v = f(v1[e], v2[e])
+          if v == nil then return end
+          tmp[e] = v
+          h = h * 1000003 + (isint and v or fp(v))
+        end
+        finish(h, a1, a2)
+      end
+      local function try3(a1, a2, a3)
+        budget.left = budget.left - 1
+        local v1, v2, v3, h = a1.vec, a2.vec, a3.vec, E
+        for e = 1, E do
+          local v = f(v1[e], v2[e], v3[e])
+          if v == nil then return end
+          tmp[e] = v
+          h = h * 1000003 + (isint and v or fp(v))
+        end
+        finish(h, a1, a2, a3)
+      end
+      if k == 1 then
+        for _, a in ipairs(items(o.args[1], size - 1)) do try1(a); if found or budget.left <= 0 then return banks, found end end
+      elseif k == 2 then
+        for s1 = 1, size - 2 do
+          local s2 = size - 1 - s1
+          if not (o.comm and s1 > s2) then
+            local l1, l2 = items(o.args[1], s1), items(o.args[2], s2)
+            for i = 1, #l1 do
+              local a = l1[i]
+              for j = (o.comm and s1 == s2) and i or 1, #l2 do
+                try2(a, l2[j])
+                if found or budget.left <= 0 then return banks, found end
+              end
+            end
+          end
+        end
+      else
+        for s1 = 1, size - 3 do
+          for s2 = 1, size - 2 - s1 do
+            local s3 = size - 1 - s1 - s2
+            local l1, l2, l3 = items(o.args[1], s1), items(o.args[2], s2), items(o.args[3], s3)
+            for i = 1, #l1 do
+              for j = 1, #l2 do
+                for m = 1, #l3 do
+                  try3(l1[i], l2[j], l3[m])
+                  if found or budget.left <= 0 then return banks, found end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+  return banks, found
+end
+
+-- the lambda libraries: all small expressions of one or two integer variables, kept one per behaviour on a grid of sample points
+local function lambdas(consts, max_size)
+  local lib = {lamII = {}, lamIB = {}, lam2 = {}}
+  local ints = {}
+  for _, c in ipairs(consts) do if c.ty == "int" or c.ty == "bool" then ints[#ints + 1] = c end end
+  local function build(params, want, wantlam)
+    -- points of the grid: one variable -> grid; two variables -> a 9 x 9 sub-grid
+    local pts = {}
+    if #params == 1 then for _, g in ipairs(GRID) do pts[#pts + 1] = {g} end
+    else for _, a in ipairs({-3, -1, 0, 1, 2, 3, 5, 8, 12}) do for _, b in ipairs({-3, -1, 0, 1, 2, 3, 5, 8, 12}) do pts[#pts + 1] = {a, b} end end end
+    local E = #pts
+    local vars = {}
+    for i, p in ipairs(params) do
+      local vec = {}
+      for e = 1, E do vec[e] = pts[e][i] end
+      vars[i] = leaf_var(p, "int", vec)
+    end
+    local budget = {left = 3000000}
+    local banks = enumerate(vars, ints, E, {core = true}, max_size, budget, nil, nil, 4000)
+    -- a lambda is ONE atom for the search (its own size, `cost`, only orders the library: small bodies first)
+    lib[wantlam][1] = lib[wantlam][1] or {}
+    for size = 1, max_size do
+      for _, n in ipairs(banks[want] and banks[want][size] or {}) do
+        local lam = {kind = "lam", params = params, body = n, size = 1, cost = size, ty = wantlam}
+        local ps = params
+        lam.fn = function(...)
+          local args = {...}
+          local env = {}
+          for k, p in ipairs(ps) do env[p] = args[k] end
+          return eval_tree(n, env)
+        end
+        table.insert(lib[wantlam][1], lam)
+      end
+    end
+  end
+  build({"v"}, "int", "lamII")
+  build({"v"}, "bool", "lamIB")
+  build({"acc", "v"}, "int", "lam2")
+  return lib
+end
+
+------------------------------------------------------------------------------------------------ the task interface
+local function infer(task)
+  local ex = task.examples
+  if type(ex) ~= "table" or #ex == 0 then return nil, "no examples" end
+  local np = #task.params
+  local ptypes = {}
+  for e, x in ipairs(ex) do
+    if type(x.args) ~= "table" then return nil, "example " .. e .. " has no args" end
+    for i = 1, np do
+      local t = tyof(x.args[i])
+      if not t then return nil, "example " .. e .. ": argument " .. i .. " has an unsupported type" end
+      if ptypes[i] and ptypes[i] ~= t then return nil, "argument " .. i .. " has inconsistent types" end
+      ptypes[i] = t
+    end
+  end
+  local rtype
+  for e, x in ipairs(ex) do
+    local t = tyof(x.out)
+    if not t then return nil, "example " .. e .. ": output has an unsupported type" end
+    if rtype and rtype ~= t then return nil, "outputs have inconsistent types" end
+    rtype = t
+  end
+  return ptypes, rtype
+end
+
+local function collect_constants(task, ptypes, rtype)
+  local out, seen = {}, {}
+  local function add(v, ty) local k = ty .. vkey(v); if not seen[k] then seen[k] = true; out[#out + 1] = {value = v, ty = ty} end end
+  for _, c in ipairs({0, 1, 2, 3, 4, 5, 10}) do add(c, "int") end
+  add(true, "bool"); add(false, "bool")
+  -- constants suggested by the examples: an output, a difference or a quotient that recurs across examples
+  local cnt, order = {}, {}
+  local ne = #task.examples
+  for _, x in ipairs(task.examples) do
+    local cands = {}
+    if rtype == "int" then
+      cands[x.out] = true
+      for i, t in ipairs(ptypes) do
+        if t == "int" then
+          local a = x.args[i]
+          cands[x.out - a] = true
+          if a ~= 0 and x.out % a == 0 then cands[x.out // a] = true end
+        end
+      end
+    end
+    for c in pairs(cands) do
+      if math.abs(c) <= 100 then
+        if not cnt[c] then cnt[c] = 0; order[#order + 1] = c end
+        cnt[c] = cnt[c] + 1
+      end
+    end
+  end
+  table.sort(order, function(a, b) if math.abs(a) ~= math.abs(b) then return math.abs(a) < math.abs(b) end return a < b end)
+  local added = 0
+  for _, c in ipairs(order) do if cnt[c] >= math.min(2, ne) and added < 6 then add(c, "int"); added = added + 1 end end
+  -- string constants: "" and the characters of the outputs that no input string contains (separators, suffixes)
+  local hasstr = rtype == "str"
+  for _, t in ipairs(ptypes) do if t == "str" then hasstr = true end end
+  if hasstr then
+    add("", "str")
+    local inchars = {}
+    for _, x in ipairs(task.examples) do for _, a in ipairs(x.args) do if type(a) == "string" then for i = 1, #a do inchars[a:sub(i, i)] = true end end end end
+    local chars = {}
+    for _, x in ipairs(task.examples) do if type(x.out) == "string" then for i = 1, #x.out do local c = x.out:sub(i, i); if not inchars[c] and not chars[c] then chars[c] = true end end end end
+    local cs = {}
+    for c in pairs(chars) do cs[#cs + 1] = c end
+    table.sort(cs)
+    for i = 1, math.min(#cs, 4) do add(cs[i], "str") end
+    if rtype ~= "str" then                                   -- a count or a test over characters: the characters seen in the inputs
+      local freq, order = {}, {}
+      for _, x in ipairs(task.examples) do for _, a in ipairs(x.args) do if type(a) == "string" then for i = 1, #a do local c = a:sub(i, i); if not freq[c] then freq[c] = 0; order[#order + 1] = c end freq[c] = freq[c] + 1 end end end end
+      table.sort(order, function(x, y) if freq[x] ~= freq[y] then return freq[x] > freq[y] end return x < y end)
+      for i = 1, math.min(#order, 3) do add(order[i], "str") end
+    end
+  end
+  return out
+end
+
+-- solve(task, opts) -> {ok=true, node=, size=, tried=, phase=, source=} | {ok=false, reason=, tried=}
+-- task: {name=, params={...}, examples={{args={...}, out=v}...}}   opts: {max_size=, max_candidates=, max_bank=}
+function Y.solve(task, opts)
+  opts = opts or {}
+  local ptypes, rtype = infer(task)
+  if not ptypes then return {ok = false, reason = rtype, tried = 0} end
+  local E = #task.examples
+  local vars = {}
+  for i, name in ipairs(task.params) do
+    local vec = {}
+    for e = 1, E do vec[e] = task.examples[e].args[i] end
+    vars[i] = leaf_var(name, ptypes[i], vec)
+  end
+  local goalvec = {}
+  for e = 1, E do goalvec[e] = task.examples[e].out end
+  local goal = {ty = rtype, vec = goalvec, h = fingerprint(goalvec, E)}
+  local consts = collect_constants(task, ptypes, rtype)
+  local max_size = opts.max_size or task.max_size or 11
+  local total = opts.max_candidates or task.max_candidates or 200000
+  local budget = {left = total}
+  local has_list, has_str = rtype == "ilist" or rtype == "str", rtype == "str"
+  for _, t in ipairs(ptypes) do if t == "ilist" then has_list = true end if t == "str" then has_str = true end end
+  local phases = {
+    {name = "scalar", groups = {core = true, list = has_list or nil, str = has_str or nil}},
+    {name = "higher-order", groups = {core = true, list = true, hof = true, str = has_str or nil}},
+  }
+  local lamlib
+  local result
+  for pi, ph in ipairs(phases) do
+    if pi == 1 or has_list or true then
+      local share = (pi == 1) and math.floor(total * 0.3) or budget.left
+      local b = {left = math.min(share, budget.left)}
+      local before = b.left
+      if ph.groups.hof and not lamlib then lamlib = lambdas(consts, opts.lam_size or 5) end
+      local _, node = enumerate(vars, consts, E, ph.groups, max_size, b, goal, ph.groups.hof and lamlib or nil, opts.max_bank or 40000, opts.no_dedupe)
+      budget.left = budget.left - (before - b.left)
+      if node then
+        result = {ok = true, node = node, size = node.size, tried = total - budget.left, phase = ph.name}
+        break
+      end
+      if budget.left <= 0 then break end
+    end
+  end
+  if not result then return {ok = false, reason = "no program of size <= " .. max_size .. " within the candidate budget fits the examples", tried = total - budget.left} end
+  result.expr = Y.emit_expr(result.node)
+  result.source = Y.emit(task, result.node)
+  return result
+end
+
+function Y.emit(task, node)
+  local used = {}
+  local body = emit_node(node, used)
+  local parts = {}
+  for _, name in ipairs(HELPER_ORDER) do if used[name] then parts[#parts + 1] = HELPERS[name] end end
+  parts[#parts + 1] = string.format("function %s(%s)\n  return %s\nend\n", task.name, table.concat(task.params, ", "), body)
+  return table.concat(parts, "\n")
+end
+
+-- all expressions of type `want` ("int" | "bool") over the integer variables `names`, up to max_size, one per behaviour on a grid of sample points (smallest first)
+-- -> list of {src = Lua expression text, size = n}
+function Y.candidates(names, want, max_size)
+  local grids = {[0] = {{}}, [1] = {}, [2] = {}, [3] = {}}
+  for _, g in ipairs(GRID) do grids[1][#grids[1] + 1] = {g} end
+  for _, a in ipairs({-3, -1, 0, 1, 2, 3, 5, 8, 12}) do for _, b in ipairs({-3, -1, 0, 1, 2, 3, 5, 8, 12}) do grids[2][#grids[2] + 1] = {a, b} end end
+  for _, a in ipairs({-2, 0, 1, 3, 6}) do for _, b in ipairs({-2, 0, 1, 3, 6}) do for _, c in ipairs({-2, 0, 1, 3, 6}) do grids[3][#grids[3] + 1] = {a, b, c} end end end
+  local k = #names
+  if k > 3 then return {} end
+  local pts = grids[k]
+  local E = #pts
+  local vars = {}
+  for i, nm in ipairs(names) do
+    local vec = {}
+    for e = 1, E do vec[e] = pts[e][i] end
+    vars[i] = leaf_var(nm, "int", vec)
+  end
+  local consts = {}
+  for _, c in ipairs({0, 1, 2, 3, 4, 5, 10}) do consts[#consts + 1] = {value = c, ty = "int"} end
+  consts[#consts + 1] = {value = true, ty = "bool"}; consts[#consts + 1] = {value = false, ty = "bool"}
+  local banks = enumerate(vars, consts, E, {core = true}, max_size, {left = 3000000}, nil, nil, 20000)
+  local out = {}
+  for size = 1, max_size do
+    for _, n in ipairs(banks[want] and banks[want][size] or {}) do out[#out + 1] = {src = (Y.emit_expr(n)), size = size} end
+  end
+  return out
+end
+
+------------------------------------------------------------------------------------------------ the workspace tool
+-- synth{task={name, params, examples, max_size?, max_candidates?}} -> {found, source, expr, size, tried, phase}  (a PROPOSAL: it does not touch the file)
+local function install()
+  local S = require("asi.sketch")
+  S.register("synth", {cap = "synth",
+    doc = "synth{task={name, params, examples={{args,out}...}, max_size?, max_candidates?}} -> propose a Lua function that reproduces the examples (smallest program of a typed DSL); never touches the file",
+    quote = function(ws) return 8 + ws.policy.synth_candidates // 16 end,
+    run = function(ws, a)
+      local t = a.task
+      if type(t) ~= "table" or type(t.name) ~= "string" or not t.name:match("^[%a_][%w_]*$") or type(t.params) ~= "table" or type(t.examples) ~= "table" then
+        return 1, {err = "task needs a name, params and examples"}, 1
+      end
+      for _, pn in ipairs(t.params) do if type(pn) ~= "string" or not pn:match("^[%a_][%w_]*$") then return 1, {err = "bad parameter name"}, 1 end end
+      if #t.examples == 0 or #t.examples > 64 then return 1, {err = "1..64 examples"}, 1 end
+      for _, e in ipairs(t.examples) do if type(e) ~= "table" or type(e.args) ~= "table" or #e.args ~= #t.params then return 1, {err = "every example needs args matching params"}, 1 end end
+      local limit = ws.policy.synth_candidates
+      local r = Y.solve({name = t.name, params = t.params, examples = t.examples}, {max_size = math.min(t.max_size or 11, ws.policy.synth_size), max_candidates = math.min(t.max_candidates or limit, limit)})
+      local cost = 8 + r.tried // 16
+      if r.ok then return 0, {found = true, source = r.source, expr = r.expr, size = r.size, tried = r.tried, phase = r.phase}, cost end
+      return 4, {found = false, reason = r.reason, tried = r.tried}, cost
+    end})
+end
+install()
+
+--[[@@END@@]]
+return Y
+end
+
+-- ======================================================================== asi.sketch.fix  (hole filling and mutation repair tools)
+package.preload["asi.sketch.fix"] = function(...)
+--[============[
+asi/sketch/fix.lua -- two more REASONING tools of the sketch workspace: `fill` (complete a sketch with holes) and `repair` (debug a function). Like `synth` they only PROPOSE:
+the answer is a list of line edits the caller applies with the `edit` tool, then checks with `test`.
+
+fill{entry, cases, max_size?, max_trials?}  Holes are written as ordinary calls, HOLE_INT(a, b) or HOLE_BOOL(a, b), where the arguments name the integer variables in scope; the
+  sketch still RUNS (a hole returns 0 / false) so it can be inspected and tested. Every hole gets all small expressions over its variables (one per behaviour: observational
+  equivalence on a grid), then assignments of expressions to holes are tried in order of total size (at most 3 holes and max_trials assignments) against the test cases in the sandbox.
+repair{entry, cases, max_edits?, max_trials?}  Mutation repair: single-token edits (a number +-1 / 0 / 1, a comparison or arithmetic operator, and/or, another variable) and then pairs
+  of them are tried against the test cases; the first mutant that passes every case wins; if none does, the best partial score is reported.
+]============]
+local S = require("asi.sketch")
+local Y = require("asi.sketch.synth")
+local F = {}
+
+local KEYWORDS = {}
+for w in ("and break do else elseif end false for function goto if in local nil not or repeat return then true until while"):gmatch("%a+") do KEYWORDS[w] = true end
+
+-- tokens of a Lua source: {kind="id"|"num"|"op", text, s, e, line}; strings and comments are skipped
+local function tokenize(text)
+  local toks, i, n, line = {}, 1, #text, 1
+  while i <= n do
+    local c = text:sub(i, i)
+    if c == "\n" then line = line + 1; i = i + 1
+    elseif c:match("%s") then i = i + 1
+    elseif text:sub(i, i + 1) == "--" then
+      local lvl = text:match("^%-%-%[(=*)%[", i)
+      if lvl then
+        local close = "]" .. lvl .. "]"
+        local _, e = text:find(close, i, true)
+        local seg = text:sub(i, e or n)
+        for _ in seg:gmatch("\n") do line = line + 1 end
+        i = (e or n) + 1
+      else
+        local e = text:find("\n", i, true) or n + 1
+        i = e
+      end
+    elseif c == '"' or c == "'" then
+      local j = i + 1
+      while j <= n and text:sub(j, j) ~= c do if text:sub(j, j) == "\\" then j = j + 1 end j = j + 1 end
+      i = j + 1
+    elseif c:match("[%a_]") then
+      local w = text:match("^[%w_]+", i)
+      toks[#toks + 1] = {kind = "id", text = w, s = i, e = i + #w - 1, line = line}
+      i = i + #w
+    elseif c:match("%d") then
+      local w = text:match("^%d+", i)
+      toks[#toks + 1] = {kind = "num", text = w, s = i, e = i + #w - 1, line = line}
+      i = i + #w
+    else
+      local two = text:sub(i, i + 1)
+      local w = (two == "==" or two == "~=" or two == "<=" or two == ">=" or two == "//" or two == "..") and two or c
+      toks[#toks + 1] = {kind = "op", text = w, s = i, e = i + #w - 1, line = line}
+      i = i + #w
+    end
+  end
+  return toks
+end
+F.tokenize = tokenize
+
+local function run_cases(text, entry, cases, steps)
+  local passed = 0
+  for _, c in ipairs(cases) do
+    local r = S.sandbox_run(text, entry, {n = #c.args, table.unpack(c.args)}, {run_steps = steps or 20000, run_cpu = 1.0})
+    if c.err then if not r.ok and r.kind == "runtime" then passed = passed + 1 end
+    elseif r.ok and S.same(r.values[1], c.out) then passed = passed + 1 end
+  end
+  return passed
+end
+
+local function line_edits(old_text, new_text)
+  local a, b = S.split_lines(old_text), S.split_lines(new_text)
+  local hunks = S.diff(a, b)
+  local edits = {}
+  for _, h in ipairs(hunks) do edits[#edits + 1] = {from = h.from, to = h.to, text = table.concat(h.new, "\n") .. ((#h.new > 0) and "\n" or "")} end
+  return edits
+end
+
+------------------------------------------------------------------------------------------------ fill
+local function find_holes(text)
+  local holes, pos = {}, 1
+  while true do
+    local s, e, kind, args = text:find("HOLE_(%u+)%(([^()]*)%)", pos)
+    if not s then break end
+    local vars, ok = {}, true
+    for v in args:gmatch("[^,]+") do
+      v = v:match("^%s*(.-)%s*$")
+      if v ~= "" then if v:match("^[%a_][%w_]*$") then vars[#vars + 1] = v else ok = false end end
+    end
+    if (kind == "INT" or kind == "BOOL") and ok then holes[#holes + 1] = {s = s, e = e, kind = kind, vars = vars} end
+    pos = e + 1
+  end
+  return holes
+end
+F.find_holes = find_holes
+
+local function fill_text(text, holes, pick)
+  local out, last = {}, 1
+  for i, h in ipairs(holes) do
+    out[#out + 1] = text:sub(last, h.s - 1)
+    out[#out + 1] = "(" .. pick[i].src .. ")"
+    last = h.e + 1
+  end
+  out[#out + 1] = text:sub(last)
+  return table.concat(out)
+end
+
+S.register("fill", {cap = "synth",
+  doc = "fill{entry, cases, max_size?, max_trials?} -> fill the HOLE_INT(vars)/HOLE_BOOL(vars) calls of the file so that every test case passes; returns line edits to apply (nothing is changed)",
+  quote = function(ws, a) return 8 + math.min(a.max_trials or 20000, 20000) // 8 end,
+  run = function(ws, a)
+    if type(a.entry) ~= "string" or type(a.cases) ~= "table" or #a.cases == 0 or #a.cases > ws.policy.test_cases then return 1, {err = "entry and 1.." .. ws.policy.test_cases .. " cases are required"}, 1 end
+    local text = ws.files[S.FILE]
+    local holes = find_holes(text)
+    if #holes == 0 then return 4, {err = "no holes (HOLE_INT(..) / HOLE_BOOL(..)) in the file"}, 2 end
+    if #holes > 3 then return 1, {err = "at most 3 holes"}, 2 end
+    local max_size = math.min(a.max_size or 5, 6)
+    local max_trials = math.min(a.max_trials or 20000, 20000)
+    local trials, best, bestscore = 0, nil, -1
+    local solved
+    local function search(msz, cap)
+      local lists = {}
+      for i, h in ipairs(holes) do
+        lists[i] = Y.candidates(h.vars, h.kind == "INT" and "int" or "bool", (#h.vars >= 3) and math.min(msz, 4) or msz)
+        if #lists[i] == 0 then return end
+      end
+      local pick = {}
+      for i = 1, #holes do pick[i] = lists[i][1] end
+      local limit = trials + cap
+      local function try()
+        trials = trials + 1
+        local t = fill_text(text, holes, pick)
+        local passed = run_cases(t, a.entry, a.cases, 10000)
+        if passed > bestscore then
+          bestscore = passed
+          local snap = {}
+          for k = 1, #pick do snap[k] = pick[k].src end
+          best = {text = t, fills = snap, passed = passed}
+        end
+        if passed == #a.cases then solved = t end
+        return passed
+      end
+      -- 1. coordinate ascent: improve one hole at a time, keeping the smallest expression among equals (cheap, solves decomposable sketches)
+      local score = try()
+      for _ = 1, 6 do
+        if solved or trials >= limit then break end
+        local improved = false
+        for i = 1, #holes do
+          local keep, keeps = pick[i], score
+          for _, c in ipairs(lists[i]) do
+            pick[i] = c
+            local s2 = try()
+            if solved then break end
+            if s2 > keeps then keep, keeps = c, s2 end
+            if trials >= limit then break end
+          end
+          if solved then break end
+          pick[i] = keep
+          if keeps > score then score, improved = keeps, true end
+        end
+        if not improved then break end
+      end
+      -- 2. all assignments in order of total size
+      if not solved then
+        local maxtotal = 0
+        for i = 1, #holes do maxtotal = maxtotal + msz end
+        for total = #holes, maxtotal do
+          local function rec(i, left)
+            if solved or trials >= limit then return end
+            if i > #holes then if left == 0 then try() end return end
+            for _, c in ipairs(lists[i]) do
+              if c.size > left - (#holes - i) then break end
+              pick[i] = c
+              rec(i + 1, left - c.size)
+              if solved or trials >= limit then return end
+            end
+          end
+          rec(1, total)
+          if solved or trials >= limit then break end
+        end
+      end
+    end
+    -- candidate size grows 3 -> max_size: small expressions first (fewer accidental fits, far fewer trials)
+    for msz = 3, max_size do
+      if solved or trials >= max_trials then break end
+      search(msz, math.max(1, (max_trials - trials) // (max_size - msz + 1)))
+    end
+    local cost = 8 + trials // 8
+    if solved then
+      return 0, {found = true, fills = best.fills, edits = line_edits(text, solved), trials = trials, text_bytes = #solved}, cost
+    end
+    return 4, {found = false, trials = trials, best_passed = bestscore, total = #a.cases, best_fills = best and best.fills}, cost
+  end})
+
+------------------------------------------------------------------------------------------------ repair
+local CMP = {["<"] = {"<=", ">", ">="}, ["<="] = {"<", ">=", ">"}, [">"] = {">=", "<", "<="}, [">="] = {">", "<=", "<"}, ["=="] = {"~="}, ["~="] = {"=="}}
+local ARITH = {["+"] = {"-", "*"}, ["-"] = {"+"}, ["*"] = {"+", "//"}, ["//"] = {"%", "*"}, ["%"] = {"//"}}
+local LOGIC = {["and"] = {"or"}, ["or"] = {"and"}}
+
+local function mutations(text, toks)
+  local ids, seen = {}, {}
+  for i, t in ipairs(toks) do
+    if t.kind == "id" and not KEYWORDS[t.text] then
+      local nxt, prv = toks[i + 1], toks[i - 1]
+      local is_call = nxt and nxt.text == "("
+      local is_field = prv and (prv.text == "." or prv.text == ":")
+      if not is_call and not is_field and not seen[t.text] then seen[t.text] = true; ids[#ids + 1] = t.text end
+    end
+  end
+  local out = {}
+  local function add(t, new) out[#out + 1] = {s = t.s, e = t.e, new = new, line = t.line, old = t.text} end
+  for i, t in ipairs(toks) do                      -- deletions first: "x - 1" -> "x", "not c" -> "c"
+    local nx = toks[i + 1]
+    if t.kind == "op" and (t.text == "+" or t.text == "-") and nx and nx.kind == "num" then
+      local s0 = t.s
+      while s0 > 1 and text:sub(s0 - 1, s0 - 1) == " " do s0 = s0 - 1 end
+      out[#out + 1] = {s = s0, e = nx.e, new = "", line = t.line, old = t.text .. " " .. nx.text}
+    elseif t.kind == "id" and t.text == "not" then
+      out[#out + 1] = {s = t.s, e = t.e + (text:sub(t.e + 1, t.e + 1) == " " and 1 or 0), new = "", line = t.line, old = "not"}
+    end
+  end
+  for i, t in ipairs(toks) do
+    if t.kind == "num" then
+      local v = tonumber(t.text)
+      local seenv = {}
+      for _, nv in ipairs({v + 1, v - 1, 0, 1, 2}) do
+        if nv ~= v and nv >= 0 and not seenv[nv] then seenv[nv] = true; add(t, tostring(nv)) end
+      end
+    elseif t.kind == "op" then
+      for _, tab in ipairs({CMP, ARITH}) do for _, nw in ipairs(tab[t.text] or {}) do add(t, nw) end end
+    elseif t.kind == "id" then
+      for _, nw in ipairs(LOGIC[t.text] or {}) do add(t, nw) end
+      local prv, nxt = toks[i - 1], toks[i + 1]
+      local declares = prv and (prv.text == "local" or prv.text == "for" or prv.text == "function")
+      if not KEYWORDS[t.text] and not declares and not (nxt and (nxt.text == "(" or nxt.text == ":" )) and not (prv and (prv.text == "." or prv.text == ":")) and not (nxt and nxt.text == "=" and prv and (prv.text == "," or prv.text == "do" or prv.text == "then" or prv.text == "end" or prv.text == "else")) then
+        for _, other in ipairs(ids) do if other ~= t.text then add(t, other) end end
+      end
+    end
+  end
+  return out
+end
+
+local function apply(text, ms)
+  table.sort(ms, function(a, b) return a.s > b.s end)
+  for _, m in ipairs(ms) do text = text:sub(1, m.s - 1) .. m.new .. text:sub(m.e + 1) end
+  return text
+end
+
+S.register("repair", {cap = "synth",
+  doc = "repair{entry, cases, max_edits?, max_trials?} -> find the fewest single-token edits (number, operator, and/or, variable) that make every test case pass; returns line edits to apply (nothing is changed)",
+  quote = function(ws, a) return 8 + math.min(a.max_trials or 20000, 20000) // 8 end,
+  run = function(ws, a)
+    if type(a.entry) ~= "string" or type(a.cases) ~= "table" or #a.cases == 0 or #a.cases > ws.policy.test_cases then return 1, {err = "entry and 1.." .. ws.policy.test_cases .. " cases are required"}, 1 end
+    local text = ws.files[S.FILE]
+    local base = run_cases(text, a.entry, a.cases, 10000)
+    if base == #a.cases then return 4, {err = "all cases already pass"}, 2 end
+    local toks = tokenize(text)
+    local ms = mutations(text, toks)
+    local max_trials = math.min(a.max_trials or 20000, 20000)
+    local trials, best, bestscore = 0, nil, base
+    local function test(list)
+      trials = trials + 1
+      local t = apply(text, list)
+      if not load(t, "=sketch", "t", {}) then return nil end
+      local passed = run_cases(t, a.entry, a.cases, 10000)
+      if passed > bestscore then bestscore = passed; best = {text = t, passed = passed, n = #list} end
+      if passed == #a.cases then return t end
+    end
+    local solved, nedit
+    for _, m in ipairs(ms) do
+      if trials >= max_trials then break end
+      solved = test({m}); if solved then nedit = 1; solved = {text = solved, edits = {m}}; break end
+    end
+    if not solved and (a.max_edits or 2) >= 2 then
+      for i = 1, #ms do
+        if solved or trials >= max_trials then break end
+        for j = i + 1, #ms do
+          if trials >= max_trials then break end
+          if ms[j].s > ms[i].e or ms[i].s > ms[j].e then
+            local t = test({ms[i], ms[j]})
+            if t then solved = {text = t, edits = {ms[i], ms[j]}}; nedit = 2; break end
+          end
+        end
+      end
+    end
+    local cost = 8 + trials // 8
+    if solved then
+      local desc = {}
+      for _, m in ipairs(solved.edits) do desc[#desc + 1] = {line = m.line, old = m.old, new = m.new} end
+      return 0, {found = true, changes = desc, edits = line_edits(text, solved.text), trials = trials, n_edits = nedit}, cost
+    end
+    return 4, {found = false, trials = trials, best_passed = bestscore, total = #a.cases}, cost
+  end})
+
+--[[@@END@@]]
+return F
+end
+
+-- ======================================================================== asi.sketch.agent  (the coding agent: tools only, counter-example guided)
+package.preload["asi.sketch.agent"] = function(...)
+--[============[
+asi/sketch/agent.lua -- the coding agent of the sketch workspace: it turns a task into code in sketch.lua using ONLY the workspace tools.
+
+It has no privileged access: every observation and every change goes through `ws:call` (and is therefore costed, policy-checked, logged and replayable). Its method:
+  1. look (list/read) and decide between append (new function) and replace (the function it wrote before);
+  2. ask the reasoning tool `synth` for a program that reproduces the examples;
+  3. write it with `append` / `replace`, `check` that it compiles, `test` it on the training examples (the sandbox must agree with the synthesizer's own evaluator);
+  4. `test` it on the VALIDATION cases (given by the user, or generated from a reference `spec` that itself runs in the sandbox on inputs the agent generates);
+  5. on a failure, add the failing cases to the examples (counter-example guided synthesis) and go back to 2; on success `snapshot`.
+The validation cases it is given are the only held-out knowledge it uses; benchmark tasks keep a further HIDDEN test set that the agent never sees.
+]============]
+local U = require("asi.util")
+local S = require("asi.sketch")
+local Y = require("asi.sketch.synth")
+local A = {}
+
+-- helper definitions (single-line `local function ...`) that sketch.lua already holds verbatim outside `block` are not written twice
+local function without_known_helpers(code, filetext, block)
+  local base = filetext
+  if block then
+    local s, e = base:find(block, 1, true)
+    if s then base = base:sub(1, s - 1) .. base:sub(e + 1) end
+  end
+  local have = {}
+  for line in base:gmatch("([^\n]*)\n") do have[line] = true end
+  local out = {}
+  for line in code:gmatch("([^\n]*)\n") do
+    if not (line:match("^local function ") and have[line]) then out[#out + 1] = line end
+  end
+  return table.concat(out, "\n") .. "\n"
+end
+
+local function copy_cases(list)
+  local out = {}
+  for i, c in ipairs(list) do out[i] = {args = c.args, out = c.out} end
+  return out
+end
+
+-- inputs for a reference spec: kinds "int" {lo,hi}, "ilist" {maxlen,lo,hi}, "str" {maxlen,alphabet}; deterministic LCG
+local function lcg(seed) local s = seed; return function(n) s = (s * 6364136223846793005 + 1442695040888963407) & 0x7FFFFFFFFFFFFFFF; return ((s >> 33) % n) end end
+function A.gen_inputs(kinds, n, seed)
+  local rnd = lcg(seed or 1)
+  local out = {}
+  for i = 1, n do
+    local args = {}
+    for k, kind in ipairs(kinds) do
+      if kind.kind == "int" then args[k] = (kind.lo or -9) + rnd((kind.hi or 20) - (kind.lo or -9) + 1)
+      elseif kind.kind == "ilist" then
+        local len = (kind.minlen or 0) + rnd((kind.maxlen or 6) - (kind.minlen or 0) + 1)
+        local t = {}
+        for j = 1, len do t[j] = (kind.lo or -5) + rnd((kind.hi or 12) - (kind.lo or -5) + 1) end
+        args[k] = t
+      elseif kind.kind == "str" then
+        local alpha = kind.alphabet or "abc"
+        local len = (kind.minlen or 0) + rnd((kind.maxlen or 6) - (kind.minlen or 0) + 1)
+        local t = {}
+        for j = 1, len do local c = 1 + rnd(#alpha); t[j] = alpha:sub(c, c) end
+        args[k] = table.concat(t)
+      end
+    end
+    out[i] = args
+  end
+  return out
+end
+
+-- solve(ws, task, opts) -> report. task = {name, params, examples, validate?, spec?(Lua source defining function `spec`), inputs?({{kind=...}}), max_rounds?}
+function A.solve(ws, task, opts)
+  opts = opts or {}
+  local report = {name = task.name, rounds = 0, ok = false, calls = 0, tried = 0}
+  local c0 = ws.calls
+  local function call(tool, args) return ws:call(tool, args) end
+  local train = copy_cases(task.examples)
+  local valid = task.validate and copy_cases(task.validate) or {}
+  -- validation cases from a reference specification (it runs in the sandbox; the agent never reads its code except to run it)
+  if task.spec and task.inputs and #valid == 0 then
+    local inputs = A.gen_inputs(task.inputs, task.n_valid or 12, task.seed or 7)
+    for _, args in ipairs(inputs) do
+      local r = S.sandbox_run(task.spec, "spec", {n = #args, table.unpack(args)}, {})
+      if r.ok and r.values[1] ~= nil then valid[#valid + 1] = {args = args, out = r.values[1]} end
+    end
+  end
+  local look = call("read", {})
+  local text = look.text or ""
+  local chk = call("check", {})
+  local defined = false
+  for _, d in ipairs(chk.defs or {}) do if d == task.name then defined = true end end
+  local block                                      -- the exact text this agent wrote (so that it can be replaced, never rewritten wholesale)
+  local max_rounds = task.max_rounds or 6
+  for round = 1, max_rounds do
+    report.rounds = round
+    local syn = call("synth", {task = {name = task.name, params = task.params, examples = train, max_size = task.max_size, max_candidates = task.max_candidates}})
+    report.tried = report.tried + (syn.tried or 0)
+    if not syn.found then report.reason = syn.reason or syn.err or "no program found"; break end
+    local cur = ws:text()
+    local code = without_known_helpers(syn.source, cur, block)
+    code = string.format("-- %s: synthesized from %d examples (size %d, %d candidates tried)\n", task.name, #train, syn.size, syn.tried) .. code
+    local w
+    if block then w = call("replace", {old = block, new = code})
+    elseif defined then
+      report.reason = "a function named " .. task.name .. " already exists in sketch.lua that this agent did not write"
+      break
+    else w = call("append", {text = code}) end
+    if not w.ok then report.reason = "write failed: " .. tostring(w.err); break end
+    block = code
+    local ck = call("check", {})
+    if not ck.ok then report.reason = "the proposal does not compile: " .. tostring(ck.err); break end
+    local tr = call("test", {entry = task.name, cases = train})
+    report.train_pass = tr.passed
+    if not tr.all then report.reason = "the sandbox disagrees with the synthesizer on the training examples"; break end
+    report.size, report.expr = syn.size, syn.expr
+    if #valid == 0 then report.ok = true; report.validated = false; break end
+    local vt = call("test", {entry = task.name, cases = valid})
+    report.valid_pass, report.valid_total = vt.passed, vt.total
+    if vt.all then report.ok, report.validated = true, true; break end
+    -- counter-examples: the failing validation cases join the examples
+    local added = 0
+    for _, f in ipairs(vt.fails) do
+      train[#train + 1] = {args = f.args, out = f.want}
+      added = added + 1
+    end
+    if added == 0 then report.reason = "validation failed without a usable counter-example"; break end
+    report.counterexamples = (report.counterexamples or 0) + added
+  end
+  if report.ok then call("snapshot", {label = "solved " .. task.name}) end
+  report.calls = ws.calls - c0
+  report.source = block
+  return report
+end
+
+-- complete a SKETCH (a function with HOLE_INT/HOLE_BOOL calls) and debug a function: the other two ways the agent writes code
+-- task = {name, sketch = <Lua source with holes>, cases = {{args, out}...}, validate = {...}?}
+function A.solve_sketch(ws, task)
+  local report = {name = task.name, ok = false, kind = "sketch"}
+  local c0 = ws.calls
+  local w = ws:call("append", {text = task.sketch})
+  if not w.ok then report.reason = "write failed: " .. tostring(w.err); report.calls = ws.calls - c0; return report end
+  local f = ws:call("fill", {entry = task.name, cases = task.cases})
+  report.trials = f.trials
+  if f.found then
+    local e = ws:call("edit", {hunks = f.edits})
+    if e.ok then
+      local tr = ws:call("test", {entry = task.name, cases = task.cases})
+      report.train_pass = tr.passed
+      if tr.all then
+        report.ok, report.fills = true, f.fills
+        if task.validate and #task.validate > 0 then
+          local vt = ws:call("test", {entry = task.name, cases = task.validate})
+          report.valid_pass, report.valid_total, report.validated = vt.passed, vt.total, vt.all
+          report.ok = vt.all
+          if not vt.all then report.reason = "the fill fits the cases but fails validation" end
+        end
+      else report.reason = "applied fill does not pass" end
+    else report.reason = "edit failed: " .. tostring(e.err) end
+  else report.reason = "no fill found (best " .. tostring(f.best_passed) .. "/" .. tostring(f.total) .. ")" end
+  if report.ok then ws:call("snapshot", {label = "filled " .. task.name}) end
+  report.calls = ws.calls - c0
+  return report
+end
+
+-- debug the function `entry` in sketch.lua so that all cases pass: repair proposes line edits, the agent applies and re-tests them
+function A.debug(ws, entry, cases)
+  local report = {entry = entry, ok = false}
+  local c0 = ws.calls
+  local t = ws:call("test", {entry = entry, cases = cases})
+  report.before = t.passed
+  report.total = t.total
+  if t.all then report.ok, report.note = true, "already passes"; report.calls = ws.calls - c0; return report end
+  local r = ws:call("repair", {entry = entry, cases = cases})
+  report.trials = r.trials
+  if r.found then
+    local e = ws:call("edit", {hunks = r.edits})
+    if e.ok then
+      local t2 = ws:call("test", {entry = entry, cases = cases})
+      report.after, report.ok, report.changes = t2.passed, t2.all, r.changes
+    end
+  else report.reason = "no repair found (best " .. tostring(r.best_passed) .. "/" .. tostring(r.total) .. ")" end
+  report.calls = ws.calls - c0
+  return report
+end
+
+--[[@@END@@]]
+return A
+end
+
+-- ======================================================================== asi.sketch.bench  (the sketch benchmark: tasks with hidden test cases and baselines)
+package.preload["asi.sketch.bench"] = function(...)
+--[============[
+asi/sketch/bench.lua -- the sketch benchmark: small programming tasks specified by a few examples, judged on cases the agent never sees.
+
+Every task has a reference implementation (host Lua, trusted, used ONLY to produce expected outputs), a handful of hand-picked training examples (what a user would type), a few
+VALIDATION cases (the agent may use them for counter-example guided refinement) and 40 HIDDEN cases (never shown to the agent: the generalisation test). The synthesizer's output is
+always executed in the sandbox. Reported per task and in total: solved on the training examples, accepted on the validation cases, correct on the hidden cases, candidates tried,
+workspace cost. Baselines: a MEMORISER (a lookup table of the training examples: passes training, shows what the hidden cases measure) and the same enumerator WITHOUT observational
+equivalence (shows what the pruning buys at an equal candidate budget).
+]============]
+local S = require("asi.sketch")
+local Y = require("asi.sketch.synth")
+local A = require("asi.sketch.agent")
+local B = {}
+
+local G = {
+  int = {kind = "int", lo = -9, hi = 20}, nat = {kind = "int", lo = 0, hi = 8}, pos = {kind = "int", lo = 1, hi = 9},
+  list = {kind = "ilist", maxlen = 6, lo = -5, hi = 12}, list1 = {kind = "ilist", minlen = 1, maxlen = 6, lo = -5, hi = 12}, list2 = {kind = "ilist", minlen = 2, maxlen = 6, lo = -5, hi = 12},
+  str = {kind = "str", maxlen = 6, alphabet = "abc"}, str1 = {kind = "str", minlen = 1, maxlen = 6, alphabet = "abc"},
+  small = {kind = "int", lo = -4, hi = 9},
+}
+local function even(v) return v % 2 == 0 end
+local function T(name, params, gen, ref, train) return {name = name, params = params, gen = gen, ref = ref, train = train} end
+
+B.tasks = {
+  T("double", {"x"}, {G.int}, function(x) return 2 * x end, {{1}, {5}, {-3}, {0}}),
+  T("square", {"x"}, {G.int}, function(x) return x * x end, {{2}, {-3}, {0}, {5}}),
+  T("cube", {"x"}, {G.small}, function(x) return x * x * x end, {{2}, {-2}, {0}, {3}}),
+  T("plus7", {"x"}, {G.int}, function(x) return x + 7 end, {{0}, {5}, {-7}, {13}}),
+  T("abs_val", {"x"}, {G.int}, function(x) return x < 0 and -x or x end, {{3}, {-4}, {0}, {-9}}),
+  T("triangular", {"n"}, {G.nat}, function(n) return n * (n + 1) // 2 end, {{0}, {1}, {4}, {6}}),
+  T("factorial", {"n"}, {G.nat}, function(n) local r = 1 for i = 2, n do r = r * i end return r end, {{0}, {1}, {3}, {5}, {4}}),
+  T("sum_to_n", {"n"}, {G.nat}, function(n) return n * (n + 1) // 2 end, {{0}, {2}, {5}, {7}}),
+  T("is_even", {"x"}, {G.int}, function(x) return x % 2 == 0 end, {{2}, {3}, {0}, {-5}, {8}}),
+  T("is_pos", {"x"}, {G.int}, function(x) return x > 0 end, {{2}, {-3}, {0}, {7}}),
+  T("max2", {"a", "b"}, {G.int, G.int}, function(a, b) return a > b and a or b end, {{1, 2}, {5, 3}, {-1, -4}, {7, 7}}),
+  T("abs_diff", {"a", "b"}, {G.int, G.int}, function(a, b) local d = a - b return d < 0 and -d or d end, {{5, 2}, {2, 5}, {3, 3}, {-1, 4}}),
+  T("sum_sq2", {"a", "b"}, {G.small, G.small}, function(a, b) return a * a + b * b end, {{1, 2}, {0, 3}, {-2, 2}, {4, 1}}),
+  T("avg2", {"a", "b"}, {G.int, G.int}, function(a, b) return (a + b) // 2 end, {{2, 4}, {3, 6}, {0, 0}, {-3, 4}}),
+  T("clamp", {"x", "lo", "hi"}, {G.int, G.small, G.small}, function(x, lo, hi) return math.min(hi, math.max(x, lo)) end, {{5, 0, 3}, {-1, 0, 3}, {2, 0, 3}, {9, 4, 7}, {1, 4, 7}}),
+  T("is_multiple", {"a", "b"}, {G.int, G.pos}, function(a, b) return a % b == 0 end, {{6, 3}, {7, 3}, {0, 5}, {10, 4}, {12, 4}}),
+  T("list_sum", {"xs"}, {G.list}, function(xs) local s = 0 for _, v in ipairs(xs) do s = s + v end return s end, {{{1, 2, 3}}, {{}}, {{5}}, {{-2, 7}}}),
+  T("list_prod", {"xs"}, {G.list}, function(xs) local s = 1 for _, v in ipairs(xs) do s = s * v end return s end, {{{1, 2, 3}}, {{}}, {{5}}, {{-2, 7}}, {{4, 0, 2}}}),
+  T("list_len", {"xs"}, {G.list}, function(xs) return #xs end, {{{1, 2, 3}}, {{}}, {{5}}, {{9, 9}}}),
+  T("list_max", {"xs"}, {G.list1}, function(xs) local m = xs[1] for _, v in ipairs(xs) do if v > m then m = v end end return m end, {{{1, 5, 3}}, {{7}}, {{-2, -9}}, {{4, 4, 8}}}),
+  T("list_min", {"xs"}, {G.list1}, function(xs) local m = xs[1] for _, v in ipairs(xs) do if v < m then m = v end end return m end, {{{4, 1, 3}}, {{7}}, {{-2, -9}}, {{4, 4, 8}}}),
+  T("list_last", {"xs"}, {G.list1}, function(xs) return xs[#xs] end, {{{1, 5, 3}}, {{7}}, {{-2, -9}}, {{4, 4, 8}}}),
+  T("list_second", {"xs"}, {G.list2}, function(xs) return xs[2] end, {{{1, 5, 3}}, {{7, 2}}, {{-2, -9, 4}}, {{4, 4, 8}}}),
+  T("list_rev", {"xs"}, {G.list}, function(xs) local r = {} for i = #xs, 1, -1 do r[#r + 1] = xs[i] end return r end, {{{1, 2, 3}}, {{}}, {{5}}, {{-2, 7, 1, 0}}}),
+  T("list_sorted", {"xs"}, {G.list}, function(xs) local r = {table.unpack(xs)} table.sort(r) return r end, {{{3, 1, 2}}, {{}}, {{5}}, {{-2, 7, 1, 0}}, {{2, 2, 1}}}),
+  T("sum_squares", {"xs"}, {G.list}, function(xs) local s = 0 for _, v in ipairs(xs) do s = s + v * v end return s end, {{{1, 2, 3}}, {{}}, {{4}}, {{-2, 5}}}),
+  T("count_pos", {"xs"}, {G.list}, function(xs) local c = 0 for _, v in ipairs(xs) do if v > 0 then c = c + 1 end end return c end, {{{1, -2, 3}}, {{}}, {{-4}}, {{5, 6, 0}}, {{2}}}),
+  T("count_even", {"xs"}, {G.list}, function(xs) local c = 0 for _, v in ipairs(xs) do if even(v) then c = c + 1 end end return c end, {{{1, 2, 3, 4}}, {{}}, {{2, 4, 6}}, {{1, 3}}, {{7, 8}}}),
+  T("sum_even", {"xs"}, {G.list}, function(xs) local s = 0 for _, v in ipairs(xs) do if even(v) then s = s + v end end return s end, {{{1, 2, 3, 4}}, {{}}, {{2, 4, 6}}, {{1, 3}}, {{7, 8}}}),
+  T("evens", {"xs"}, {G.list}, function(xs) local r = {} for _, v in ipairs(xs) do if even(v) then r[#r + 1] = v end end return r end, {{{1, 2, 3, 4}}, {{}}, {{5, 7}}, {{6}}, {{10, 11, 12}}}),
+  T("squares", {"xs"}, {G.list}, function(xs) local r = {} for i, v in ipairs(xs) do r[i] = v * v end return r end, {{{1, 2, 3}}, {{}}, {{-4}}, {{5, 0}}}),
+  T("negatives", {"xs"}, {G.list}, function(xs) local r = {} for _, v in ipairs(xs) do if v < 0 then r[#r + 1] = v end end return r end, {{{1, -2, 3}}, {{}}, {{-4, -5}}, {{5, 6, 0}}}),
+  T("any_neg", {"xs"}, {G.list}, function(xs) for _, v in ipairs(xs) do if v < 0 then return true end end return false end, {{{1, -2, 3}}, {{}}, {{4, 5}}, {{0, -1}}, {{7}}}),
+  T("all_pos", {"xs"}, {G.list}, function(xs) for _, v in ipairs(xs) do if v <= 0 then return false end end return true end, {{{1, 2, 3}}, {{}}, {{4, -5}}, {{0, 1}}, {{7}}}),
+  T("span", {"xs"}, {G.list1}, function(xs) local lo, hi = xs[1], xs[1] for _, v in ipairs(xs) do lo = math.min(lo, v); hi = math.max(hi, v) end return hi - lo end, {{{1, 5, 3}}, {{7}}, {{-2, 2}}, {{3, 3, 3}}}),
+  T("mean_floor", {"xs"}, {G.list1}, function(xs) local s = 0 for _, v in ipairs(xs) do s = s + v end return s // #xs end, {{{1, 2, 3}}, {{7}}, {{2, 5}}, {{-3, 4, 1}}, {{10, 0}}}),
+  T("odd_sq_sum", {"xs"}, {G.list}, function(xs) local s = 0 for _, v in ipairs(xs) do if not even(v) then s = s + v * v end end return s end, {{{1, 2, 3}}, {{}}, {{4}}, {{-3, 5}}, {{2, 4}}}),
+  T("double_all", {"xs"}, {G.list}, function(xs) local r = {} for i, v in ipairs(xs) do r[i] = 2 * v end return r end, {{{1, 2, 3}}, {{}}, {{-4}}, {{5, 0}}}),
+  T("count_gt3", {"xs"}, {G.list}, function(xs) local c = 0 for _, v in ipairs(xs) do if v > 3 then c = c + 1 end end return c end, {{{1, 5, 9}}, {{}}, {{3, 4}}, {{2, 2}}, {{10, 0, 7}}}),
+  T("take2", {"xs"}, {G.list}, function(xs) return {xs[1], xs[2]} end, {{{1, 2, 3}}, {{5, 6}}, {{9, 8, 7, 6}}}),
+  T("list_tail", {"xs"}, {G.list1}, function(xs) local r = {} for i = 2, #xs do r[#r + 1] = xs[i] end return r end, {{{1, 2, 3}}, {{5}}, {{9, 8, 7, 6}}, {{4, 4}}}),
+  T("contains", {"xs", "x"}, {G.list, G.small}, function(xs, x) for _, v in ipairs(xs) do if v == x then return true end end return false end, {{{1, 2, 3}, 2}, {{1, 2, 3}, 5}, {{}, 0}, {{4, 4}, 4}, {{7}, 8}}),
+  T("count_of", {"xs", "x"}, {G.list, G.small}, function(xs, x) local c = 0 for _, v in ipairs(xs) do if v == x then c = c + 1 end end return c end, {{{1, 2, 2}, 2}, {{1, 2, 3}, 5}, {{}, 0}, {{4, 4, 4}, 4}, {{7}, 8}}),
+  T("str_len", {"s"}, {G.str}, function(s) return #s end, {{"abc"}, {""}, {"hello"}, {"a"}}),
+  T("str_upper", {"s"}, {G.str}, function(s) return s:upper() end, {{"abc"}, {""}, {"hello"}, {"aB"}}),
+  T("str_rev", {"s"}, {G.str}, function(s) return s:reverse() end, {{"abc"}, {""}, {"hello"}, {"ab"}}),
+  T("palindrome", {"s"}, {G.str}, function(s) return s == s:reverse() end, {{"abba"}, {"abc"}, {""}, {"x"}, {"ab"}}),
+  T("str_twice", {"s"}, {G.str}, function(s) return s .. s end, {{"ab"}, {""}, {"x"}, {"hey"}}),
+  T("first_char", {"s"}, {G.str1}, function(s) return s:sub(1, 1) end, {{"abc"}, {"x"}, {"hello"}, {"ba"}}),
+  T("last_char", {"s"}, {G.str1}, function(s) return s:sub(-1, -1) end, {{"abc"}, {"x"}, {"hello"}, {"ba"}}),
+  T("join_comma", {"a", "b"}, {G.str, G.str}, function(a, b) return a .. "," .. b end, {{"x", "y"}, {"ab", "c"}, {"", "q"}, {"hi", ""}}),
+  T("shout", {"s"}, {G.str}, function(s) return s:upper() .. "!" end, {{"ab"}, {""}, {"hey"}, {"x"}}),
+  T("count_a", {"s"}, {G.str}, function(s) local n = 0 for i = 1, #s do if s:sub(i, i) == "a" then n = n + 1 end end return n end, {{"banana"}, {""}, {"abc"}, {"aaa"}, {"bcb"}}),
+  T("drop_first", {"s"}, {G.str1}, function(s) return s:sub(2) end, {{"abc"}, {"x"}, {"hello"}, {"ba"}}),
+}
+
+local function example(task, args)
+  local ok, out = pcall(task.ref, table.unpack(args, 1, #task.params))
+  if ok and out ~= nil then return {args = args, out = out} end
+end
+
+-- the cases of one task: {examples (training), validate, hidden}
+function B.make(task)
+  local ex, val, hid = {}, {}, {}
+  for _, a in ipairs(task.train) do local e = example(task, a); if e then ex[#ex + 1] = e end end
+  local function gen(n, seed, into)
+    for _, args in ipairs(A.gen_inputs(task.gen, n * 3, seed)) do
+      if #into >= n then break end
+      local e = example(task, args)
+      if e then into[#into + 1] = e end
+    end
+  end
+  gen(14, 101, val)
+  gen(40, 202, hid)
+  return {examples = ex, validate = val, hidden = hid}
+end
+
+-- baseline: a lookup table of the training examples (passes the training cases by construction; the hidden cases show what it is worth)
+function B.memoriser_rate(task, cases)
+  local seen = {}
+  for _, e in ipairs(cases.examples) do seen[S.ser(e.args)] = true end
+  local hit = 0
+  for _, c in ipairs(cases.hidden) do if seen[S.ser(c.args)] then hit = hit + 1 end end
+  return hit, #cases.hidden
+end
+
+local function hidden_pass(task, source, hidden)
+  local passed = 0
+  local chunk_ok = load(source, "=sketch", "t", {})
+  if not chunk_ok then return 0 end
+  for _, c in ipairs(hidden) do
+    local r = S.sandbox_run(source, task.name, {n = #c.args, table.unpack(c.args)}, {run_steps = 100000})
+    if r.ok and S.same(r.values[1], c.out) then passed = passed + 1 end
+  end
+  return passed
+end
+
+-- run the benchmark: opts.only = {names}, opts.max_candidates, opts.no_dedupe, opts.progress(fn)
+function B.run(opts)
+  opts = opts or {}
+  local rows = {}
+  local want
+  if opts.only then want = {}; for _, n in ipairs(opts.only) do want[n] = true end end
+  for _, task in ipairs(B.tasks) do
+    if not want or want[task.name] then
+      local cases = B.make(task)
+      local row = {name = task.name, n_train = #cases.examples, n_hidden = #cases.hidden}
+      -- 1. the synthesizer alone on the training examples (no validation)
+      local t0 = os.clock()
+      local r0 = Y.solve({name = task.name, params = task.params, examples = cases.examples}, {max_candidates = opts.max_candidates, no_dedupe = opts.no_dedupe})
+      row.found = r0.ok; row.tried0 = r0.tried; row.size0 = r0.size
+      if r0.ok then row.hidden0 = hidden_pass(task, r0.source, cases.hidden) end
+      -- 2. the agent with validation cases and counter-example refinement, through the workspace tools
+      if not opts.synth_only then
+        local ws = S.new{policy = opts.policy}
+        local rep = A.solve(ws, {name = task.name, params = task.params, examples = cases.examples, validate = cases.validate, max_candidates = opts.max_candidates, max_rounds = 8})
+        row.agent_ok, row.rounds, row.tried = rep.ok, rep.rounds, rep.tried
+        row.cost, row.calls, row.expr = ws.spent, ws.calls, rep.expr
+        row.hidden = rep.ok and hidden_pass(task, ws:text(), cases.hidden) or 0
+        row.chain = ws.head:sub(1, 12)
+        row.text = ws:text()
+      end
+      row.secs = os.clock() - t0
+      rows[#rows + 1] = row
+      if opts.progress then opts.progress(row) end
+    end
+  end
+  return rows
+end
+
+function B.memoriser_summary(only)
+  local hit, tot = 0, 0
+  local want
+  if only then want = {}; for _, n in ipairs(only) do want[n] = true end end
+  for _, task in ipairs(B.tasks) do
+    if not want or want[task.name] then
+      local h, t = B.memoriser_rate(task, B.make(task))
+      hit, tot = hit + h, tot + t
+    end
+  end
+  return hit, tot
+end
+
+function B.summary(rows)
+  local n, found, ok, full, hid, hidn, sizes, tried = #rows, 0, 0, 0, 0, 0, 0, 0
+  for _, r in ipairs(rows) do
+    if r.found then found = found + 1 end
+    if r.agent_ok then ok = ok + 1 end
+    local h = r.hidden or r.hidden0 or 0
+    if (r.agent_ok or (r.hidden == nil and r.found)) and h == r.n_hidden then full = full + 1 end
+    hid = hid + h; hidn = hidn + r.n_hidden
+    tried = tried + (r.tried or r.tried0 or 0)
+  end
+  return {tasks = n, found = found, accepted = ok, correct = full, hidden_rate = hidn > 0 and hid / hidn or 0, tried = tried}
+end
+
+function B.format(rows)
+  local out = {}
+  out[#out + 1] = string.format("%-12s %5s %6s %8s %7s %6s %7s %s", "task", "found", "agent", "hidden", "rounds", "calls", "cost", "program")
+  for _, r in ipairs(rows) do
+    out[#out + 1] = string.format("%-12s %5s %6s %5d/%-2d %7s %6s %7s %s", r.name, r.found and "yes" or "no", r.agent_ok and "ok" or "-", r.hidden or r.hidden0 or 0, r.n_hidden, tostring(r.rounds or "-"), tostring(r.calls or "-"), tostring(r.cost or "-"), r.expr or "")
+  end
+  local s = B.summary(rows)
+  out[#out + 1] = string.format("\n%d tasks: synthesizer found a program for %d; the agent accepted %d; %d are correct on ALL hidden cases; hidden-case accuracy %.3f; %d candidates in total", s.tasks, s.found, s.accepted, s.correct, s.hidden_rate, s.tried)
+  return table.concat(out, "\n")
+end
+
+------------------------------------------------------------------------------------------------ sketches and bugs
+-- sketches: a function with holes, completed by the `fill` tool; judged on hidden cases
+B.sketches = {
+  {name = "clamp_s", params = {"x", "lo", "hi"}, gen = {G.int, G.small, G.small}, ref = function(x, lo, hi) return math.min(hi, math.max(x, lo)) end,
+   sketch = "function clamp_s(x, lo, hi)\n  local y = HOLE_INT(x, lo)\n  return HOLE_INT(y, hi)\nend\n", train = {{5, 0, 3}, {-1, 0, 3}, {2, 0, 3}, {9, 4, 7}, {1, 4, 7}, {4, 4, 7}}},
+  {name = "relu", params = {"x"}, gen = {G.int}, ref = function(x) return x < 0 and 0 or x end,
+   sketch = "function relu(x)\n  if HOLE_BOOL(x) then return HOLE_INT(x) end\n  return x\nend\n", train = {{3}, {-4}, {0}, {-1}, {9}}},
+  {name = "sign_s", params = {"x"}, gen = {G.int}, ref = function(x) return x < 0 and -1 or (x > 0 and 1 or 0) end,
+   sketch = "function sign_s(x)\n  if HOLE_BOOL(x) then return HOLE_INT(x) end\n  return HOLE_INT(x)\nend\n", train = {{3}, {-4}, {0}, {-1}, {9}, {1}}},
+  {name = "diff_sq", params = {"a", "b"}, gen = {G.small, G.small}, ref = function(a, b) return a * a - b * b end,
+   sketch = "function diff_sq(a, b)\n  return HOLE_INT(a, b) * HOLE_INT(a, b)\nend\n", train = {{3, 1}, {5, 2}, {0, 4}, {-2, 3}, {4, 4}}},
+  {name = "max3_s", params = {"a", "b", "c"}, gen = {G.int, G.int, G.int}, ref = function(a, b, c) return math.max(a, b, c) end,
+   sketch = "function max3_s(a, b, c)\n  local m = HOLE_INT(a, b)\n  return HOLE_INT(m, c)\nend\n", train = {{1, 2, 3}, {3, 2, 1}, {2, 3, 1}, {-1, -5, -2}, {4, 4, 4}}},
+  {name = "collatz", params = {"n"}, gen = {{kind = "int", lo = 1, hi = 40}}, ref = function(n) if n % 2 == 0 then return n // 2 end return 3 * n + 1 end,
+   sketch = "function collatz(n)\n  if HOLE_BOOL(n) then return HOLE_INT(n) end\n  return HOLE_INT(n)\nend\n", train = {{6}, {7}, {1}, {10}, {9}, {2}}},
+}
+
+-- bugs: a function with a seeded defect and tests that expose it; the `repair` tool finds the edit
+B.bugs = {
+  {name = "count_big", params = {"xs", "k"}, gen = {G.list, G.small}, ref = function(xs, k) local c = 0 for _, v in ipairs(xs) do if v > k then c = c + 1 end end return c end,
+   code = "function count_big(xs, k)\n  local c = 0\n  for i = 1, #xs - 1 do\n    if xs[i] >= k then c = c + 1 end\n  end\n  return c\nend\n"},
+  {name = "sum_pos", params = {"xs"}, gen = {G.list}, ref = function(xs) local s = 0 for _, v in ipairs(xs) do if v > 0 then s = s + v end end return s end,
+   code = "function sum_pos(xs)\n  local s = 0\n  for i = 1, #xs do\n    if xs[i] < 0 then s = s + xs[i] end\n  end\n  return s\nend\n"},
+  {name = "fact_loop", params = {"n"}, gen = {G.nat}, ref = function(n) local r = 1 for i = 2, n do r = r * i end return r end,
+   code = "function fact_loop(n)\n  local r = 0\n  for i = 2, n do r = r * i end\n  return r\nend\n"},
+  {name = "is_between", params = {"x", "lo", "hi"}, gen = {G.int, G.small, G.small}, ref = function(x, lo, hi) return x >= lo and x <= hi end,
+   code = "function is_between(x, lo, hi)\n  return x >= lo and x < hi\nend\n"},
+  {name = "mean_floor2", params = {"xs"}, gen = {G.list1}, ref = function(xs) local s = 0 for _, v in ipairs(xs) do s = s + v end return s // #xs end,
+   code = "function mean_floor2(xs)\n  local s = 0\n  for i = 1, #xs do s = s + xs[i] end\n  return s // (#xs + 1)\nend\n"},
+  {name = "last_two_sum", params = {"xs"}, gen = {G.list2}, ref = function(xs) return xs[#xs] + xs[#xs - 1] end,
+   code = "function last_two_sum(xs)\n  return xs[#xs] + xs[#xs - 2]\nend\n"},
+}
+
+local function pass_rate(code, name, cases)
+  local passed = 0
+  for _, c in ipairs(cases) do
+    local r = S.sandbox_run(code, name, {n = #c.args, table.unpack(c.args)}, {run_steps = 100000})
+    if r.ok and S.same(r.values[1], c.out) then passed = passed + 1 end
+  end
+  return passed
+end
+
+function B.run_sketches()
+  local rows = {}
+  for _, t in ipairs(B.sketches) do
+    local train, hid, val = {}, {}, {}
+    for _, a in ipairs(t.train) do local e = example(t, a); if e then train[#train + 1] = e end end
+    for _, args in ipairs(A.gen_inputs(t.gen, 90, 303)) do local e = example(t, args); if e and #hid < 40 then hid[#hid + 1] = e end end
+    for _, args in ipairs(A.gen_inputs(t.gen, 30, 404)) do local e = example(t, args); if e and #val < 8 then val[#val + 1] = e end end
+    local ws = S.new{}
+    local rep = A.solve_sketch(ws, {name = t.name, sketch = t.sketch, cases = train, validate = val})
+    rows[#rows + 1] = {name = t.name, kind = "sketch", ok = rep.ok, hidden = rep.ok and pass_rate(ws:text(), t.name, hid) or 0, n_hidden = #hid, trials = rep.trials, calls = ws.calls, cost = ws.spent, fills = rep.fills and table.concat(rep.fills, " | ") or rep.reason}
+  end
+  for _, t in ipairs(B.bugs) do
+    local hid, tests = {}, {}
+    for _, args in ipairs(A.gen_inputs(t.gen, 90, 505)) do local e = example(t, args); if e and #hid < 40 then hid[#hid + 1] = e end end
+    for _, args in ipairs(A.gen_inputs(t.gen, 30, 606)) do local e = example(t, args); if e and #tests < 10 then tests[#tests + 1] = e end end
+    local ws = S.new{}
+    ws:call("append", {text = t.code})
+    local rep = A.debug(ws, t.name, tests)
+    local ch = {}
+    for _, c in ipairs(rep.changes or {}) do ch[#ch + 1] = c.old .. " -> " .. (c.new == "" and "(deleted)" or c.new) end
+    local note = rep.note == "already passes" and "the 10 tests do not expose the bug" or ""
+    rows[#rows + 1] = {name = t.name, kind = "bug", ok = rep.ok, repaired = rep.changes ~= nil and rep.ok, hidden = rep.ok and pass_rate(ws:text(), t.name, hid) or pass_rate(t.code, t.name, hid), n_hidden = #hid, trials = rep.trials, calls = ws.calls, cost = ws.spent, fills = table.concat(ch, "; ") .. (rep.reason or "") .. note}
+  end
+  return rows
+end
+
+function B.format_sketches(rows)
+  local out = {string.format("%-12s %-6s %5s %8s %7s %6s  %s", "task", "kind", "ok", "hidden", "trials", "cost", "fills / edits")}
+  for _, r in ipairs(rows) do
+    out[#out + 1] = string.format("%-12s %-6s %5s %5d/%-2d %7s %6s  %s", r.name, r.kind, r.ok and "yes" or "no", r.hidden, r.n_hidden, tostring(r.trials), tostring(r.cost), r.fills or "")
+  end
+  return table.concat(out, "\n")
+end
+
+--[[@@END@@]]
+return B
+end
+
+-- ======================================================================== asi.sketch.cli  (sketch-* command line access)
+package.preload["asi.sketch.cli"] = function(...)
+--[============[
+asi/sketch/cli.lua -- command-line access to the sketch workspace (installed by asi.cli): sketch-new, sketch-call, sketch-solve, sketch-show, sketch-replay, sketch-import, sketch-bench.
+
+A workspace lives in a directory: `sketch.ws` (the state: policy, history, hash-chained audit log; a Lua table literal that is PARSED, never executed) and `sketch.lua` (the file the
+system writes, stamped with its revision, digest and chain head). Every command that changes the workspace rewrites both. `sketch.lua` is only ever executed by the sandbox.
+]============]
+local U = require("asi.util")
+local S = require("asi.sketch")
+local M = {}
+
+function M.install(commands, h)
+  local parse, out, err, bad = h.parse, h.out, h.err, h.bad
+
+  local function read_all(path)
+    local f, e = io.open(path, "rb")
+    if not f then bad("cannot read " .. path .. ": " .. tostring(e)) end
+    local s = f:read("a"); f:close()
+    return s
+  end
+  local function literal_file(path)
+    local src = read_all(path):gsub("^%s*return%s+", "")
+    local ok, v = pcall(S.parse_data, src)
+    if not ok then bad("not a data literal " .. path .. ": " .. tostring(v)) end
+    return v
+  end
+  local function paths(opt)
+    local dir = opt.dir or "."
+    return dir .. "/sketch.ws", dir .. "/sketch.lua", dir
+  end
+  local function open_ws(opt)
+    local wsp = paths(opt)
+    local ws, e = S.load(wsp)
+    if not ws then bad("no workspace in '" .. (opt.dir or ".") .. "' (run sketch-new first): " .. tostring(e)) end
+    return ws
+  end
+  local function persist(ws, opt)
+    local wsp, fp = paths(opt)
+    local ok, e = S.save(ws, wsp)
+    if not ok then bad("cannot write " .. wsp .. ": " .. tostring(e)) end
+    ok, e = S.write_file(ws, fp)
+    if not ok then bad("cannot write " .. fp .. ": " .. tostring(e)) end
+  end
+  -- an edit made outside the workspace (the stamped digest no longer matches) must be imported before any tool call
+  local function guard_external(ws, opt)
+    local _, fp = paths(opt)
+    local f = io.open(fp, "rb")
+    if not f then return end
+    local text = f:read("a"); f:close()
+    local p = S.parse_file(text)
+    if p.stamped and not p.intact then bad("sketch.lua was changed outside the workspace; run sketch-import to adopt it (as a logged write) or restore it") end
+    if not p.stamped and p.body ~= ws:text() then bad("sketch.lua has no integrity header and differs from the workspace; run sketch-import") end
+  end
+
+  commands["sketch-new"] = function(args)
+    local pos, opt = parse(args, 2, {dir = "value", budget = "value", seed = "value", force = "flag", ["no-export"] = "flag"})
+    if #pos > 0 then bad("sketch-new accepts options only") end
+    local wsp, fp, dir = paths(opt)
+    local f = io.open(wsp, "rb")
+    if f then f:close(); if not opt.force then bad(wsp .. " exists (use --force to start over)") end end
+    local policy = {can = {export = not opt["no-export"]}}
+    if opt.budget then policy.budget = math.tointeger(tonumber(opt.budget)); if not policy.budget then bad("--budget must be an integer") end end
+    local ws = S.new{policy = policy, seed = opt.seed and math.tointeger(tonumber(opt.seed)) or 1, export_path = fp}
+    persist(ws, opt)
+    out(string.format("workspace created: %s and %s (budget %d, export %s)\n", wsp, fp, ws.policy.budget, ws.policy.can.export and "on" or "off"))
+    return 0
+  end
+
+  commands["sketch-call"] = function(args)
+    local pos, opt = parse(args, 2, {dir = "value", args = "value", ["args-file"] = "value", ["text-file"] = "value"})
+    if #pos ~= 1 then bad("sketch-call needs a tool name (one of: help list read edit replace append write check run test synth fill repair snapshot rollback diff log export)") end
+    local ws = open_ws(opt)
+    guard_external(ws, opt)
+    local a = {}
+    if opt.args then
+      local ok, v = pcall(S.parse_data, opt.args)
+      if not ok then bad("--args is not a data literal: " .. tostring(v)) end
+      a = v
+    elseif opt["args-file"] then a = literal_file(opt["args-file"]) end
+    if type(a) ~= "table" then bad("the arguments must be a table") end
+    if opt["text-file"] then a.text = read_all(opt["text-file"]) end
+    local res = ws:call(pos[1], a)
+    persist(ws, opt)
+    out("return ", U.to_literal(res), "\n")
+    return (res.status == 0) and 0 or (res.status == 4 and 3 or 1)
+  end
+
+  commands["sketch-solve"] = function(args)
+    local pos, opt = parse(args, 2, {dir = "value"})
+    if #pos ~= 1 then bad("sketch-solve needs a task file (a data literal: {name, params, examples, validate?, spec?, inputs?} or {name, sketch, cases})") end
+    local A = require("asi.sketch.agent")
+    local ws = open_ws(opt)
+    guard_external(ws, opt)
+    local task = literal_file(pos[1])
+    local rep
+    if task.sketch then rep = A.solve_sketch(ws, task) else rep = A.solve(ws, task) end
+    persist(ws, opt)
+    out("return ", U.to_literal(rep), "\n")
+    return rep.ok and 0 or 3
+  end
+
+  commands["sketch-show"] = function(args)
+    local pos, opt = parse(args, 2, {dir = "value", log = "value"})
+    if #pos > 0 then bad("sketch-show accepts options only") end
+    local ws = open_ws(opt)
+    out(string.format("-- rev %d  sha256 %s  chain %s  calls %d  cost %d/%d  violations %s\n", ws.rev, ws.sha, ws.head:sub(1, 16), ws.calls, ws.spent, ws.policy.budget, U.to_literal(ws.viol):gsub("%s+", " ")))
+    out(ws:text())
+    local n = opt.log and math.tointeger(tonumber(opt.log)) or 0
+    if n > 0 then
+      out("-- log\n")
+      for i = math.max(1, #ws.log - n + 1), #ws.log do
+        local e = ws.log[i]
+        out(string.format("%4d %-9s status %d cost %-5d %s\n", i, e.tool, e.status, e.cost, e.head:sub(1, 16)))
+      end
+    end
+    return 0
+  end
+
+  commands["sketch-replay"] = function(args)
+    local pos, opt = parse(args, 2, {dir = "value"})
+    if #pos > 0 then bad("sketch-replay accepts options only") end
+    local ws = open_ws(opt)
+    local ok, bad_at = S.replay(ws:state())
+    local _, fp = paths(opt)
+    local f = io.open(fp, "rb")
+    local fileok, why = true, "no sketch.lua on disk"
+    if f then
+      local text = f:read("a"); f:close()
+      local p = S.parse_file(text)
+      fileok = p.stamped and p.intact and p.body == ws:text() and p.chain == ws.head:sub(1, 16)
+      why = fileok and "stamp, digest and chain head match" or "the file on disk does not match the workspace"
+    else fileok = false end
+    out(string.format("replay of %d logged calls: %s%s\n", #ws.log, ok and "every status, cost, result digest and the chain head reproduce" or "MISMATCH", bad_at and (" at call " .. bad_at) or ""))
+    out(string.format("sketch.lua: %s\n", why))
+    return (ok and fileok) and 0 or 1
+  end
+
+  commands["sketch-import"] = function(args)
+    local pos, opt = parse(args, 2, {dir = "value"})
+    if #pos > 0 then bad("sketch-import accepts options only") end
+    local ws = open_ws(opt)
+    local _, fp = paths(opt)
+    local p = S.parse_file(read_all(fp))
+    if p.body == ws:text() then out("sketch.lua already matches the workspace\n"); persist(ws, opt); return 0 end
+    local res = ws:call("write", {text = p.body})
+    persist(ws, opt)
+    out(string.format("imported as a logged write: status %d, revision %d\n", res.status, ws.rev))
+    return res.status == 0 and 0 or 1
+  end
+
+  commands["sketch-bench"] = function(args)
+    local pos, opt = parse(args, 2, {only = "value", ["max-candidates"] = "value", ["synth-only"] = "flag", sketches = "flag", baseline = "flag"})
+    if #pos > 0 then bad("sketch-bench accepts options only") end
+    local B = require("asi.sketch.bench")
+    local only
+    if opt.only then only = {}; for n in opt.only:gmatch("[^,]+") do only[#only + 1] = n end end
+    local mc = opt["max-candidates"] and math.tointeger(tonumber(opt["max-candidates"])) or nil
+    local rows = B.run{only = only, max_candidates = mc, synth_only = opt["synth-only"]}
+    out(B.format(rows), "\n")
+    if opt.baseline then
+      local rows2 = B.run{only = only, max_candidates = mc, synth_only = true, no_dedupe = true}
+      local s1, s2 = B.summary(rows), B.summary(rows2)
+      local mh, mt = B.memoriser_summary(only)
+      out(string.format("\nbaselines. Lookup table of the training examples: correct on %d of %d hidden cases (%.1f%%). Same enumerator without observational equivalence at the same candidate budget: a program for %d of %d tasks (with pruning: %d)\n", mh, mt, 100 * mh / math.max(1, mt), s2.found, s2.tasks, s1.found))
+    end
+    if opt.sketches then
+      out("\n", B.format_sketches(B.run_sketches()), "\n")
+    end
+    return 0
+  end
+end
+
+--[[@@END@@]]
+return M
+end
+
+-- ======================================================================== asi.tests.t_sketch  (tests of the sketch workspace)
+package.preload["asi.tests.t_sketch"] = function(...)
+--[============[
+asi/tests/t_sketch.lua -- tests of the sketch workspace: the sandbox (limits, escapes, determinism, isolation), the tools and the policy that guards them, the hash-chained audit
+log and its replay, the integrity stamp of sketch.lua, the program synthesizer (generalisation on hidden cases, determinism, graceful failure, interpreter/sandbox agreement), the
+coding agent (counter-example guided refinement), hole filling and mutation repair, and the command line.
+]============]
+local U = require("asi.util")
+local T = U.T
+local S = require("asi.sketch")
+local Y = require("asi.sketch.synth")
+local A = require("asi.sketch.agent")
+local B = require("asi.sketch.bench")
+local Cli = require("asi.cli")
+local M = {}
+
+local function ex(args, out) return {args = args, out = out} end
+
+function M.run()
+  ---------------------------------------------------------------------------------------------------- 1. the sandbox: limits and escapes
+  do
+    local real_rep, real_index = string.rep, getmetatable("").__index
+    local lim = {run_steps = 100000, run_kb = 16384, run_cpu = 0.6}
+    local attacks = {
+      {"infinite loop", "function f() while true do end end", "limit"},
+      {"pcall cannot swallow a limit", "function f() while true do pcall(function() while true do end end) end end", "limit"},
+      {"xpcall cannot swallow a limit", "function f() while true do xpcall(function() while true do end end, function(e) return e end) end end", "limit"},
+      {"string doubling is stopped by the memory limit", "function f() local s = 'x' while true do s = s .. s end end", "limit"},
+      {"huge string.rep", "function f() return ('x'):rep(1e9) end", "runtime"},
+      {"string.rep through the library table", "function f() return string.rep('x', 1e9) end", "runtime"},
+      {"unbounded recursion", "local function g(n) return g(n + 1) + 1 end function f() return g(1) end", "any"},
+      {"table growth", "function f() local t = {} for i = 1, 1e9 do t[i] = i end return #t end", "limit"},
+      {"os is absent", "function f() return os.execute('echo hi') end", "runtime"},
+      {"io is absent", "function f() return io.open('/etc/passwd') end", "runtime"},
+      {"load is absent", "function f() return load('return 1')() end", "runtime"},
+      {"the string metatable is not reachable", "function f() return getmetatable('').__index.rep end", "runtime"},
+      {"debug is absent", "function f() return debug.getinfo(1) end", "runtime"},
+      {"require is absent", "function f() return require('os') end", "runtime"},
+      {"__gc is refused", "function f() setmetatable({}, {__gc = function() while true do end end}) return 1 end", "runtime"},
+      {"an error object with a hostile __tostring is never stringified", "function f() error(setmetatable({}, {__tostring = function() while true do end end})) end", "runtime"},
+      {"a function cannot be returned", "function f() return function() end end", "result"},
+      {"a cyclic table cannot be returned", "function f() local t = {} t.t = t return t end", "result"},
+      {"a huge result is refused", "function f() local t = {} for i = 1, 20000 do t[i] = i end return t end", "result"},
+      {"collectgarbage is absent", "function f() collectgarbage('collect') end", "runtime"},
+      {"coroutines are absent", "function f() return coroutine.wrap(function() end) end", "runtime"},
+      {"%p is refused", "function f() return string.format('%p', {}) end", "runtime"},
+      {"many large strings hit a limit", "function f() local t = {} for i = 1, 100000 do t[i] = ('x'):rep(1000) end return #t end", "limit"},
+      {"table.concat with a long separator", "function f() local t = {} for i = 1, 5000 do t[i] = 'a' end return #table.concat(t, ('x'):rep(60000)) end", "runtime"},
+      {"plain find with a quadratic blow-up", "function f() local s = ('a'):rep(60000) return s:find(('a'):rep(30000) .. 'b') end", "runtime"},
+      {"unpack of a huge range", "function f() return select('#', table.unpack({}, 1, 1e7)) end", "runtime"},
+      {"integer division by zero", "function f() return 1 // 0 end", "runtime"},
+      {"goto loop", "function f() ::a:: goto a end", "limit"},
+      {"_G does not lead out", "function f() return #_G.string.rep('ab', 1e9) end", "runtime"},
+      {"a __close handler never runs outside the hook", "function f() local x <close> = setmetatable({}, {__close = function() while true do end end}) error('boom') end", "runtime"},
+      {"__concat loop", "function f() local t = setmetatable({}, {__concat = function(a, b) while true do end end}) return t .. 'x' end", "limit"},
+      {"tostring hides addresses", "function f() return tostring(print) end", "ok"},
+      {"output is capped", "function f() for i = 1, 100000 do print('hello world') end return 1 end", "limit"},
+      {"table.sort with an invalid comparator", "function f() local t = {} for i = 1, 100 do t[i] = i end table.sort(t, function(a, b) return true end) return 1 end", "any"},
+      {"a runtime error reports its line", "function f()\n  local x = nil\n  return x.y\nend", "runtime"},
+    }
+    for _, a in ipairs(attacks) do
+      local r = S.sandbox_run(a[2], "f", {n = 0}, lim)
+      local got = r.ok and "ok" or r.kind
+      T.check(a[3] == "any" or got == a[3], "sandbox: " .. a[1] .. " (expected " .. a[3] .. ", got " .. tostring(got) .. ")")
+      T.check(string.rep == real_rep and getmetatable("").__index == real_index and debug.gethook() == nil, "sandbox: the host is untouched after '" .. a[1] .. "'")
+    end
+    local r = S.sandbox_run("function f()\n  local x = nil\n  return x.y\nend", "f", {n = 0}, lim)
+    T.eq(r.line, 3, "a runtime error carries the source line")
+    r = S.sandbox_run("function f( return 1 end", "f", {n = 0}, lim)
+    T.check(not r.ok and r.kind == "syntax" and r.line == 1, "a syntax error is reported with its line")
+    r = S.sandbox_run("x = 1", "nothing", {n = 0}, lim)
+    T.check(not r.ok and r.kind == "entry", "a missing entry function is reported")
+    local r1 = S.sandbox_run("function f() return math.random(1, 1000), math.random(1, 1000) end", "f", {n = 0}, {seed = 5})
+    local r2 = S.sandbox_run("function f() return math.random(1, 1000), math.random(1, 1000) end", "f", {n = 0}, {seed = 5})
+    local r3 = S.sandbox_run("function f() return math.random(1, 1000), math.random(1, 1000) end", "f", {n = 0}, {seed = 6})
+    T.check(r1.values[1] == r2.values[1] and r1.values[2] == r2.values[2], "math.random is deterministic for a seed")
+    T.check(r1.values[1] ~= r3.values[1] or r1.values[2] ~= r3.values[2], "a different seed gives a different stream")
+    S.sandbox_run("function f() LEAK = 1 end", "f", {n = 0})
+    r = S.sandbox_run("function f() return LEAK end", "f", {n = 0})
+    T.check(r.ok and r.values[1] == nil, "runs are isolated: a global written by one run is invisible to the next")
+    r = S.sandbox_run("function f(xs, s, b) return #xs, s .. '!', not b, xs[2] end", "f", {n = 3, {7, 8, 9}, "hi", false})
+    T.check(r.ok and r.values[1] == 3 and r.values[2] == "hi!" and r.values[3] == true and r.values[4] == 8, "arguments and several results cross the boundary as plain data")
+    r = S.sandbox_run("function f() return {a = {1, 2}, b = 'x'} end", "f", {n = 0})
+    T.check(r.ok and S.same(r.values[1], {a = {1, 2}, b = "x"}), "tables come back as plain data")
+    r = S.sandbox_run("function f() print('a', 1) print('b') return 0 end", "f", {n = 0})
+    T.eq(r.out, "a\t1\nb\n", "print is captured")
+    r = S.sandbox_run("function f() local s = 0 for i = 1, 20000 do s = s + i % 7 end return s end", "f", {n = 0}, {run_steps = 1000000})
+    T.check(r.ok and r.steps > 20000 and r.steps < 200000, "the step count is the VM instruction count, exact and deterministic")
+    local rr = S.sandbox_run("function f() local s = 0 for i = 1, 20000 do s = s + i % 7 end return s end", "f", {n = 0}, {run_steps = 1000000})
+    T.eq(rr.steps, r.steps, "the same program uses the same number of steps")
+  end
+
+  ---------------------------------------------------------------------------------------------------- 2. the workspace: tools and policy
+  do
+    local ws = S.new{}
+    local r = ws:call("append", {text = "local function add(a, b) return a + b end\nfunction f(x) return add(x, 1) * 2 end\n"})
+    T.check(r.ok and r.rev == 1, "append writes and bumps the revision")
+    T.eq(ws:text(), "local function add(a, b) return a + b end\nfunction f(x) return add(x, 1) * 2 end\n", "the file holds exactly the text written")
+    r = ws:call("check", {})
+    T.check(r.ok and r.defs[1] == "add" and r.defs[2] == "f", "check compiles the file and lists its functions")
+    r = ws:call("run", {entry = "f", args = {20}})
+    T.check(r.ok and r.values[1] == 42 and r.steps > 0, "run executes an entry in the sandbox")
+    r = ws:call("test", {entry = "f", cases = {ex({1}, 4), ex({2}, 6), ex({3}, 9)}})
+    T.check(r.status == 4 and r.passed == 2 and r.total == 3 and r.fails[1].case == 3 and r.fails[1].got == 8, "test reports passed/total and the failing case with what it got")
+    r = ws:call("replace", {old = "* 2", new = "* 3"})
+    T.check(r.ok and r.count == 1, "replace changes exactly one occurrence")
+    r = ws:call("replace", {old = "add(", new = "plus("})
+    T.check(r.status == 4 and r.count == 2, "replace refuses an ambiguous text unless all=true (and changes nothing)")
+    r = ws:call("replace", {old = "no such text", new = "x"})
+    T.check(r.status == 4, "replace of a missing text fails without a change")
+    local rev = ws.rev
+    r = ws:call("edit", {from = 3, to = 2, text = "-- note\n"})
+    T.check(r.ok and ws.rev == rev + 1 and ws:text():sub(-8) == "-- note\n", "edit inserts before a line (to = from - 1)")
+    r = ws:call("edit", {hunks = {{from = 1, to = 1, text = "local function add(a, b) return b + a end"}, {from = 3, to = 3, text = "-- changed"}}})
+    T.check(r.ok, "edit applies several hunks numbered against the file before the edit")
+    r = ws:call("read", {numbered = true})
+    T.check(r.ok and r.text:find("   1  local function add(a, b) return b + a end", 1, true) and r.text:find("   3  -- changed", 1, true), "read returns numbered lines")
+    r = ws:call("edit", {hunks = {{from = 1, to = 2, text = "x"}, {from = 2, to = 2, text = "y"}}})
+    T.check(r.status == 1, "overlapping hunks are invalid")
+    r = ws:call("edit", {from = 9, to = 9, text = "x"})
+    T.check(r.status == 1, "a range outside the file is invalid")
+    local r_before = ws.rev
+    r = ws:call("diff", {from = 1, to = r_before})
+    T.check(r.ok and r.nhunks >= 1, "diff between two revisions")
+    r = ws:call("rollback", {to = 1})
+    T.check(r.ok and ws.rev == r_before + 1 and ws:text():find("* 2", 1, true), "rollback restores an old text as a NEW revision")
+    r = ws:call("write", {text = "function g() return 1 end"})
+    T.check(r.ok and ws:text() == "function g() return 1 end\n", "write replaces the whole file and normalises the final newline")
+    r = ws:call("snapshot", {label = "mark"})
+    T.check(r.ok, "snapshot labels the current revision")
+    r = ws:call("list", {})
+    T.check(r.ok and r.files[1].name == "sketch.lua", "list shows the one file")
+    r = ws:call("help", {})
+    T.check(r.ok and #r.tools >= 14, "help lists the tool catalogue")
+    -- policy: capabilities, files, quotas, invalid arguments
+    local ws2 = S.new{policy = {can = {write = false, run = false}}}
+    T.eq(ws2:call("write", {text = "x = 1"}).status, 2, "a missing capability is DENIED")
+    T.eq(ws2:call("run", {entry = "f"}).status, 2, "run is denied without the run capability")
+    T.eq(ws2:call("read", {file = "other.lua"}).status, 2, "a file that is not part of the workspace is denied")
+    T.eq(ws2:call("export", {}).status, 2, "export is denied by default")
+    T.eq(ws2:call("nonsense", {}).status, 1, "an unknown tool is invalid")
+    T.eq(ws2:call("edit", {from = "a", to = 2, text = "x"}).status, 1, "bad argument types are invalid")
+    T.check(ws2.viol.denied == 4 and ws2.viol.invalid == 2, "violations are counted by kind")
+    local ws3 = S.new{policy = {budget = 20}}
+    T.eq(ws3:call("append", {text = "x = 1\n"}).status, 0, "a call within the budget works")
+    local big = ws3:call("append", {text = string.rep("-- padding line\n", 200)})
+    T.eq(big.status, 3, "a call whose quote exceeds the remaining budget is a QUOTA error and changes nothing")
+    T.eq(ws3:text(), "x = 1\n", "the refused call left the file alone")
+    local ws4 = S.new{policy = {max_bytes = 100}}
+    T.eq(ws4:call("append", {text = string.rep("a", 200)}).status, 3, "the size limit is enforced")
+    local ws5 = S.new{policy = {max_calls = 3}}
+    for _ = 1, 3 do ws5:call("list", {}) end
+    T.eq(ws5:call("list", {}).status, 3, "the call limit is enforced")
+    local ws6 = S.new{policy = {run_steps = 500}}
+    ws6:call("append", {text = "function f() while true do end end\n"})
+    local lr = ws6:call("run", {entry = "f"})
+    T.check(lr.status == 5 and lr.limit == "steps", "a program that hits the step limit is status 5 (limit)")
+    T.check(lr.cost <= 4 + 500 // 200 + 1, "its cost is bounded by the policy's step limit")
+    -- costs are deterministic functions of the work
+    local a1, a2 = S.new{}, S.new{}
+    for _, w in ipairs({a1, a2}) do w:call("append", {text = "function f(x) return x + 1 end\n"}); w:call("test", {entry = "f", cases = {ex({1}, 2), ex({5}, 6)}}) end
+    T.check(a1.spent == a2.spent and a1.head == a2.head, "the same calls cost the same and give the same chain head")
+  end
+
+  ---------------------------------------------------------------------------------------------------- 3. audit log, replay, state, stamp
+  do
+    local ws = S.new{}
+    local heads = {}
+    local function step(tool, args) ws:call(tool, args); heads[#heads + 1] = ws.head end
+    step("append", {text = "function f(x) return x * x end\n"})
+    step("test", {entry = "f", cases = {ex({3}, 9), ex({4}, 16)}})
+    step("replace", {old = "x * x", new = "x * x + 1"})
+    step("read", {})
+    local distinct = {}
+    for _, h in ipairs(heads) do distinct[h] = true end
+    T.eq(#heads, 4, "four calls")
+    T.check(distinct[heads[1]] and distinct[heads[2]] and distinct[heads[3]] and distinct[heads[4]] and (function() local n = 0 for _ in pairs(distinct) do n = n + 1 end return n end)() == 4, "every call moves the chain head (reads included)")
+    local st = ws:state()
+    local ok, bad_at = S.replay(st)
+    T.check(ok and bad_at == nil, "replay reproduces every status, cost, result digest and the chain head")
+    local tampered = S.deepcopy(st)
+    tampered.log[3].args.new = "x * x + 2"
+    local ok2, bad2 = S.replay(tampered)
+    T.check(not ok2 and bad2 == 3, "a tampered log entry is detected at the entry (" .. tostring(bad2) .. ")")
+    local tampered2 = S.deepcopy(st)
+    tampered2.log[2].cost = tampered2.log[2].cost + 1
+    T.check(not (S.replay(tampered2)), "a tampered cost is detected")
+    local tampered3 = S.deepcopy(st)
+    table.remove(tampered3.log, 2)
+    T.check(not (S.replay(tampered3)), "a dropped entry is detected")
+    -- state round trip through a file
+    local path = os.tmpname()
+    T.check(S.save(ws, path), "the state can be saved")
+    local ws2 = S.load(path)
+    T.check(ws2 and ws2.head == ws.head and ws2:text() == ws:text() and ws2.spent == ws.spent and ws2.rev == ws.rev, "a saved workspace loads back identically")
+    T.check(ws2 and (S.replay(ws2:state())), "and replays")
+    os.remove(path)
+    -- the stamp of sketch.lua
+    local file = S.render_file(ws)
+    local p = S.parse_file(file)
+    T.check(p.stamped and p.intact and p.rev == ws.rev and p.body == ws:text(), "an exported file carries rev, digest and chain head and verifies")
+    local forged = file:gsub("x %* x %+ 1", "x * x + 5")
+    T.check(S.parse_file(forged).stamped and not S.parse_file(forged).intact, "an edit made outside the workspace is detected")
+    T.check(not S.parse_file("function g() end\n").stamped, "a file without a stamp is reported as unstamped")
+    -- export goes only to the operator's path
+    local dir = os.tmpname(); os.remove(dir); os.execute("mkdir -p " .. dir)
+    local ws3 = S.new{policy = {can = {export = true}}, export_path = dir .. "/sketch.lua"}
+    ws3:call("append", {text = "function h() return 1 end\n"})
+    local er = ws3:call("export", {path = "/tmp/elsewhere.lua"})
+    T.check(er.ok, "export succeeds when the operator enabled it")
+    local fh = io.open(dir .. "/sketch.lua", "rb")
+    local disk = fh and fh:read("a") or ""
+    if fh then fh:close() end
+    T.check(S.parse_file(disk).intact and S.parse_file(disk).body == "function h() return 1 end\n", "the file on disk is the stamped workspace file")
+    local fh2 = io.open("/tmp/elsewhere.lua", "rb")
+    T.check(fh2 == nil, "a path argument cannot redirect the export")
+    if fh2 then fh2:close() end
+    os.execute("rm -rf " .. dir)
+    -- data literals
+    local d = S.parse_data("{name = 'x', params = {'a', \"b\"}, [3] = -4, f = 1.5, t = true, nested = {{1, 2}, {}}, -- comment\n long = [[a\nb]]}")
+    T.check(d.name == "x" and d.params[2] == "b" and d[3] == -4 and d.f == 1.5 and d.t == true and d.nested[1][2] == 2 and d.long == "a\nb", "the data literal parser reads table constructors")
+    T.rejects(function() return S.parse_data("{x = os.exit()}") end, "data:", "calls are not data")
+    T.rejects(function() return S.parse_data("{1, 2") end, "data:", "an unterminated table is rejected")
+    T.rejects(function() return S.parse_data("{} extra") end, "trailing", "trailing text is rejected")
+  end
+
+  ---------------------------------------------------------------------------------------------------- 4. the synthesizer: generalisation, determinism, failure, agreement
+  do
+    local names = {"double", "square", "plus7", "abs_val", "triangular", "factorial", "is_even", "max2", "abs_diff", "avg2", "clamp", "list_sum", "list_prod", "list_max", "list_rev", "sum_squares",
+                   "count_even", "sum_even", "evens", "squares", "span", "mean_floor", "contains", "count_of", "str_upper", "str_rev", "palindrome", "join_comma", "count_a", "list_second"}
+    local rows = B.run{only = names, max_candidates = 400000}
+    local s = B.summary(rows)
+    T.eq(s.tasks, #names, "the benchmark subset ran")
+    T.check(s.accepted >= #names - 1, "the agent produced an accepted program for at least " .. (#names - 1) .. " of " .. #names .. " tasks (got " .. s.accepted .. ")")
+    T.check(s.correct >= #names - 3, "at least " .. (#names - 3) .. " of " .. #names .. " programs are correct on ALL 40 hidden cases (got " .. s.correct .. ")")
+    T.check(s.hidden_rate >= 0.93, string.format("hidden-case accuracy %.3f is at least 0.93", s.hidden_rate))
+    local by = {}
+    for _, r in ipairs(rows) do by[r.name] = r end
+    T.eq(by.double.expr, "(x + x)", "double is x + x")
+    T.eq(by.factorial.expr, "prod(range(n))", "factorial is the product of 1..n")
+    T.eq(by.evens.expr, "filter(function(v) return ((v % 2) < 1) end, xs)", "evens is a filter with the parity test")
+    T.eq(by.palindrome.expr, "(s == (s):reverse())", "palindrome compares the string with its reverse")
+    for _, r in ipairs(rows) do
+      if r.agent_ok then T.check(r.text:find("function " .. r.name .. "(", 1, true) ~= nil, "sketch.lua defines " .. r.name) end
+    end
+    -- determinism: same task, same bytes, same chain head
+    local rowsb = B.run{only = {"sum_squares", "palindrome"}, max_candidates = 400000}
+    for _, rb in ipairs(rowsb) do
+      T.check(rb.text == by[rb.name].text and rb.chain == by[rb.name].chain, "the same task gives the same sketch.lua and the same audit chain (" .. rb.name .. ")")
+    end
+    -- graceful failure
+    local r = Y.solve({name = "f", params = {"x"}, examples = {ex({1}, 1), ex({1}, 2)}}, {max_candidates = 20000})
+    T.check(not r.ok, "contradictory examples have no program")
+    r = Y.solve({name = "f", params = {"x"}, examples = {}}, {})
+    T.check(not r.ok and r.reason == "no examples", "no examples is reported")
+    r = Y.solve({name = "f", params = {"x"}, examples = {ex({1.5}, 2)}}, {})
+    T.check(not r.ok, "unsupported types are reported, not crashed on")
+    r = Y.solve({name = "f", params = {"x"}, examples = {ex({1}, 1), ex({2}, "a")}}, {})
+    T.check(not r.ok, "inconsistent output types are reported")
+    local ws = S.new{}
+    local rep = A.solve(ws, {name = "f", params = {"x"}, examples = {ex({1}, 1), ex({1}, 2)}, max_candidates = 20000})
+    T.check(not rep.ok and rep.reason ~= nil and ws.viol.invalid == 0, "the agent reports an impossible task without a violation")
+    -- the DSL's evaluator and the sandbox agree on the emitted code (differential test over the hidden inputs of solved tasks)
+    for _, tn in ipairs({"sum_squares", "evens", "span", "clamp", "palindrome", "join_comma", "factorial", "mean_floor"}) do
+      local task
+      for _, t in ipairs(B.tasks) do if t.name == tn then task = t end end
+      local cases = B.make(task)
+      local res = Y.solve({name = tn, params = task.params, examples = cases.examples}, {max_candidates = 400000})
+      if res.ok then
+        local agree, total = 0, 0
+        for _, c in ipairs(cases.hidden) do
+          local env = {}
+          for i, pn in ipairs(task.params) do env[pn] = c.args[i] end
+          local v1 = Y.eval_tree(res.node, env)
+          local r2 = S.sandbox_run(res.source, tn, {n = #c.args, table.unpack(c.args)}, {})
+          if v1 ~= nil and r2.ok then total = total + 1; if S.same(v1, r2.values[1]) then agree = agree + 1 end end
+        end
+        T.check(total > 20 and agree == total, "interpreter and sandbox agree on every hidden input of " .. tn .. " (" .. agree .. "/" .. total .. ")")
+      else T.check(false, "differential test: " .. tn .. " was not solved") end
+    end
+    -- observational equivalence prunes: at the same candidate budget the unpruned enumerator solves fewer tasks
+    local quick = {"sum_squares", "evens", "count_even", "span", "mean_floor", "factorial"}
+    local pruned = B.run{only = quick, max_candidates = 60000, synth_only = true}
+    local plain = B.run{only = quick, max_candidates = 60000, synth_only = true, no_dedupe = true}
+    local np, nq = B.summary(pruned).found, B.summary(plain).found
+    T.check(np >= nq and np >= 5, "with pruning " .. np .. " of " .. #quick .. " tasks are solved at 60,000 candidates, without " .. nq)
+  end
+
+  ---------------------------------------------------------------------------------------------------- 5. the agent: counter-example guided refinement
+  do
+    local ws = S.new{}
+    local task = {name = "cnt_even", params = {"xs"}, examples = {ex({{1, 2, 3, 4}}, 2), ex({{}}, 0), ex({{2, 4, 6}}, 3), ex({{1, 3}}, 0), ex({{7, 8}}, 1)},
+      spec = "function spec(xs) local c = 0 for _, v in ipairs(xs) do if v % 2 == 0 then c = c + 1 end end return c end", inputs = {{kind = "ilist", maxlen = 6, lo = -5, hi = 12}}}
+    local rep = A.solve(ws, task)
+    T.check(rep.ok and rep.validated, "the agent validates against a reference spec that runs in the sandbox")
+    T.check(rep.rounds >= 2 and rep.counterexamples >= 1, "the first fit was a coincidence of the few examples; counter-examples drove a second synthesis (" .. rep.rounds .. " rounds)")
+    local hid = A.gen_inputs(task.inputs, 60, 999)
+    local good = 0
+    for _, args in ipairs(hid) do
+      local want = S.sandbox_run(task.spec, "spec", {n = 1, args[1]}, {}).values[1]
+      local got = S.sandbox_run(ws:text(), "cnt_even", {n = 1, args[1]}, {})
+      if got.ok and got.values[1] == want then good = good + 1 end
+    end
+    T.eq(good, 60, "the refined program is right on 60 further inputs")
+    local _, n = ws:text():gsub("function cnt_even", "")
+    T.eq(n, 1, "the second version REPLACED the first (one definition in the file)")
+    T.check((S.replay(ws:state())), "the whole session replays")
+    -- a function the agent did not write is not overwritten
+    local ws2 = S.new{}
+    ws2:call("append", {text = "function g(x) return x end\n"})
+    local rep2 = A.solve(ws2, {name = "g", params = {"x"}, examples = {ex({1}, 2), ex({2}, 4)}})
+    T.check(not rep2.ok and rep2.reason:find("already exists", 1, true) ~= nil, "an existing function is not silently replaced")
+  end
+
+  ---------------------------------------------------------------------------------------------------- 6. fill and repair
+  do
+    local rows = B.run_sketches()
+    local nfill, nfix = 0, 0
+    for _, r in ipairs(rows) do
+      if r.kind == "sketch" and r.ok then nfill = nfill + 1; T.eq(r.hidden, r.n_hidden, "fill: " .. r.name .. " is right on all hidden cases") end
+      if r.kind == "bug" and r.repaired then nfix = nfix + 1 end
+    end
+    T.check(nfill >= 4, "at least 4 of 6 sketches are completed (got " .. nfill .. ")")
+    T.check(nfix >= 5, "at least 5 of 6 seeded bugs are found by the tests and repaired (got " .. nfix .. ")")
+    local ws = S.new{}
+    ws:call("append", {text = "function f(x) return x + 1 end\n"})
+    local r = ws:call("repair", {entry = "f", cases = {ex({1}, 2), ex({2}, 3)}})
+    T.check(r.status == 4, "repair of a passing function reports that nothing is wrong")
+    r = ws:call("fill", {entry = "f", cases = {ex({1}, 2)}})
+    T.check(r.status == 4, "fill without holes says so")
+    ws:call("write", {text = "function f(x) return HOLE_INT(x) end\n"})
+    r = ws:call("fill", {entry = "f", cases = {ex({1}, 2), ex({5}, 6), ex({0}, 1)}})
+    T.check(r.ok and r.found, "fill finds a one-hole completion")
+    ws:call("edit", {hunks = r.edits})
+    T.check(ws:call("test", {entry = "f", cases = {ex({10}, 11), ex({-3}, -2)}}).ok, "and the applied completion generalises")
+  end
+
+  ---------------------------------------------------------------------------------------------------- 7. the command line
+  do
+    local function status(...)
+      local buf = {}
+      local sink = {write = function(_, ...) for _, s in ipairs({...}) do buf[#buf + 1] = tostring(s) end end}
+      Cli.stdout, Cli.stderr = sink, sink
+      local code = Cli.main({...})
+      Cli.stdout, Cli.stderr = nil, nil
+      return code, table.concat(buf)
+    end
+    local dir = os.tmpname(); os.remove(dir); os.execute("mkdir -p " .. dir)
+    T.eq((status("sketch-show", "--dir", dir)), 2, "no workspace yet: rejected")
+    local code, text = status("sketch-new", "--dir", dir)
+    T.check(code == 0 and text:find("workspace created", 1, true), "sketch-new creates the workspace")
+    T.eq((status("sketch-new", "--dir", dir)), 2, "sketch-new refuses to overwrite")
+    local tf = dir .. "/task.lua"
+    local f = io.open(tf, "w")
+    f:write('return {name = "sumsq", params = {"xs"}, examples = {{args = {{1, 2, 3}}, out = 14}, {args = {{}}, out = 0}, {args = {{4}}, out = 16}}, spec = "function spec(xs) local c = 0 for _, v in ipairs(xs) do c = c + v * v end return c end", inputs = {{kind = "ilist", maxlen = 6, lo = -5, hi = 12}}}')
+    f:close()
+    code, text = status("sketch-solve", tf, "--dir", dir)
+    T.check(code == 0 and text:find('["ok"]=true', 1, true), "sketch-solve writes the program into sketch.lua")
+    local fh = io.open(dir .. "/sketch.lua", "rb")
+    local disk = fh and fh:read("a") or ""
+    if fh then fh:close() end
+    T.check(disk:find("function sumsq", 1, true) and S.parse_file(disk).intact, "sketch.lua on disk contains the function and verifies")
+    code, text = status("sketch-call", "run", "--dir", dir, "--args", "{entry = 'sumsq', args = {{1, 2, 3, 4}}}")
+    T.check(code == 0 and text:find("[1]=30", 1, true), "sketch-call runs a tool with a data-literal argument")
+    code = status("sketch-call", "write", "--dir", dir, "--args", "{text = 5}")
+    T.eq(code, 1, "an invalid tool call exits with status 1")
+    code, text = status("sketch-replay", "--dir", dir)
+    T.check(code == 0 and text:find("reproduce", 1, true), "sketch-replay verifies the log and the file")
+    local fa = io.open(dir .. "/sketch.lua", "ab"); fa:write("-- edited outside\n"); fa:close()
+    T.eq((status("sketch-call", "check", "--dir", dir)), 2, "an edit made outside is refused")
+    T.eq((status("sketch-replay", "--dir", dir)), 1, "and the replay check flags the file")
+    code = status("sketch-import", "--dir", dir)
+    T.eq(code, 0, "sketch-import adopts it as a logged write")
+    T.eq((status("sketch-replay", "--dir", dir)), 0, "after the import everything verifies again")
+    code, text = status("sketch-show", "--dir", dir, "--log", "3")
+    T.check(code == 0 and text:find("function sumsq", 1, true), "sketch-show prints the file and the log")
+    code = status("sketch-bench", "--only", "double,list_sum")
+    T.eq(code, 0, "sketch-bench runs")
+    T.eq((status("sketch-bench", "--bogus")), 2, "unknown options are rejected")
+    os.execute("rm -rf " .. dir)
+  end
+end
+
+--[[@@END@@]]
+return M
+end
+
 -- @@CYBER-MODULES-END@@ (new cyber-reasoning modules are inserted above this line)
 
 package.preload["asi.bundle_info"] = function()
   return {
  ["built_from"]="in-place upgraded single-file Lua project",
  ["hashes"]={
-  ["README.lua"]="34b3c41df73e42b69f0ec13f6f1a7edef0394a029ade2c43c238ce7642cbca82",
+  ["README.lua"]="cccd8c6afd5e52bd1279174ad0901384228e032867d58660d42006771a45a7fb",
   ["asi/archive.lua"]="ef1a88b77029df0d48339c41f1f134ba2d6f8046c51970e91c11487ed34a9fcf",
   ["asi/asm.lua"]="8cf4cd3e0781b7b9c283572408cf4350d0f11a9b6ea755bf5d6c7eb112f6a21b",
   ["asi/astx.lua"]="3df93ba12cf326f90ce16a620a6a40c3c7cedb6a9f73aeb481d764bf93d6dace",
   ["asi/bigint.lua"]="0de306aa7d93f6603cf854072ffb5e6ec46200aaa128d1cc85f2fed9d4347e30",
-  ["asi/cli.lua"]="cb1bcd2fa8a8e4344f0447aee4f8f2f7fce5c3226c2e2e753ce67fba786fb8a7",
-  ["asi/cyber/env.lua"]="211ddceff7f5165a967bdc8d12f6db69010f684df01429e71620cbf88579355f",
-  ["asi/cyber/eval.lua"]="29c334d589784e5b52233d39c6868392055e5ff05bd4f337b008761803ba8c03",
-  ["asi/cyber/guest.lua"]="093d8c0d43061dcfa18dfa0d937775ed18e16b82303c937fa127ca5675e1dc8c",
+  ["asi/cli.lua"]="8db38d982f328991ceeac81feb4063085f11e9e76b504b7d3bc00250f8256ab0",
+  ["asi/cyber/env.lua"]="6c0180f9a9e5dabd4d3dca091b29b8c840fdb12ffd25a6f26568a15c318eb480",
+  ["asi/cyber/eval.lua"]="c24278fffe2ef98aae21df24076684339b99f05c9bd2fce68b2c8200d615bdba",
+  ["asi/cyber/guest.lua"]="7bb5cd144b7949c66f7a2f9ce2d94c47b484dc3bf167d074c45c4571e272021a",
   ["asi/cyber/world.lua"]="1bc2741cfa45962a2d6addd5a83e9541ca83e08a7dc0444c34615f41ea857b6a",
   ["asi/gl.lua"]="6b130916e0e917d0f6bb2f342487459f70e1175e5fd7a08e6b4d80beca558aba",
   ["asi/guest/audit.lua"]="95dc1ca966b7ee17af71eb08bf6f031e72d7f067904b0dcaf2188b2a408ca281",
@@ -45450,10 +48411,17 @@ package.preload["asi.bundle_info"] = function()
   ["asi/rng.lua"]="1d73c1a4c55dff191dc10db268708200919e627ac690f10dda48ef3b0808c6f1",
   ["asi/run.lua"]="c805e52408a7bb2525170840dc778cca72bf4196253db90d553e32904befb62a",
   ["asi/spec.lua"]="fbda9f2556889026634f5ae4ec27c6b39b3466e53bfcaf3abfa31a716b2ef709",
-  ["asi/tests/all.lua"]="bcdfa1aa2ea9db0038eded3916a54e33302dd4b1c0df3f50d3edf5653962b70c",
+  ["asi/tests/all.lua"]="024658d2541f879c4add8916091371d7413d7ef1cf811ff7349bb919f62d29a1",
   ["asi/tests/fixture.lua"]="ea280fc377b8ad907274567122a423415187864ef41669e8d10dacc27507ca39",
   ["asi/tests/oracle.lua"]="f89d7d330580ba3b699e1bc8b3e90d17d41917678a6326230e47faf7ee28316c",
-  ["asi/tests/t_cyber.lua"]="8725a6759708c319021fedf486369d44c220a6eb363caa45d923a4d052482eb6",
+  ["asi/sketch.lua"]="a1f8f9460bd0d85e59dd8b96a87d37794b9668c916834ccaa3aaf6be04f5bd21",
+  ["asi/sketch/synth.lua"]="b10df730c1bf259b35237b1d9b714e34b6ceea7c072b962fce766ce9d8df5536",
+  ["asi/sketch/fix.lua"]="b13a40d15d11dfa1060b59e0330e6dda7d4c68f5aa2e9e0f4ae30ad93fc2db36",
+  ["asi/sketch/agent.lua"]="8c07caf5837a7c8bfa582fb26f3dca451cc6a144777270b0456a1aabda6058e2",
+  ["asi/sketch/bench.lua"]="afcb7e500c77ec01700bdc686588431f7ea352820f86f072538c301afe6a58a0",
+  ["asi/sketch/cli.lua"]="fbd260a6c4f8edd5dd8ddaf7315e1848788e54057ad2f7311f74f4d0d1a75c88",
+  ["asi/tests/t_sketch.lua"]="269a92ed688d17159d11acc4b9fad94096068aa0b25ae3f7bc403af72d4af46d",
+  ["asi/tests/t_cyber.lua"]="00239b4d1775a45085c805507e51d0537bbf4e7e9da5eea699a8c82788497afe",
   ["asi/tests/t_gl.lua"]="73973d8736e513ca4c4eb1f00831a75597f93b8e13a1ff60ed2c28aa73bfb939",
   ["asi/tests/t_harness.lua"]="2438f1f41fed934400953d72a20b71e9ca38dfb6d299f4365e5bbdf4216a5ab0",
   ["asi/tests/t_hpr.lua"]="22f5b05a20983c4d3ed8700aa841be60e935a229c30d1ad81ab2c8e3602eaa6a",
@@ -45461,7 +48429,7 @@ package.preload["asi.bundle_info"] = function()
   ["asi/tests/t_mutation.lua"]="3c5f4a66eb2d595f1ba31c74740198e35aa0fdf6208f68d8fe46f07033d2aa0a",
   ["asi/tests/t_parity.lua"]="d57c996f559ae36eb2c6ee062bef4a7d14932a33ef12b73e57884b2231d9d0d2",
   ["asi/tests/t_proof.lua"]="68bae9aecfd4d077fd15c639ff3444beb96fedfed1e68e449ccfc7ce2442e45b",
-  ["asi/tests/t_reason.lua"]="3ff81e986bbdf115517b49652729689208ed9984eedfd01629a08a7bf7ed5c93",
+  ["asi/tests/t_reason.lua"]="60076debf21db51f04e04bb8f8c2d0cd533b1543096657a56aa870ff2472b003",
   ["asi/tests/t_reason_core.lua"]="ab753b0b5491927e9606be752c779413612ad55c9fa50c9d59d859bd38c9782d",
   ["asi/tests/t_reason_env.lua"]="cd50d4ebc0a717b3206601b7efa18de621d91f3cde2756bdd19ba62ab9cb2dc9",
   ["asi/tests/t_reason_plan.lua"]="c84d7b1324a7b0c0d6faefcde98cb9a6ec43d1d092c3014759a32103e00efb29",

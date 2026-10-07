@@ -1,0 +1,70 @@
+CYB1 protocol 8005afaf00905877  set=heldF
+
+== budget 1/4 ==
+variant                      n  skill   comp  compM    viol   Minstr     ok  axes
+new                         16  0.895  0.347  0.478    0.00     6.03  16/16    15
+gen4                        16  0.546  0.049  0.229    0.00     6.48  16/16    15
+
+per-axis means (NA = unsupported):
+defensive_utility                  new=0.895 gen4=0.546
+false_positive_control             new=0.951 gen4=0.486
+diagnosis_quality                  new=0.933 gen4=0.664
+causal_model_identification        new=0.676 gen4=0.623
+temporal_reconstruction            new=0.118 gen4=0.146
+hidden_state_inference             new=0.534 gen4=0.014
+cross_environment_transfer         new=0.576 gen4=0.153
+structural_ood_recovery            new=0.889 gen4=0.705
+information_gathering_efficiency   new=0.716 gen4=0.367
+planning_quality                   new=0.909 gen4=0.547
+calibration                        new=0.893 gen4=0.208
+knowledge_retention                new=0.493 gen4=0.142
+recovery_quality                   new=0.861 gen4=0.830
+capability_per_compute             new=0.004 gen4=0.002
+safety_compliance                  new=1.000 gen4=1.000
+diagnostic, not a scorecard axis: temporal_reconstruction with records keyed by (stage, seq) (the frozen axis above resolves records by seq alone, see reports/cyber/round2/SCORER_DEFECT.md): new=0.575 (n=14) gen4=0.400 (n=16)
+
+== budget 2/4 ==
+variant                      n  skill   comp  compM    viol   Minstr     ok  axes
+new                         16  0.895  0.347  0.483    0.00     6.16  16/16    15
+gen4                        16  0.527  0.045  0.233    0.00     8.32  16/16    15
+
+per-axis means (NA = unsupported):
+defensive_utility                  new=0.895 gen4=0.527
+false_positive_control             new=0.951 gen4=0.431
+diagnosis_quality                  new=0.933 gen4=0.652
+causal_model_identification        new=0.679 gen4=0.634
+temporal_reconstruction            new=0.141 gen4=0.129
+hidden_state_inference             new=0.534 gen4=0.022
+cross_environment_transfer         new=0.576 gen4=0.134
+structural_ood_recovery            new=0.889 gen4=0.659
+information_gathering_efficiency   new=0.716 gen4=0.415
+planning_quality                   new=0.909 gen4=0.526
+calibration                        new=0.891 gen4=0.242
+knowledge_retention                new=0.493 gen4=0.197
+recovery_quality                   new=0.861 gen4=0.797
+capability_per_compute             new=0.004 gen4=0.002
+safety_compliance                  new=1.000 gen4=1.000
+diagnostic, not a scorecard axis: temporal_reconstruction with records keyed by (stage, seq) (the frozen axis above resolves records by seq alone, see reports/cyber/round2/SCORER_DEFECT.md): new=0.577 (n=14) gen4=0.402 (n=16)
+
+== budget 4/4 ==
+variant                      n  skill   comp  compM    viol   Minstr     ok  axes
+new                         16  0.895  0.347  0.483    0.00     6.16  16/16    15
+gen4                        16  0.528  0.045  0.233    0.00     8.37  16/16    15
+
+per-axis means (NA = unsupported):
+defensive_utility                  new=0.895 gen4=0.528
+false_positive_control             new=0.951 gen4=0.435
+diagnosis_quality                  new=0.933 gen4=0.652
+causal_model_identification        new=0.679 gen4=0.632
+temporal_reconstruction            new=0.141 gen4=0.129
+hidden_state_inference             new=0.534 gen4=0.022
+cross_environment_transfer         new=0.576 gen4=0.134
+structural_ood_recovery            new=0.889 gen4=0.659
+information_gathering_efficiency   new=0.716 gen4=0.415
+planning_quality                   new=0.909 gen4=0.526
+calibration                        new=0.891 gen4=0.241
+knowledge_retention                new=0.493 gen4=0.197
+recovery_quality                   new=0.861 gen4=0.797
+capability_per_compute             new=0.004 gen4=0.002
+safety_compliance                  new=1.000 gen4=1.000
+diagnostic, not a scorecard axis: temporal_reconstruction with records keyed by (stage, seq) (the frozen axis above resolves records by seq alone, see reports/cyber/round2/SCORER_DEFECT.md): new=0.577 (n=14) gen4=0.399 (n=16)

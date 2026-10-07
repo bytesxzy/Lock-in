@@ -1,0 +1,96 @@
+== twin_1_2.out
+persist+autostart bit (exact read) seed 1   first difference at message 6 of 382 produced by the WORLD
+persist+autostart, stage 2         seed 1   first difference at message 196 of 382 produced by the WORLD
+stolen user 3 (credential audit)   seed 1   first difference at message 24 of 382 produced by the WORLD
+exposure bits on a host (expo/scan) seed 1   first difference at message 6 of 382 produced by the WORLD
+campaign 1 start +5                seed 1   IDENTICAL whole run (382 messages)
+campaign 1 vector -> exploit/cred  seed 1   first difference at message 42 of 382 produced by the WORLD
+campaign 1 beacon period 3<->6     seed 1   IDENTICAL whole run (382 messages)
+campaign 1 stealth 99              seed 1   IDENTICAL whole run (382 messages)
+all hosts blind (sensor coverage)  seed 1   first difference at message 42 of 382 produced by the WORLD
+revoked-user lag state             seed 1   first difference at message 24 of 382 produced by the WORLD
+ghost flag (no channel)            seed 1   IDENTICAL whole run (382 messages)
+scorer labels randomised           seed 1   IDENTICAL whole run (382 messages)
+set label val (same world)         seed 1   IDENTICAL whole run (382 messages)
+set label diag (same world)        seed 1   IDENTICAL whole run (382 messages)
+set label held (same world)        seed 1   IDENTICAL whole run (382 messages)
+persist+autostart bit (exact read) seed 2   first difference at message 4 of 398 produced by the WORLD
+persist+autostart, stage 2         seed 2   first difference at message 208 of 398 produced by the WORLD
+stolen user 3 (credential audit)   seed 2   first difference at message 26 of 398 produced by the WORLD
+exposure bits on a host (expo/scan) seed 2   first difference at message 4 of 398 produced by the WORLD
+campaign 1 start +5                seed 2   first difference at message 44 of 398 produced by the WORLD
+campaign 1 vector -> exploit/cred  seed 2   first difference at message 44 of 398 produced by the WORLD
+campaign 1 beacon period 3<->6     seed 2   first difference at message 70 of 398 produced by the WORLD
+campaign 1 stealth 99              seed 2   first difference at message 78 of 398 produced by the WORLD
+all hosts blind (sensor coverage)  seed 2   first difference at message 26 of 398 produced by the WORLD
+revoked-user lag state             seed 2   first difference at message 26 of 398 produced by the WORLD
+ghost flag (no channel)            seed 2   IDENTICAL whole run (398 messages)
+scorer labels randomised           seed 2   IDENTICAL whole run (398 messages)
+set label val (same world)         seed 2   IDENTICAL whole run (398 messages)
+set label diag (same world)        seed 2   IDENTICAL whole run (398 messages)
+set label held (same world)        seed 2   IDENTICAL whole run (398 messages)
+TOTAL 30 twin runs: 13 identical whole-run, 17 first-difference-by-world, 0 GUEST-PRODUCED first differences (leaks)
+== twin_3_5.out
+persist+autostart bit (exact read) seed 3   IDENTICAL whole run (406 messages)
+persist+autostart, stage 2         seed 3   IDENTICAL whole run (406 messages)
+stolen user 3 (credential audit)   seed 3   first difference at message 20 of 406 produced by the WORLD
+exposure bits on a host (expo/scan) seed 3   IDENTICAL whole run (406 messages)
+campaign 1 start +5                seed 3   first difference at message 38 of 406 produced by the WORLD
+campaign 1 vector -> exploit/cred  seed 3   first difference at message 38 of 406 produced by the WORLD
+campaign 1 beacon period 3<->6     seed 3   first difference at message 68 of 406 produced by the WORLD
+campaign 1 stealth 99              seed 3   first difference at message 50 of 406 produced by the WORLD
+all hosts blind (sensor coverage)  seed 3   first difference at message 50 of 406 produced by the WORLD
+revoked-user lag state             seed 3   first difference at message 20 of 406 produced by the WORLD
+ghost flag (no channel)            seed 3   IDENTICAL whole run (406 messages)
+scorer labels randomised           seed 3   IDENTICAL whole run (406 messages)
+set label val (same world)         seed 3   IDENTICAL whole run (406 messages)
+set label diag (same world)        seed 3   IDENTICAL whole run (406 messages)
+set label held (same world)        seed 3   IDENTICAL whole run (406 messages)
+persist+autostart bit (exact read) seed 5   first difference at message 20 of 388 produced by the WORLD
+persist+autostart, stage 2         seed 5   first difference at message 218 of 388 produced by the WORLD
+stolen user 3 (credential audit)   seed 5   first difference at message 20 of 388 produced by the WORLD
+exposure bits on a host (expo/scan) seed 5   IDENTICAL whole run (388 messages)
+campaign 1 start +5                seed 5   IDENTICAL whole run (388 messages)
+campaign 1 vector -> exploit/cred  seed 5   first difference at message 4 of 388 produced by the WORLD
+campaign 1 beacon period 3<->6     seed 5   IDENTICAL whole run (388 messages)
+campaign 1 stealth 99              seed 5   first difference at message 20 of 388 produced by the WORLD
+all hosts blind (sensor coverage)  seed 5   first difference at message 20 of 388 produced by the WORLD
+revoked-user lag state             seed 5   first difference at message 20 of 388 produced by the WORLD
+ghost flag (no channel)            seed 5   IDENTICAL whole run (388 messages)
+scorer labels randomised           seed 5   IDENTICAL whole run (388 messages)
+set label val (same world)         seed 5   IDENTICAL whole run (388 messages)
+set label diag (same world)        seed 5   IDENTICAL whole run (388 messages)
+set label held (same world)        seed 5   IDENTICAL whole run (388 messages)
+TOTAL 30 twin runs: 16 identical whole-run, 14 first-difference-by-world, 0 GUEST-PRODUCED first differences (leaks)
+== twin_7_9.out
+persist+autostart bit (exact read) seed 7   IDENTICAL whole run (402 messages)
+persist+autostart, stage 2         seed 7   IDENTICAL whole run (402 messages)
+stolen user 3 (credential audit)   seed 7   first difference at message 20 of 402 produced by the WORLD
+exposure bits on a host (expo/scan) seed 7   IDENTICAL whole run (402 messages)
+campaign 1 start +5                seed 7   first difference at message 74 of 402 produced by the WORLD
+campaign 1 vector -> exploit/cred  seed 7   first difference at message 74 of 402 produced by the WORLD
+campaign 1 beacon period 3<->6     seed 7   IDENTICAL whole run (402 messages)
+campaign 1 stealth 99              seed 7   first difference at message 128 of 402 produced by the WORLD
+all hosts blind (sensor coverage)  seed 7   first difference at message 38 of 402 produced by the WORLD
+revoked-user lag state             seed 7   first difference at message 20 of 402 produced by the WORLD
+ghost flag (no channel)            seed 7   IDENTICAL whole run (402 messages)
+scorer labels randomised           seed 7   IDENTICAL whole run (402 messages)
+set label val (same world)         seed 7   IDENTICAL whole run (402 messages)
+set label diag (same world)        seed 7   IDENTICAL whole run (402 messages)
+set label held (same world)        seed 7   IDENTICAL whole run (402 messages)
+persist+autostart bit (exact read) seed 9   IDENTICAL whole run (392 messages)
+persist+autostart, stage 2         seed 9   IDENTICAL whole run (392 messages)
+stolen user 3 (credential audit)   seed 9   first difference at message 18 of 392 produced by the WORLD
+exposure bits on a host (expo/scan) seed 9   IDENTICAL whole run (392 messages)
+campaign 1 start +5                seed 9   first difference at message 148 of 392 produced by the WORLD
+campaign 1 vector -> exploit/cred  seed 9   first difference at message 2 of 392 produced by the WORLD
+campaign 1 beacon period 3<->6     seed 9   first difference at message 148 of 392 produced by the WORLD
+campaign 1 stealth 99              seed 9   first difference at message 2 of 392 produced by the WORLD
+all hosts blind (sensor coverage)  seed 9   first difference at message 2 of 392 produced by the WORLD
+revoked-user lag state             seed 9   first difference at message 18 of 392 produced by the WORLD
+ghost flag (no channel)            seed 9   IDENTICAL whole run (392 messages)
+scorer labels randomised           seed 9   IDENTICAL whole run (392 messages)
+set label val (same world)         seed 9   IDENTICAL whole run (392 messages)
+set label diag (same world)        seed 9   IDENTICAL whole run (392 messages)
+set label held (same world)        seed 9   IDENTICAL whole run (392 messages)
+TOTAL 30 twin runs: 17 identical whole-run, 13 first-difference-by-world, 0 GUEST-PRODUCED first differences (leaks)

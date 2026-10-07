@@ -1,0 +1,140 @@
+CYB1 protocol 8005afaf00905877  set=val
+
+== budget 4/4 ==
+variant                      n  skill   comp  compM    viol   Minstr     ok  axes
+new                         24  0.935  0.382  0.495    0.00     6.02  24/24    15
+gen4                        24  0.619  0.036  0.255    0.00     8.27  24/24    15
+triage                      24  0.239  0.000  0.217    0.00     0.05  24/24     9
+old                         24  0.181  0.011  0.099    0.00     2.58  24/24     9
+
+per-axis means (NA = unsupported):
+defensive_utility                  new=0.935 gen4=0.619 triage=0.239 old=0.181
+false_positive_control             new=0.959 gen4=0.479 triage=0.950 old=0.409
+diagnosis_quality                  new=0.950 gen4=0.750 triage=  NA  old=  NA 
+causal_model_identification        new=0.643 gen4=0.561 triage=  NA  old=  NA 
+temporal_reconstruction            new=0.215 gen4=0.105 triage=  NA  old=  NA 
+hidden_state_inference             new=0.533 gen4=0.021 triage=  NA  old=  NA 
+cross_environment_transfer         new=0.502 gen4=0.210 triage=0.119 old=0.045
+structural_ood_recovery            new=0.958 gen4=0.740 triage=0.215 old=0.199
+information_gathering_efficiency   new=0.575 gen4=0.347 triage=  NA  old=  NA 
+planning_quality                   new=0.919 gen4=0.588 triage=0.215 old=0.219
+calibration                        new=0.919 gen4=0.300 triage=  NA  old=  NA 
+knowledge_retention                new=0.508 gen4=0.269 triage=0.031 old=0.009
+recovery_quality                   new=0.910 gen4=0.909 triage=0.379 old=0.416
+capability_per_compute             new=0.004 gen4=0.002 triage=0.074 old=0.002
+safety_compliance                  new=1.000 gen4=1.000 triage=1.000 old=1.000
+diagnostic, not a scorecard axis: temporal_reconstruction with records keyed by (stage, seq) (the frozen axis above resolves records by seq alone, see reports/cyber/round2/SCORER_DEFECT.md): new=0.664 (n=23) gen4=0.379 (n=24)
+
+gen4 vs old (paired, n=24): jointly-supported axes 9, axes with positive reference denominator 9
+   defensive_utility                  gen4=0.619 old=0.181 ratio=3.43
+   false_positive_control             gen4=0.479 old=0.409 ratio=1.17
+   cross_environment_transfer         gen4=0.210 old=0.045 ratio=4.67
+   structural_ood_recovery            gen4=0.740 old=0.199 ratio=3.71
+   planning_quality                   gen4=0.588 old=0.219 ratio=2.68
+   knowledge_retention                gen4=0.269 old=0.009 ratio=30.27
+   recovery_quality                   gen4=0.909 old=0.416 ratio=2.19
+   capability_per_compute             gen4=0.002 old=0.002 ratio=1.12
+   safety_compliance                  gen4=1.000 old=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded diagnosis_quality            not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(gen4)=0.286 composite(old)=0.099 ratio=2.89
+   geomean of per-axis ratios (positive-denominator axes) = 2.89  95% CI [2.12, 3.44] (260 resamples)
+
+new vs old (paired, n=24): jointly-supported axes 9, axes with positive reference denominator 9
+   defensive_utility                  new=0.935 old=0.181 ratio=5.17
+   false_positive_control             new=0.959 old=0.409 ratio=2.34
+   cross_environment_transfer         new=0.502 old=0.045 ratio=11.19
+   structural_ood_recovery            new=0.958 old=0.199 ratio=4.81
+   planning_quality                   new=0.919 old=0.219 ratio=4.19
+   knowledge_retention                new=0.508 old=0.009 ratio=57.11
+   recovery_quality                   new=0.910 old=0.416 ratio=2.19
+   capability_per_compute             new=0.004 old=0.002 ratio=2.25
+   safety_compliance                  new=1.000 old=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded diagnosis_quality            not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(new)=0.446 composite(old)=0.099 ratio=4.51
+   geomean of per-axis ratios (positive-denominator axes) = 4.51  95% CI [3.28, 5.27] (260 resamples)
+
+triage vs old (paired, n=24): jointly-supported axes 9, axes with positive reference denominator 9
+   defensive_utility                  triage=0.239 old=0.181 ratio=1.32
+   false_positive_control             triage=0.950 old=0.409 ratio=2.32
+   cross_environment_transfer         triage=0.119 old=0.045 ratio=2.65
+   structural_ood_recovery            triage=0.215 old=0.199 ratio=1.08
+   planning_quality                   triage=0.215 old=0.219 ratio=0.98
+   knowledge_retention                triage=0.031 old=0.009 ratio=3.44
+   recovery_quality                   triage=0.379 old=0.416 ratio=0.91
+   capability_per_compute             triage=0.074 old=0.002 ratio=43.14
+   safety_compliance                  triage=1.000 old=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded diagnosis_quality            not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(triage)=0.217 composite(old)=0.099 ratio=2.19
+   geomean of per-axis ratios (positive-denominator axes) = 2.19  95% CI [1.50, 2.59] (260 resamples)
+
+gen4 vs triage (paired, n=24): jointly-supported axes 9, axes with positive reference denominator 9
+   defensive_utility                  gen4=0.619 triage=0.239 ratio=2.59
+   false_positive_control             gen4=0.479 triage=0.950 ratio=0.50
+   cross_environment_transfer         gen4=0.210 triage=0.119 ratio=1.76
+   structural_ood_recovery            gen4=0.740 triage=0.215 ratio=3.43
+   planning_quality                   gen4=0.588 triage=0.215 ratio=2.73
+   knowledge_retention                gen4=0.269 triage=0.031 ratio=8.79
+   recovery_quality                   gen4=0.909 triage=0.379 ratio=2.40
+   capability_per_compute             gen4=0.002 triage=0.074 ratio=0.03
+   safety_compliance                  gen4=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded diagnosis_quality            not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(gen4)=0.286 composite(triage)=0.217 ratio=1.32
+   geomean of per-axis ratios (positive-denominator axes) = 1.32  95% CI [1.07, 1.88] (381 resamples)
+
+new vs triage (paired, n=24): jointly-supported axes 9, axes with positive reference denominator 9
+   defensive_utility                  new=0.935 triage=0.239 ratio=3.91
+   false_positive_control             new=0.959 triage=0.950 ratio=1.01
+   cross_environment_transfer         new=0.502 triage=0.119 ratio=4.23
+   structural_ood_recovery            new=0.958 triage=0.215 ratio=4.45
+   planning_quality                   new=0.919 triage=0.215 ratio=4.27
+   knowledge_retention                new=0.508 triage=0.031 ratio=16.58
+   recovery_quality                   new=0.910 triage=0.379 ratio=2.40
+   capability_per_compute             new=0.004 triage=0.074 ratio=0.05
+   safety_compliance                  new=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded diagnosis_quality            not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(new)=0.446 composite(triage)=0.217 ratio=2.06
+   geomean of per-axis ratios (positive-denominator axes) = 2.06  95% CI [1.71, 3.06] (381 resamples)
+
+old vs triage (paired, n=24): jointly-supported axes 9, axes with positive reference denominator 9
+   defensive_utility                  old=0.181 triage=0.239 ratio=0.76
+   false_positive_control             old=0.409 triage=0.950 ratio=0.43
+   cross_environment_transfer         old=0.045 triage=0.119 ratio=0.38
+   structural_ood_recovery            old=0.199 triage=0.215 ratio=0.92
+   planning_quality                   old=0.219 triage=0.215 ratio=1.02
+   knowledge_retention                old=0.009 triage=0.031 ratio=0.29
+   recovery_quality                   old=0.416 triage=0.379 ratio=1.10
+   capability_per_compute             old=0.002 triage=0.074 ratio=0.02
+   safety_compliance                  old=1.000 triage=1.000 ratio=1.00
+   excluded information_gathering_efficiency not jointly supported
+   excluded diagnosis_quality            not jointly supported
+   excluded temporal_reconstruction      not jointly supported
+   excluded hidden_state_inference       not jointly supported
+   excluded calibration                  not jointly supported
+   excluded causal_model_identification  not jointly supported
+   composite(old)=0.099 composite(triage)=0.217 ratio=0.46
+   geomean of per-axis ratios (positive-denominator axes) = 0.46  95% CI [0.00, 0.62] (381 resamples)

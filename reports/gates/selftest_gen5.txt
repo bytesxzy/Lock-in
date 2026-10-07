@@ -1,0 +1,18 @@
+bundle sha256 ef0d9aab453d8392eca80342ec73734507546c7beba2d265968cb409d50d5bb6
+command: lua exec_eval_1.lua selftest
+math       (conformance)      passed    466  failed   0     0.8s
+rng        (conformance)      passed  52153  failed   0     0.2s
+validate   (conformance)      passed     32  failed   0    45.4s
+world      (conformance)      passed  20524  failed   0    12.1s
+vm         (conformance)      passed    360  failed   0     0.1s
+gl         (conformance)      passed   8247  failed   0     1.2s
+risk       (certificate)      passed     81  failed   0    45.9s
+proof      (certificate)      passed     66  failed   0    75.3s
+parity     (execution)        passed   6628  failed   0    38.9s
+twin       (execution)        passed     35  failed   0    17.0s
+mutation   (failure-detection) passed     64  failed   0   105.7s
+harness    (reports)          passed   1058  failed   0    50.2s
+reason     (reasoning)        passed   8729  failed   0    18.7s
+cyber      (reasoning)        passed   1719  failed   0    40.7s
+sketch     (reasoning)        passed    219  failed   0    37.7s
+TOTAL passed 100381 failed 0

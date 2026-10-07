@@ -1,0 +1,118 @@
+Perturbation audit (agent 'cheat'; each row is a full run of the 46 development streams on a COPY of the world code in which the named regularity was changed; skill and the 15 axis means, composite = geometric mean).
+Columns: fp = false-positive control, hs = hidden state, tkey = temporal reconstruction with records keyed by (stage, seq).
+
+
+## DEFAULT WORLD (dev 46 streams): final controller, one mechanism switched off, generation 4
+gen5                       n=46  skill 0.9305 comp 0.4985 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.199 tkey 0.724 causal 0.743
+gen4                       n=46  skill 0.5834 comp 0.2495 | fp 0.446 diag 0.684 hs 0.041 info 0.378 cal 0.164 temp 0.136 tkey 0.351 causal 0.672
+no upair                   n=46  skill 0.9278 comp 0.4901 | fp 0.930 diag 0.947 hs 0.424 info 0.629 cal 0.836 temp 0.201 tkey 0.724 causal 0.741
+no exact persistence read (cfgp cfghost) n=46  skill 0.9218 comp 0.4933 | fp 0.949 diag 0.931 hs 0.483 info 0.609 cal 0.835 temp 0.197 tkey 0.708 causal 0.744
+no revoke window (rlw=0)   n=46  skill 0.9305 comp 0.4855 | fp 0.956 diag 0.947 hs 0.359 info 0.629 cal 0.837 temp 0.199 tkey 0.724 causal 0.743
+no report layer (qr)       n=46  skill 0.9128 comp 0.4018 | fp 0.894 diag 0.855 hs 0.051 info 0.350 cal 0.834 temp 0.190 tkey 0.724 causal 0.743
+no activity forecasts (fq2) n=46  skill 0.9305 comp 0.4643 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.288 temp 0.199 tkey 0.724 causal 0.743
+no timeline selection (tlsel) n=46  skill 0.9305 comp 0.4772 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.100 tkey 0.300 causal 0.743
+no onset evidence (inb inbu inbp onset_adapt) n=46  skill 0.4817 comp 0.2215 | fp 0.988 diag 0.567 hs 0.029 info 0.065 cal 0.841 temp 0.124 tkey 0.411 causal 0.745
+
+## INBOUND-EXTERNAL NOISE: benign inbound flows injected (low / mid / high)
+low  gen5                  n=46  skill 0.8167 comp 0.3042 | fp 0.486 diag 0.848 hs 0.018 info 0.209 cal 0.843 temp 0.115 tkey 0.356 causal 0.722
+low  gen4                  n=46  skill 0.5683 comp 0.2027 | fp 0.273 diag 0.708 hs 0.010 info 0.247 cal 0.124 temp 0.114 tkey 0.285 causal 0.677
+low  no onset evidence     n=46  skill 0.4385 comp 0.0000 | fp 0.948 diag 0.494 hs 0.013 info 0.000 cal 0.836 temp 0.073 tkey 0.166 causal 0.726
+mid  gen5                  n=46  skill 0.7211 comp 0.2222 | fp 0.188 diag 0.855 hs 0.002 info 0.181 cal 0.843 temp 0.057 tkey 0.145 causal 0.752
+mid  gen4                  n=46  skill 0.4878 comp 0.1398 | fp 0.106 diag 0.643 hs 0.001 info 0.181 cal 0.112 temp 0.092 tkey 0.195 causal 0.709
+mid  no onset evidence     n=46  skill 0.4305 comp 0.1535 | fp 0.909 diag 0.469 hs 0.009 info 0.045 cal 0.840 temp 0.064 tkey 0.060 causal 0.717
+high gen5                  n=46  skill 0.6315 comp 0.1885 | fp 0.127 diag 0.834 hs 0.001 info 0.136 cal 0.927 temp 0.047 tkey 0.094 causal 0.767
+high gen4                  n=46  skill 0.4036 comp 0.0000 | fp 0.013 diag 0.549 hs 0.000 info 0.133 cal 0.134 temp 0.071 tkey 0.137 causal 0.730
+high no onset evidence     n=46  skill 0.3737 comp 0.1222 | fp 0.892 diag 0.448 hs 0.004 info 0.025 cal 0.930 temp 0.050 tkey 0.029 causal 0.735
+
+## PAIRED-LOGIN REGULARITY BROKEN (every external login paired with an inbound connection / pairing jitter of 3 ticks)
+all paired: gen5           n=46  skill 0.9090 comp 0.4772 | fp 0.939 diag 0.949 hs 0.289 info 0.660 cal 0.842 temp 0.239 tkey 0.794 causal 0.754
+all paired: no upair       n=46  skill 0.9449 comp 0.5100 | fp 0.923 diag 0.960 hs 0.448 info 0.689 cal 0.834 temp 0.235 tkey 0.790 causal 0.743
+all paired: gen4           n=46  skill 0.6118 comp 0.2582 | fp 0.435 diag 0.715 hs 0.035 info 0.392 cal 0.164 temp 0.122 tkey 0.356 causal 0.671
+jitter 3: gen5             n=46  skill 0.9209 comp 0.4874 | fp 0.926 diag 0.937 hs 0.416 info 0.620 cal 0.844 temp 0.204 tkey 0.713 causal 0.738
+jitter 3: no upair         n=46  skill 0.9191 comp 0.4842 | fp 0.918 diag 0.935 hs 0.385 info 0.620 cal 0.844 temp 0.204 tkey 0.710 causal 0.737
+jitter 3: gen4             n=46  skill 0.5685 comp 0.2370 | fp 0.466 diag 0.655 hs 0.027 info 0.394 cal 0.157 temp 0.125 tkey 0.343 causal 0.668
+
+## PERSISTENCE READ PERTURBED (flag hidden / 40% false negatives / 15% benign hosts flagged)
+hidden: gen5               n=46  skill 0.9183 comp 0.4878 | fp 0.958 diag 0.922 hs 0.451 info 0.629 cal 0.834 temp 0.197 tkey 0.702 causal 0.744
+hidden: no exact read      n=46  skill 0.9186 comp 0.4908 | fp 0.950 diag 0.922 hs 0.451 info 0.633 cal 0.834 temp 0.197 tkey 0.702 causal 0.744
+hidden: gen4               n=46  skill 0.5830 comp 0.2468 | fp 0.460 diag 0.676 hs 0.033 info 0.373 cal 0.161 temp 0.137 tkey 0.349 causal 0.675
+40% FN: gen5               n=46  skill 0.9263 comp 0.4962 | fp 0.957 diag 0.940 hs 0.516 info 0.629 cal 0.835 temp 0.199 tkey 0.717 causal 0.743
+40% FN: no exact read      n=46  skill 0.9203 comp 0.4925 | fp 0.949 diag 0.928 hs 0.479 info 0.609 cal 0.834 temp 0.197 tkey 0.705 causal 0.744
+40% FN: gen4               n=46  skill 0.5826 comp 0.2482 | fp 0.446 diag 0.680 hs 0.039 info 0.381 cal 0.161 temp 0.136 tkey 0.350 causal 0.673
+15% FP: gen5               n=46  skill 0.9199 comp 0.4246 | fp 0.939 diag 0.754 hs 0.105 info 0.426 cal 0.838 temp 0.213 tkey 0.728 causal 0.742
+15% FP: no exact read      n=46  skill 0.9176 comp 0.4195 | fp 0.934 diag 0.699 hs 0.088 info 0.407 cal 0.838 temp 0.211 tkey 0.710 causal 0.742
+15% FP: gen4               n=46  skill 0.5840 comp 0.2497 | fp 0.454 diag 0.682 hs 0.040 info 0.372 cal 0.167 temp 0.136 tkey 0.351 causal 0.671
+
+## REISSUE LAG PERTURBED (0 and 6 ticks; the controller assumes 3)
+lag 0: gen5                n=46  skill 0.9329 comp 0.4909 | fp 0.956 diag 0.948 hs 0.371 info 0.629 cal 0.838 temp 0.206 tkey 0.727 causal 0.741
+lag 0: no window           n=46  skill 0.9329 comp 0.4950 | fp 0.956 diag 0.948 hs 0.422 info 0.629 cal 0.838 temp 0.206 tkey 0.727 causal 0.741
+lag 0: gen4                n=46  skill 0.5864 comp 0.2505 | fp 0.449 diag 0.684 hs 0.040 info 0.378 cal 0.163 temp 0.133 tkey 0.349 causal 0.673
+lag 6: gen5                n=46  skill 0.9264 comp 0.4853 | fp 0.955 diag 0.948 hs 0.412 info 0.624 cal 0.835 temp 0.205 tkey 0.726 causal 0.737
+lag 6: no window           n=46  skill 0.9264 comp 0.4729 | fp 0.955 diag 0.948 hs 0.280 info 0.624 cal 0.835 temp 0.205 tkey 0.726 causal 0.737
+lag 6: gen4                n=46  skill 0.5834 comp 0.2487 | fp 0.449 diag 0.687 hs 0.042 info 0.375 cal 0.160 temp 0.140 tkey 0.350 causal 0.674
+
+## SEQUENCE NUMBERS PERTURBED (arrival order / shuffled) -> incident timeline
+arrival: gen5              n=46  skill 0.9305 comp 0.4940 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.174 tkey 0.673 causal 0.743
+arrival: no tlsel          n=46  skill 0.9305 comp 0.4738 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.090 tkey 0.286 causal 0.743
+arrival: gen4              n=46  skill 0.5834 comp 0.2478 | fp 0.446 diag 0.684 hs 0.041 info 0.378 cal 0.164 temp 0.123 tkey 0.328 causal 0.672
+shuffled: gen5             n=46  skill 0.9297 comp 0.4909 | fp 0.954 diag 0.947 hs 0.529 info 0.629 cal 0.839 temp 0.162 tkey 0.608 causal 0.737
+shuffled: no tlsel         n=46  skill 0.9297 comp 0.4730 | fp 0.954 diag 0.947 hs 0.529 info 0.629 cal 0.839 temp 0.090 tkey 0.271 causal 0.737
+shuffled: gen4             n=46  skill 0.5713 comp 0.2407 | fp 0.458 diag 0.668 hs 0.037 info 0.332 cal 0.145 temp 0.116 tkey 0.307 causal 0.666
+
+## EXEC attr CONVENTION PERTURBED (254 instead of 255 / 50% random)
+254: gen5                  n=46  skill 0.9305 comp 0.4943 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.175 tkey 0.682 causal 0.743
+254: no payload rule       n=46  skill 0.9305 comp 0.4943 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.175 tkey 0.682 causal 0.743
+254: no tlsel              n=46  skill 0.9305 comp 0.4772 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.100 tkey 0.300 causal 0.743
+random: gen5               n=46  skill 0.9305 comp 0.4954 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.181 tkey 0.695 causal 0.745
+random: no payload rule    n=46  skill 0.9305 comp 0.4947 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.177 tkey 0.687 causal 0.745
+random: no tlsel           n=46  skill 0.9305 comp 0.4773 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.100 tkey 0.300 causal 0.745
+
+## BEACON PORT PERTURBED
+gen5                       n=46  skill 0.9211 comp 0.4827 | fp 0.943 diag 0.945 hs 0.531 info 0.553 cal 0.862 temp 0.181 tkey 0.650 causal 0.777
+no beacon feature          n=46  skill 0.9181 comp 0.4834 | fp 0.943 diag 0.941 hs 0.531 info 0.562 cal 0.859 temp 0.169 tkey 0.673 causal 0.779
+gen4                       n=46  skill 0.5382 comp 0.2041 | fp 0.372 diag 0.650 hs 0.010 info 0.347 cal 0.125 temp 0.110 tkey 0.264 causal 0.686
+
+## SENSOR-FAULT NOISE x1 / x2
+x1 gen5                    n=46  skill 0.8769 comp 0.4599 | fp 0.950 diag 0.897 hs 0.374 info 0.640 cal 0.800 temp 0.170 tkey 0.670 causal 0.725
+x1 gen4                    n=46  skill 0.5342 comp 0.1973 | fp 0.446 diag 0.639 hs 0.017 info 0.380 cal 0.039 temp 0.117 tkey 0.314 causal 0.682
+x1 no report layer         n=46  skill 0.8690 comp 0.3709 | fp 0.884 diag 0.826 hs 0.034 info 0.313 cal 0.802 temp 0.172 tkey 0.686 causal 0.730
+x1 cold-start controller (M1) n=46  skill 0.8643 comp 0.2885 | fp 0.856 diag 0.839 hs 0.037 info 0.307 cal 0.049 temp 0.108 tkey 0.262 causal 0.657
+x2 gen5                    n=46  skill 0.8617 comp 0.4348 | fp 0.948 diag 0.850 hs 0.264 info 0.627 cal 0.728 temp 0.163 tkey 0.604 causal 0.731
+x2 gen4                    n=46  skill 0.4728 comp 0.1675 | fp 0.457 diag 0.576 hs 0.014 info 0.343 cal 0.018 temp 0.110 tkey 0.288 causal 0.689
+x2 no report layer         n=46  skill 0.8558 comp 0.3526 | fp 0.894 diag 0.792 hs 0.025 info 0.347 cal 0.725 temp 0.153 tkey 0.611 causal 0.725
+x2 cold-start controller (M1) n=46  skill 0.8504 comp 0.2715 | fp 0.867 diag 0.805 hs 0.037 info 0.344 cal 0.031 temp 0.094 tkey 0.237 causal 0.643
+
+## SENSITIVITY OF THE FITTED CONSTANTS (dev 46 streams; default skill 0.9305, composite 0.4985)
+gen5                       n=46  skill 0.9305 comp 0.4985 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.199 tkey 0.724 causal 0.743
+k_qsh0                     n=46  skill 0.9151 comp 0.4891 | fp 0.888 diag 0.949 hs 0.542 info 0.612 cal 0.832 temp 0.200 tkey 0.725 causal 0.743
+k_qsh51                    n=46  skill 0.9195 comp 0.4917 | fp 0.906 diag 0.948 hs 0.537 info 0.599 cal 0.837 temp 0.198 tkey 0.725 causal 0.744
+k_qsh205                   n=46  skill 0.9305 comp 0.4985 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.199 tkey 0.724 causal 0.743
+k_qsh308                   n=46  skill 0.9305 comp 0.4985 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.199 tkey 0.724 causal 0.743
+k_pmin700                  n=46  skill 0.9305 comp 0.4985 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.199 tkey 0.724 causal 0.743
+k_pmin1000                 n=46  skill 0.9287 comp 0.4974 | fp 0.957 diag 0.947 hs 0.533 info 0.627 cal 0.836 temp 0.199 tkey 0.720 causal 0.743
+k_uhz15                    n=46  skill 0.9343 comp 0.5057 | fp 0.960 diag 0.947 hs 0.531 info 0.606 cal 0.838 temp 0.224 tkey 0.720 causal 0.743
+k_upmin120                 n=46  skill 0.9308 comp 0.4990 | fp 0.958 diag 0.947 hs 0.533 info 0.629 cal 0.836 temp 0.201 tkey 0.724 causal 0.743
+k_scanrole                 n=46  skill 0.9042 comp 0.4720 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.199 tkey 0.724 causal 0.743
+k_rpx768                   n=46  skill 0.9310 comp 0.4979 | fp 0.956 diag 0.947 hs 0.530 info 0.617 cal 0.836 temp 0.199 tkey 0.723 causal 0.744
+k_rpq16                    n=46  skill 0.9305 comp 0.4978 | fp 0.956 diag 0.947 hs 0.523 info 0.629 cal 0.837 temp 0.199 tkey 0.724 causal 0.743
+k_fq2t256                  n=46  skill 0.9305 comp 0.4969 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.799 temp 0.199 tkey 0.724 causal 0.743
+k_fq2t768                  n=46  skill 0.9305 comp 0.4985 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.833 temp 0.199 tkey 0.724 causal 0.743
+k_fq2k8                    n=46  skill 0.9305 comp 0.4985 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.836 temp 0.199 tkey 0.724 causal 0.743
+k_fq2k32                   n=46  skill 0.9305 comp 0.4980 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.823 temp 0.199 tkey 0.724 causal 0.743
+k_tlth100                  n=46  skill 0.9305 comp 0.4944 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.176 tkey 0.691 causal 0.743
+k_tlth200                  n=46  skill 0.9305 comp 0.4946 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.177 tkey 0.673 causal 0.743
+k_tlcore70                 n=46  skill 0.9305 comp 0.4984 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.199 tkey 0.717 causal 0.743
+k_tlcore130                n=46  skill 0.9305 comp 0.4983 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.198 tkey 0.711 causal 0.743
+k_tlwin12                  n=46  skill 0.9305 comp 0.4991 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.200 tkey 0.655 causal 0.743
+k_tlwin36                  n=46  skill 0.9305 comp 0.4982 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.198 tkey 0.729 causal 0.743
+k_bn3                      n=46  skill 0.9308 comp 0.4974 | fp 0.956 diag 0.947 hs 0.532 info 0.629 cal 0.837 temp 0.192 tkey 0.721 causal 0.744
+k_rla30                    n=46  skill 0.9298 comp 0.4965 | fp 0.956 diag 0.947 hs 0.536 info 0.609 cal 0.836 temp 0.197 tkey 0.723 causal 0.743
+k_rla50                    n=46  skill 0.9198 comp 0.4899 | fp 0.915 diag 0.948 hs 0.538 info 0.580 cal 0.833 temp 0.193 tkey 0.722 causal 0.744
+k_rlc_m95                  n=46  skill 0.9200 comp 0.4869 | fp 0.916 diag 0.946 hs 0.529 info 0.538 cal 0.833 temp 0.195 tkey 0.725 causal 0.742
+k_rlc_m120                 n=46  skill 0.9294 comp 0.4953 | fp 0.953 diag 0.945 hs 0.524 info 0.609 cal 0.836 temp 0.197 tkey 0.723 causal 0.743
+f_scan0                    n=46  skill 0.9305 comp 0.4985 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.199 tkey 0.724 causal 0.743
+f_scan47                   n=46  skill 0.9305 comp 0.4984 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.199 tkey 0.724 causal 0.743
+f_tlmin0                   n=46  skill 0.9305 comp 0.4932 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.170 tkey 0.617 causal 0.743
+f_tlmin1                   n=46  skill 0.9305 comp 0.4954 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.181 tkey 0.652 causal 0.743
+f_tlnopay                  n=46  skill 0.9305 comp 0.4954 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.837 temp 0.181 tkey 0.702 causal 0.743
+f_fq2fix                   n=46  skill 0.9305 comp 0.4373 | fp 0.956 diag 0.947 hs 0.534 info 0.629 cal 0.119 temp 0.199 tkey 0.724 causal 0.743

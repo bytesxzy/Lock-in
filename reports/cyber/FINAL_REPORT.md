@@ -3,7 +3,77 @@
 Everything below was measured with the bundle in this repository (Lua 5.4 only, no external model, no network, no other language).
 Raw per-stream rows and paired reports are in `reports/cyber/`; the pre-upgrade bundle is `baseline/exec_eval_1.lua`.
 
-## 1. Verdict in five lines
+## 0. Update: generation 5 and the `sketch.lua` workspace (read this first)
+
+Two things were added after the generation-4 report that follows (sections 1–8, kept as measured; their verdict applies to generation 4 and is superseded for the default controller by 0.1).
+Every number in this section was produced by the bundle in this repository (Lua 5.4 only, no external model, no network).
+
+### 0.1 Generation 5 of the cyber controller (default `G.build({})`)
+
+**What changed.** Four groups of mechanisms, each a `cfg` flag of the compiled guest controller, ON through `G.DEFAULTS` (`cfg.x = false` switches one off; `cfg.legacy_defaults = true` restores the
+generation-4 decisions, with metered work within 0.13%; the `cyber-eval` variant `gen4` runs that controller):
+* **onset evidence** (`inb inbu inbp onset_adapt stale pmin2 wmask`): an inbound flow from outside the inventory is evidence about its destination host, a login from outside about its user, a new persistence
+  record about its host; the weight is the learned surprise of such an event under the rate seen so far; the evidence is sticky, decays, and records older than the last remediation of their entity are ignored;
+* **exact reads and early exposure closure** (`cfgp cfghost expo scan scanrole beacon norec uhz upmin`): the configuration / host tool returns the autostart flag, so exposure is closed before it is used;
+* **calibrated beliefs and posterior-gated decisions** (`qr qsh qvo`), activity forecasts (`fq2 fcpool`), login pairing (`upair`);
+* **incident-timeline selection** (`tlsel`) and nearest-cause link crediting (`lnear`).
+Guest image `1a10b215…` (514,272 bits, 7,992 words, static RAM top 14,072 of 16,128); generation 4 `ebb23466…` (440,288 bits). Found in parallel lab explorations on the **development streams only**, kept
+only when paired gates passed, then audited (twin-world noninterference, regularity perturbation, constant plateaus, generalisation, budgets: `round2/AUDIT_SUMMARY.md`).
+
+**Pre-registered confirmation on `heldF` (16 streams, 9501–9516).** The controller image and the baselines (`baselines_heldF.*`) were recorded before the run (`FINAL_CONTROLLER.txt`); the set was never touched by a lab
+or an audit; the controller was run on it once. Files: `gen5/`.
+
+| budget 4/4 (at 1/4 and 2/4 generation 5 has the same skill 0.895 and ratios 3.74x / 3.73x vs OLD) | defensive skill | composite vs OLD (pre-registered rule) | vs TRIAGE |
+|---|---|---|---|
+| generation 5 | **0.895** | **3.73x** (95% CI 2.76–4.60) | **2.27x** (1.56–2.93) |
+| generation 4 | 0.528 | 2.13x (1.72–2.55) | 1.39x (1.03–1.78) |
+| OLD (pre-upgrade reasoner) | 0.171 | 1 | |
+| TRIAGE (fixed heuristic) | 0.190 | | 1 |
+
+On a second set of 24 never-used seeds (`round2/fresh24_report.txt`, run by the audit, not selected on): skill 0.935 against generation 4 0.619, OLD 0.181, TRIAGE 0.239 (4.51x vs OLD, CI 3.28–5.27).
+
+**Reading.** The 2x composite target is **met on heldF**, under the rule fixed before the run. Three qualifications belong to the number:
+1. The strict composite (geometric mean of all jointly supported axes) of OLD is exactly 0 because OLD scores 0.000 on `knowledge_retention`, so the ratio of composites is undefined; the number is the
+   pre-registered fallback, the geometric mean of the per-axis ratios over the jointly supported axes whose reference is positive (8 of 15; six axes cannot be scored for OLD at all and are excluded, never zero-filled).
+   The largest single ratio is `cross_environment_transfer` (22.5x); without it the figure is about 2.9x. `safety_compliance` enters at 1.00 (both comply).
+2. Against the strong triage heuristic the figure is 2.27x, and `capability_per_compute` is 0.004 for generation 5 (about 230x the minimum work): triage is 14x more frugal. This is the weakest axis and it was not improved.
+3. All of it is measured in the simulator whose generator produced the regularities the new mechanisms use (listed in `AUDIT_SUMMARY.md` section 2); nothing here says how much transfers to real telemetry.
+
+**Where the gain comes from (all 158 development / diagnostic / validation / burned-held streams, skill, paired).** generation 4 0.5945 → + onset evidence 0.8623 → + exact reads and exposure closure 0.9259 →
++ calibrated beliefs 0.9399 → + timeline and link crediting 0.9415. Leaving one group out of the final controller costs −0.417 / −0.060 / −0.015 / −0.002. Out of sample the last two groups are small:
++0.013 over the controller without them on 112 fresh streams and +0.016 on 96 new seeds, so most of the gain is the first two groups.
+
+**Known weaknesses of generation 5 (measured, not fixed).**
+* Regularity brittleness: inbound noise collapses false-positive control (0.96 → 0.49 at low noise) although skill stays the best; false-positive persistence reads are believed (hidden_state 0.53 → 0.11); the login-pairing rule costs 0.036 when its regularity is broken.
+* 6 of 158 named streams (and 8 of 96 new ones) are worse than the controller without the belief / timeline groups by more than 0.03 (worst −0.157): a gateway compromised without an onset record is refused by the calibrated gates for 5–30 ticks. None is worse than generation 4.
+* `recovery_quality` falls by 0.02–0.06 on fresh streams.
+* `uhz` and `upmin` are net negative in the final configuration (+0.003 … +0.010 skill when off) but stay in v5 exactly as it was run on heldF; removing them is the first change of the next revision, to be confirmed on the reserved set `heldG`.
+* **The code-review audit of the ~560 added guest lines did not complete** (its agent hit a usage limit). The perturbation and robustness audits did; 13 ablations, 6 budgets and 254 streams ran without a fault or violation, which is evidence, not a review.
+* The frozen temporal scorer resolves records by `seq` alone although sequence numbers restart in every stage (`round2/SCORER_DEFECT.md`). It was not exploited and not changed (the frozen axis stays 0.14 on heldF); the keyed diagnostic printed beside it is 0.58.
+* Round-3 explorations (cross-environment transfer / retention, compute efficiency) were not done.
+
+### 0.2 `sketch.lua`: a sandboxed code workspace and a program-synthesis coding agent
+
+The system now has **one file to write code in, `sketch.lua`, and a set of tools to work on it** (modules `asi.sketch*`, commands `sketch-new / -call / -solve / -show / -replay / -import / -bench`, suite `sketch`).
+The tools are the only way in: the coding agent uses the same `ws:call(tool, args)` interface as an operator, so every observation and change is costed (deterministic integer units), checked against a policy
+(capabilities, file names, sizes, total budget, call limit, sandbox limits), appended to a hash-chained audit log and replayable (`sketch-replay` re-executes the log and checks every status, cost and digest).
+Code runs only in an in-process sandbox (fresh environment without `os io debug load require coroutine` and string patterns; per-instruction step / memory / CPU limits; limits that `pcall` cannot swallow;
+36 attack programs in the suite). The coding agent is program synthesis, not a language model: bottom-up enumeration over a typed DSL with observational equivalence, counter-example guided refinement against
+validation cases, plus `fill` (complete a sketch with holes) and `repair` (mutate a failing function). Details, tool table and limits: `reports/sketch/README.md`.
+
+Measured (`reports/sketch/BENCH.txt`; 54 tasks, a few examples each, 14 validation cases, 40 **hidden** cases the agent never sees): a program for 52 tasks, 51 correct on all hidden cases, hidden accuracy 0.958;
+a lookup table of the training examples is right on 11.7% of the hidden cases; `fill` completes 4 of 6 sketches; `repair` fixes 5 of 6 seeded bugs against the visible tests (one of them, `count_big`, is right on 35 of 40 hidden cases).
+`reports/sketch/example/` holds a `sketch.lua` of 27 functions written by the agent itself (220 logged tool calls, replay verified).
+Limits: no loops or recursion in the DSL, examples are a weak specification (`all_pos` fits the validation cases and fails 10 of 40 hidden ones), the sandbox is in-process rather than an operating-system boundary.
+
+### 0.3 Gates for this revision
+
+`lua exec_eval_1.lua selftest`: **100,381 passed, 0 failed** (the 98,443 checks that existed before the cyber layer, unchanged; 1,719 in suite `cyber`; 219 in suite `sketch`; log `reports/gates/selftest_gen5.txt`).
+The generation-3 held / diagnostic / generated evaluations (`reason-compare --held|--diagnostic|--generated --summary`) were re-run on this bundle and print **byte-identical** output to the pre-upgrade bundle
+(`reports/gates/g3_{held,diag,gen}_final.txt` against `reports/pre_upgrade/g3_{held,diag,gen}.txt`). The CYB1 protocol hash is unchanged (`8005afaf…`); `legacy_defaults` reproduces the generation-4 utility and
+skill on all 158 development / burned streams (metered work within 0.13%). Not done: the reserved set `heldG` was not run, the code-review audit did not complete, the round-3 explorations were not carried out.
+
+## 1. Verdict in five lines (generation 4, the controller of the previous revision; section 0 supersedes it for the default controller)
 
 * A real defensive-cyber reasoning system now exists inside the bundle: a procedural enterprise simulator, a metered four-operation
   interface (15 tools, 10 actions, belief reports and forecasts), one compiled guest controller that does all reasoning as charged VM instructions,
@@ -111,7 +181,7 @@ which is also why capability per compute stays poor for the full pipeline.
 `reports/gates/selftest_after.txt`: 100,162 passed, 0 failed (98,443 pre-existing, unchanged, plus 1,719 `cyber`). `reports/gates/g3_{held,diag,gen}_after.txt` are byte-identical to
 `reports/pre_upgrade/g3_{held,diag,gen}.txt`. The OLD controller image is pinned to the pre-upgrade image hash.
 
-## 7. What did not work / honest limits
+## 7. What did not work / honest limits (generation 4; the limits of generation 5 are in 0.1)
 
 * **2x composite not robustly met** (sections 1 and 5). FP control is barely better than OLD and far worse than triage; capability per compute is worse than OLD and ~50x worse than triage.
 * **Generation-3 reasoner improvement: none kept.** Measured on its development seeds (composite 0.2564): mixture forecasts over competing rules (−0.0004), per-bin forecast calibration (−0.0003),
@@ -132,4 +202,13 @@ lua exec_eval_1.lua cyber-report --exclude knowledge_retention <rows files>
 lua exec_eval_1.lua cyber-replay reports/cyber/final/new_heldE.lua --row 3
 lua exec_eval_1.lua cyber-trace --seed 9401 --set heldE
 lua exec_eval_1.lua cyber-stress --set val --works 6000000,4194304
+
+# generation 5 (default controller), the pre-registered confirmation set, and the generation-4 controller for the paired comparison
+lua exec_eval_1.lua cyber-eval --set heldF --variants new,gen4 --budgets 1,2,4 --save new_heldF.lua --summary
+lua exec_eval_1.lua cyber-report reports/cyber/baselines_heldF.lua reports/cyber/gen5/new_heldF.lua
+
+# the sketch.lua workspace
+lua exec_eval_1.lua selftest sketch                  # 219 checks, including 36 sandbox attack programs
+lua exec_eval_1.lua sketch-new && lua exec_eval_1.lua sketch-solve reports/sketch/example/task_square.lua && lua exec_eval_1.lua sketch-replay
+lua exec_eval_1.lua sketch-bench --baseline --sketches        # reports/sketch/BENCH.txt
 ```

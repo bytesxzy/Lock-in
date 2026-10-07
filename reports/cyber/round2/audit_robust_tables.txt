@@ -1,0 +1,420 @@
+
+################################################################################
+## 1. PER-SET AND PER-STREAM: candidate vs generation 4 vs M1 (item1.lua)
+################################################################################
+== per-set mean skill (cand, g4, m1) and paired differences
+set      n    cand      g4      m1 |      cand-g4 (se) |      cand-m1 (se) | wins/losses vs g4, vs m1 (|d|>0.03)
+dev      8  0.9102  0.5988  0.8964 | +0.3114 (0.0511) | +0.0138 (0.0064) | 8/0  2/0
+diag     6  0.9657  0.5496  0.9469 | +0.4161 (0.0567) | +0.0188 (0.0065) | 6/0  1/0
+val     16  0.9364  0.6497  0.9239 | +0.2868 (0.0343) | +0.0125 (0.0048) | 16/0  2/0
+ood      8  0.8905  0.5428  0.8621 | +0.3477 (0.0486) | +0.0284 (0.0087) | 8/0  4/0
+adv      8  0.9527  0.5015  0.9137 | +0.4512 (0.0300) | +0.0390 (0.0113) | 8/0  4/0
+devX    16  0.9552  0.6265  0.9382 | +0.3287 (0.0355) | +0.0170 (0.0129) | 16/0  6/1
+devY    16  0.9588  0.5986  0.9494 | +0.3602 (0.0282) | +0.0093 (0.0071) | 16/0  3/1
+held    16  0.9583  0.6375  0.9445 | +0.3208 (0.0293) | +0.0139 (0.0052) | 16/0  3/1
+heldB   16  0.9388  0.5604  0.9215 | +0.3784 (0.0378) | +0.0173 (0.0137) | 16/0  3/1
+heldC   16  0.9300  0.6208  0.9208 | +0.3092 (0.0256) | +0.0093 (0.0080) | 16/0  4/2
+heldD   16  0.9620  0.6065  0.9479 | +0.3554 (0.0289) | +0.0141 (0.0038) | 16/0  3/0
+heldE   16  0.9189  0.5428  0.9064 | +0.3762 (0.0362) | +0.0125 (0.0050) | 16/0  2/0
+DEV46   46  0.9305  0.5834  0.9096 | +0.3471 (0.0208) | +0.0209 (0.0035) | 46/0  13/0
+devXY   32  0.9570  0.6125  0.9438 | +0.3444 (0.0225) | +0.0132 (0.0073) | 32/0  9/2
+BURN80  80  0.9416  0.5936  0.9282 | +0.3480 (0.0143) | +0.0134 (0.0035) | 80/0  15/4
+ALL158 158  0.9415  0.5945  0.9259 | +0.3470 (0.0104) | +0.0155 (0.0025) | 158/0  37/6
+
+== streams where cand is worse than g4 or m1 by more than 0.03
+devX:513     cand 0.779 g4 0.577 m1 0.936  d_g4 +0.202 d_m1 -0.157
+devY:604     cand 0.745 g4 0.494 m1 0.823  d_g4 +0.251 d_m1 -0.078
+held:9006    cand 0.847 g4 0.461 m1 0.879  d_g4 +0.386 d_m1 -0.032
+heldB:9105   cand 0.835 g4 0.643 m1 0.955  d_g4 +0.191 d_m1 -0.120
+heldC:9203   cand 0.723 g4 0.588 m1 0.754  d_g4 +0.136 d_m1 -0.031
+heldC:9215   cand 0.834 g4 0.746 m1 0.911  d_g4 +0.088 d_m1 -0.077
+count	6
+
+== distribution of paired differences cand - m1 over all 158 streams
+n=158 min -0.157 q05 -0.023 q25 +0.003 median +0.013 q75 +0.028 q95 +0.059 max +0.168
+cand - g4: n=158 min +0.087 q05 +0.158 q25 +0.246 median +0.342 q75 +0.431 q95 +0.581 max +0.724
+
+################################################################################
+## 1b. POOLED FRESH-STREAM STATISTICS, PER-AXIS, PER-SET COMPOSITES (pooled.lua)
+################################################################################
+fresh 112 streams (devXY + burned held): cand-m1 +0.0133 se 0.0032 t 4.1; mean cand 0.9460 m1 0.9327
+fresh 112 streams: cand-g4 +0.3470 se 0.0120 t 28.9; mean g4 0.5990
+per-axis cand-m1 on the 112 fresh streams: util +0.013(t4.1,n112)  fp +0.086(t15.1,n112)  diag +0.052(t8.9,n112)  causal +0.102(t8.6,n112)  temporal +0.103(t7.5,n59)  hidden +0.585(t20.2,n112)  transfer +0.016(t1.4,n93)  ood +0.001(t0.3,n109)  info +0.145(t6.2,n72)  plan +0.007(t2.1,n111)  calib +0.618(t50.2,n112)  retain +0.084(t4.2,n96)  recov -0.021(t-2.9,n112)  cap +0.001(t42.7,n112)  safety +0.000(t0.0,n112)
+per-axis cand-m1 on the 46 dev streams:    util +0.021(t6.0,n46)  fp +0.091(t7.0,n46)  diag +0.080(t7.4,n46)  causal +0.095(t6.5,n46)  temporal +0.096(t4.2,n24)  hidden +0.499(t13.0,n45)  transfer -0.002(t-0.1,n40)  ood +0.008(t2.2,n45)  info +0.204(t4.8,n25)  plan +0.018(t4.6,n46)  calib +0.651(t28.1,n46)  retain +0.055(t2.5,n39)  recov -0.008(t-1.8,n45)  cap +0.001(t25.9,n46)  safety +0.000(t0.0,n46)
+composite dev    cand 0.506 m1 0.366 g4 0.307
+composite diag   cand 0.526 m1 0.369 g4 0.242
+composite val    cand 0.509 m1 0.343 g4 0.282
+composite ood    cand 0.443 m1 0.253 g4 0.161
+composite adv    cand 0.485 m1 0.000 g4 0.000
+composite devX   cand 0.518 m1 0.359 g4 0.260
+composite devY   cand 0.506 m1 0.346 g4 0.253
+composite held   cand 0.514 m1 0.356 g4 0.271
+composite heldB  cand 0.511 m1 0.346 g4 0.213
+composite heldC  cand 0.504 m1 0.330 g4 0.217
+composite heldD  cand 0.519 m1 0.345 g4 0.265
+composite heldE  cand 0.493 m1 0.343 g4 0.232
+
+################################################################################
+## 1c. FRESH SEEDS NEVER USED BEFORE (xs.lua: dev-params 31001-31048, ood-params 41001-41024, adv-params 51001-51024)
+################################################################################
+dev-params seeds 31001-31048 (48)    n= 48 cand 0.9236 m1 0.9182 g4 0.5810 | cand-m1 +0.0054 (se 0.0071, t 0.8) | cand-g4 +0.3426 (se 0.0269)
+ood-params seeds 41001-41024 (24)    n= 24 cand 0.8730 m1 0.8695 g4 0.5564 | cand-m1 +0.0035 (se 0.0075, t 0.5) | cand-g4 +0.3166 (se 0.0356)
+adv-params seeds 51001-51024 (24)    n= 24 cand 0.8823 m1 0.8311 g4 0.4093 | cand-m1 +0.0512 (se 0.0067, t 7.7) | cand-g4 +0.4730 (se 0.0384)
+ALL 96 new streams                   n= 96 cand 0.9006 m1 0.8843 g4 0.5319 | cand-m1 +0.0164 (se 0.0048, t 3.4) | cand-g4 +0.3687 (se 0.0196)
+composite (all 96): cand 0.468 m1 0.305 g4 0.206
+per-axis cand-m1: util +0.016(t3.4) fp +0.116(t11.2) diag +0.083(t8.2) causal +0.106(t11.1) temporal +0.084(t5.9) hidden +0.432(t14.3) transfer +0.038(t3.0) ood +0.004(t0.7) info +0.171(t5.9) plan +0.015(t3.4) calib +0.685(t54.1) retain +0.077(t4.3) recov -0.060(t-3.7) cap +0.001(t30.2) safety +0.000(t0.0)
+cand on the 96 new streams: complete 96/96, violations+guards+faults 0
+streams with cand-m1 < -0.03: dev:31006 -0.099; dev:31009 -0.141; dev:31022 -0.125; dev:31038 -0.032; dev:31048 -0.156; ood:41008 -0.050; ood:41018 -0.033; ood:41020 -0.115
+
+################################################################################
+## 1d. WORLD FEATURES vs DELTA (classify.lua)
+################################################################################
+n streams = 158;  Pearson r of each world feature with: cand skill | m1 skill | cand-m1 | cand-g4   (|r| > 0.16 is significant at 5% for n=158)
+  ndecoy          cand -0.01  m1 -0.14  cand-m1 +0.29  cand-g4 +0.19
+  tpr             cand +0.02  m1 +0.12  cand-m1 -0.24  cand-g4 -0.10
+  dfpr            cand -0.01  m1 -0.11  cand-m1 +0.21  cand-g4 +0.24
+  vec_exploit     cand -0.02  m1 -0.11  cand-m1 +0.19  cand-g4 +0.04
+  steps           cand -0.06  m1 -0.13  cand-m1 +0.14  cand-g4 +0.03
+  spur            cand -0.02  m1 -0.09  cand-m1 +0.14  cand-g4 +0.18
+  vec_cred        cand +0.15  m1 +0.20  cand-m1 -0.13  cand-g4 +0.14
+  drop            cand -0.15  m1 -0.19  cand-m1 +0.09  cand-g4 +0.15
+  nu              cand -0.11  m1 -0.14  cand-m1 +0.09  cand-g4 -0.07
+  nh              cand -0.09  m1 -0.12  cand-m1 +0.08  cand-g4 -0.05
+  vec_misconfig   cand +0.16  m1 +0.19  cand-m1 -0.08  cand-g4 -0.18
+  entry_db        cand +0.16  m1 +0.19  cand-m1 -0.08  cand-g4 -0.18
+  entry_gw        cand +0.09  m1 +0.07  cand-m1 +0.05  cand-g4 +0.13
+  cost_scale      cand -0.08  m1 -0.10  cand-m1 +0.05  cand-g4 +0.07
+  needs_plan      cand +0.02  m1 +0.04  cand-m1 -0.04  cand-g4 -0.05
+  tap             cand +0.04  m1 +0.06  cand-m1 -0.04  cand-g4 +0.08
+  mis             cand -0.13  m1 -0.14  cand-m1 +0.03  cand-g4 +0.11
+  lolfrac         cand +0.12  m1 +0.11  cand-m1 +0.03  cand-g4 +0.01
+  skew            cand +0.02  m1 +0.04  cand-m1 -0.03  cand-g4 +0.04
+  dup             cand -0.25  m1 -0.25  cand-m1 +0.02  cand-g4 +0.16
+  multi           cand +0.16  m1 +0.16  cand-m1 -0.02  cand-g4 +0.07
+  ncamp           cand +0.19  m1 +0.19  cand-m1 -0.01  cand-g4 -0.01
+  start1          cand -0.05  m1 -0.05  cand-m1 +0.01  cand-g4 -0.04
+  stealth         cand -0.08  m1 -0.09  cand-m1 +0.00  cand-g4 -0.03
+  persist         cand +0.03  m1 +0.03  cand-m1 +0.00  cand-g4 +0.02
+  blindfrac       cand -0.09  m1 -0.09  cand-m1 -0.00  cand-g4 +0.05
+  nempty          cand -0.15  m1 -0.15  cand-m1 -0.00  cand-g4 +0.13
+  entry_srv       cand +0.00  m1 +0.00  cand-m1 +0.00  cand-g4 +0.00
+
+group means of cand - m1:
+  some stage has no campaign                   yes n= 68 cand 0.934 m1 0.918 d +0.0163 (se 0.0043) | no n= 90 cand 0.947 m1 0.932 d +0.0149 (se 0.0030)
+  some stage has >= 2 campaigns                yes n=143 cand 0.945 m1 0.931 d +0.0146 (se 0.0026) | no n= 15 cand 0.905 m1 0.880 d +0.0243 (se 0.0078)
+  persistence step present                     yes n=157 cand 0.941 m1 0.926 d +0.0156 (se 0.0025) | no n=  1 cand 1.000 m1 0.989 d +0.0112 (se 0.0000)
+  living-off-the-land campaign share > 0.4     yes n= 56 cand 0.949 m1 0.930 d +0.0191 (se 0.0034) | no n=102 cand 0.937 m1 0.924 d +0.0136 (se 0.0034)
+  any exploit-vector campaign                  yes n=128 cand 0.944 m1 0.926 d +0.0175 (se 0.0028) | no n= 30 cand 0.931 m1 0.924 d +0.0071 (se 0.0054)
+  any credential-vector campaign               yes n=148 cand 0.943 m1 0.929 d +0.0143 (se 0.0024) | no n= 10 cand 0.914 m1 0.879 d +0.0342 (se 0.0170)
+  any misconfiguration-vector campaign         yes n=156 cand 0.942 m1 0.928 d +0.0146 (se 0.0023) | no n=  2 cand 0.885 m1 0.796 d +0.0890 (se 0.0788)
+  misconfig-only (no exploit/cred)             yes n=  3 cand 0.921 m1 0.925 d -0.0041 (se 0.0149) | no n=155 cand 0.942 m1 0.926 d +0.0159 (se 0.0025)
+  blind fraction > 0.3                         yes n= 34 cand 0.928 m1 0.912 d +0.0159 (se 0.0054) | no n=124 cand 0.945 m1 0.930 d +0.0154 (se 0.0028)
+  drop >= 10                                   yes n= 24 cand 0.929 m1 0.910 d +0.0184 (se 0.0066) | no n=134 cand 0.944 m1 0.929 d +0.0150 (se 0.0027)
+  mean stealth > 20                            yes n= 30 cand 0.929 m1 0.919 d +0.0094 (se 0.0085) | no n=128 cand 0.944 m1 0.927 d +0.0170 (se 0.0024)
+  first campaign starts after tick 8           yes n= 63 cand 0.938 m1 0.922 d +0.0164 (se 0.0042) | no n= 95 cand 0.944 m1 0.929 d +0.0150 (se 0.0031)
+  adversarial set (adv)                        yes n=  8 cand 0.953 m1 0.914 d +0.0390 (se 0.0113) | no n=150 cand 0.941 m1 0.927 d +0.0143 (se 0.0025)
+  ood set                                      yes n=  8 cand 0.891 m1 0.862 d +0.0284 (se 0.0087) | no n=150 cand 0.944 m1 0.929 d +0.0149 (se 0.0026)
+  entry via DB host                            yes n=156 cand 0.942 m1 0.928 d +0.0146 (se 0.0023) | no n=  2 cand 0.885 m1 0.796 d +0.0890 (se 0.0788)
+  entry via SRV host                           yes n=  0 cand 0.000 m1 0.000 d +0.0000 (se 0.0000) | no n=158 cand 0.941 m1 0.926 d +0.0155 (se 0.0025)
+
+worst 12 streams for cand - m1 with features:
+  devX:513     d_m1 -0.157 cand 0.779 m1 0.936 | nh 7.0 blind 0.25 drop 2 ncamp 6 empty 0 multi 2 lol 0.33 stealth 22 persist 7 vec e/c/m 2/2/2 entry gw/srv/db 4/0/2
+  heldB:9105   d_m1 -0.120 cand 0.835 m1 0.955 | nh 9.8 blind 0.33 drop 9 ncamp 3 empty 2 multi 1 lol 0.33 stealth 22 persist 4 vec e/c/m 1/1/1 entry gw/srv/db 2/0/1
+  devY:604     d_m1 -0.078 cand 0.745 m1 0.823 | nh 9.0 blind 0.11 drop 4 ncamp 4 empty 1 multi 1 lol 0.50 stealth 13 persist 5 vec e/c/m 0/3/1 entry gw/srv/db 3/0/1
+  heldC:9215   d_m1 -0.077 cand 0.834 m1 0.911 | nh 8.0 blind 0.16 drop 10 ncamp 4 empty 1 multi 1 lol 0.25 stealth 20 persist 4 vec e/c/m 0/1/3 entry gw/srv/db 1/0/3
+  held:9006    d_m1 -0.032 cand 0.847 m1 0.879 | nh 7.5 blind 0.10 drop 5 ncamp 2 empty 2 multi 0 lol 0.00 stealth 20 persist 1 vec e/c/m 0/0/2 entry gw/srv/db 0/0/2
+  heldC:9203   d_m1 -0.031 cand 0.723 m1 0.754 | nh 8.2 blind 0.52 drop 8 ncamp 5 empty 0 multi 1 lol 0.40 stealth 16 persist 7 vec e/c/m 2/1/2 entry gw/srv/db 3/0/2
+  val:206      d_m1 -0.023 cand 0.767 m1 0.790 | nh 9.5 blind 0.13 drop 9 ncamp 6 empty 0 multi 2 lol 0.17 stealth 11 persist 5 vec e/c/m 1/3/2 entry gw/srv/db 4/0/2
+  heldE:9414   d_m1 -0.023 cand 0.872 m1 0.894 | nh 9.8 blind 0.18 drop 10 ncamp 6 empty 0 multi 2 lol 0.00 stealth 18 persist 6 vec e/c/m 2/2/2 entry gw/srv/db 4/0/2
+  heldC:9205   d_m1 -0.016 cand 0.755 m1 0.771 | nh 9.0 blind 0.03 drop 6 ncamp 4 empty 0 multi 0 lol 0.50 stealth 20 persist 5 vec e/c/m 2/1/1 entry gw/srv/db 3/0/1
+  heldD:9307   d_m1 -0.016 cand 0.803 m1 0.819 | nh 8.5 blind 0.23 drop 8 ncamp 8 empty 0 multi 4 lol 0.25 stealth 18 persist 12 vec e/c/m 2/3/3 entry gw/srv/db 5/0/3
+  devY:606     d_m1 -0.015 cand 0.954 m1 0.969 | nh 8.5 blind 0.15 drop 8 ncamp 7 empty 0 multi 3 lol 0.57 stealth 22 persist 10 vec e/c/m 1/2/4 entry gw/srv/db 3/0/4
+  devY:609     d_m1 -0.007 cand 0.977 m1 0.984 | nh 8.2 blind 0.21 drop 3 ncamp 5 empty 0 multi 1 lol 0.40 stealth 14 persist 4 vec e/c/m 1/1/3 entry gw/srv/db 2/0/3
+
+################################################################################
+## 1e. PER-STAGE SKILL cand-m1, cand-g4 (stagecmp.lua)
+################################################################################
+ALL per-stage skill  cand-m1: stage1 +0.004(se 0.005,n138)  stage2 +0.009(se 0.002,n137)  stage3 +0.013(se 0.003,n136)  stage4 +0.032(se 0.007,n137)
+ALL per-stage skill  cand-g4: stage1 +0.454  stage2 +0.251  stage3 +0.432  stage4 +0.343
+ALL mean per-stage skill of cand: stage1 0.895  stage2 0.948  stage3 0.943  stage4 0.992
+DEV46 per-stage skill  cand-m1: stage1 +0.017(se 0.006,n42)  stage2 +0.009(se 0.006,n42)  stage3 +0.017(se 0.007,n40)  stage4 +0.036(se 0.008,n41)
+DEV46 per-stage skill  cand-g4: stage1 +0.442  stage2 +0.219  stage3 +0.470  stage4 +0.406
+DEV46 mean per-stage skill of cand: stage1 0.890  stage2 0.926  stage3 0.931  stage4 0.987
+fresh112 per-stage skill  cand-m1: stage1 -0.002(se 0.007,n96)  stage2 +0.008(se 0.002,n95)  stage3 +0.012(se 0.003,n96)  stage4 +0.030(se 0.009,n96)
+fresh112 per-stage skill  cand-g4: stage1 +0.459  stage2 +0.265  stage3 +0.416  stage4 +0.316
+fresh112 mean per-stage skill of cand: stage1 0.897  stage2 0.957  stage3 0.948  stage4 0.994
+stage-level regressions vs M1 worse than -0.15:	2	1	0	3
+stage-level gains vs M1 better than +0.15:	0	0	1	5
+
+################################################################################
+## 2. STRESS DEGRADATION (stress.lua)
+################################################################################
+scenario  description                      cand     g4     m1 |  cand-g4  cand-m1 |      n  compl   viol | cand axes diag/hidden/info/calib/causal/temporal  | work
+base      no perturbation                 0.931  0.583  0.910 |   +0.347   +0.021 |     46     46      0 | 0.95/0.53/0.63/0.84/0.74/0.20 | 7.20M
+nc1       combined noise level 1          0.890  0.510  0.854 |   +0.380   +0.036 |     46     46      0 | 0.90/0.37/0.53/0.83/0.71/0.17 | 7.75M
+nc2       combined noise level 2          0.856  0.433  0.820 |   +0.422   +0.035 |     46     46      0 | 0.87/0.26/0.57/0.84/0.68/0.13 | 8.08M
+nc3       combined noise level 3          0.818  0.366  0.800 |   +0.452   +0.018 |     46     46      0 | 0.84/0.20/0.48/0.86/0.68/0.15 | 8.57M
+nc4       combined noise level 4          0.740  0.330  0.712 |   +0.410   +0.028 |     46     46      0 | 0.80/0.14/0.41/0.87/0.63/0.09 | 8.90M
+ndrop10   drop +10                        0.903  0.540  0.885 |   +0.363   +0.017 |     46     46      0 | 0.91/0.41/0.65/0.80/0.73/0.19 | 6.84M
+ndrop20   drop +20                        0.842  0.501  0.836 |   +0.340   +0.006 |     46     46      0 | 0.85/0.29/0.57/0.79/0.72/0.19 | 6.60M
+ndup12    dup +12                         0.937  0.585      - |   +0.352        - |     46     46      0 | 0.95/0.57/0.68/0.85/0.74/0.18 | 7.30M
+ndup24    dup +24                         0.922  0.582      - |   +0.340        - |     46     46      0 | 0.94/0.51/0.62/0.85/0.74/0.16 | 7.40M
+nmis8     misattributed +8                0.917  0.559  0.905 |   +0.358   +0.013 |     46     46      0 | 0.93/0.45/0.61/0.81/0.74/0.17 | 7.23M
+nmis16    misattributed +16               0.889  0.554  0.879 |   +0.335   +0.010 |     46     46      0 | 0.89/0.37/0.62/0.77/0.73/0.16 | 7.22M
+nspur2    spurious +2                     0.940  0.561      - |   +0.379        - |     46     46      0 | 0.95/0.56/0.65/0.80/0.72/0.18 | 7.66M
+nspur4    spurious +4                     0.947      -      - |     -nan        - |      5      5      0 | 0.96/0.65/0.70/0.73/0.63/0.26 | 6.71M
+ndmax2    max delay +2                    0.903      -      - |     -nan        - |     46     46      0 | 0.92/0.36/0.60/0.86/0.73/0.20 | 7.17M
+
+################################################################################
+## 3. SENSITIVITY OF THE TUNED CONSTANTS (sens.lua)
+################################################################################
+baseline candidate DEV46: skill 0.9305 composite 0.4985
+constant (value -25% / +25%)                   | -25%: dskill (se) | dcomp | max|daxis| | +25%: dskill (se) | dcomp | max|daxis| | worst |dskill|  worst composite change
+qsh 102 (host posterior gate) qsh=77/qsh=128   | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+th 150 (timeline evidence threshold) 112/188   | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+rla 39 (report host map, slope on EB) 29/49    | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+rlb 166 (report host map, slope on ON) 124/208 | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+rlc -107 (report host map, offset) -134/-80    | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+rua 30 (report user map, slope EB) 23/38       | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+rub 126 (report user map, slope ONU) 95/158    | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+ruc -103 (report user map, offset) -129/-77    | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+rlw 3 (revoke window) 2/4                      | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+rpq 4 (persistence prior) 3/5                  | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+rpx 1010 (exact-read belief) 758/1023          | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+rlpd 16 (probe evidence aging) 12/20           | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+fq2k 16 (forecast prior ticks, kappa) 12/20    | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+fq2t 512 (expected-skill bar) 384/640          | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+fq2t2 256 (fallback bar) 192/320               | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+fq2s 2 (forecast stride) 1/3                   | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+forecast windows 3/5/8 2/4/6/4/6/10            | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+forecast screen 1/4 1/3/1/5                    | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+pmin2 850 (decision floor w/o onset) 638/1024  | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+uhz 30 (stolen-credential horizon) 22/38       | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+upmin 60 (credential floor) 45/75              | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+lnear 2 (nearest causes) 1/3                   | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+scant 8 (scan rounds) 6/10                     | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+scann 3 (hosts per scan round) 2/4             | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+bgap 8 (beacon gap) 6/10                       | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+bn 2 (beacon count) 1/3                        | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+inb_wmax 144 (onset weight cap) 108/180        | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+inb_dec 4 (onset decay shift) 3/5              | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+inbu_dec 6 (user onset decay shift) 5/7        | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+inbp_dec 6 (persist onset decay shift) 5/7     | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+inb_wp 112 (onset after kill of persistent host) 84/140 | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+stale_ud 4 (user stale window) 3/5             | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+explb 20 (exploration bonus) 15/25             | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+tl win 24 18/30                                | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+tl nb 100 75/125                               | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+tl nbt 8 6/10                                  | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+tl core 100 75/125                             | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+tl min 2 1/3                                   | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+tl cap 24 18/30                                | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+tl inw 80 60/100                               | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+tl hb 64 48/80                                 | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+tl dec 40 30/50                                | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+tl every 2 1/3                                 | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+surprise pseudo-count 128 96/160               | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+surprise emission 1/2 1/3                      | (n=0: missing)                     | (n=0: missing)                     | 0.0000    0.0%
+
+constants with |dskill| > 0.01 or |dcomposite| > 10% at -25% or +25%: none
+
+################################################################################
+## 4. BUDGET ROBUSTNESS (budget.lua)
+################################################################################
+== candidate: every stream of every set (158 streams) at each work budget
+run                budget    n  complete  viol guard fault   skill  minskl  meanwork   maxwork  safety  minsaf
+cand (frozen)    33549312  158  158/158      0     0     0   0.941   0.602     6.52M    11.24M  1.0000  1.0000
+cand 2/4         16774656  158  158/158      0     0     0   0.941   0.602     6.52M    11.24M  1.0000  1.0000
+cand 1/4          8387328  158  158/158      0     0     0   0.937   0.602     6.19M     7.99M  1.0000  1.0000
+cand 6000000      6000000  158  158/158      0     0     0   0.905   0.515     4.88M     5.87M  1.0000  1.0000
+cand 5000000      5000000  158  147/158      0     0     0   0.842   0.000     4.39M     5.00M  0.9964  0.9479
+cand 4194304      4194304  158  138/158      0     0     0   0.790   0.000     3.93M     4.19M  0.9934  0.9479
+cand 4000000      4000000  158  125/158      0     0     0   0.714   0.000     3.81M     4.00M  0.9891  0.9479
+cand 3500000      3500000  158   35/158      0     0     0   0.201   0.000     3.47M     3.50M  0.9595  0.9479
+cand 3000000      3000000  158    0/158      0     0     0   0.000   0.000     3.00M     3.00M  0.9479  0.9479
+cand 2500000      2500000  158    0/158      0     0     0   0.000   0.000     2.50M     2.50M  0.9479  0.9479
+cand 2000000      2000000  158    0/158      0     0     0   0.000   0.000     2.00M     2.00M  0.9479  0.9479
+cand 1500000      1500000  158    0/158      0     0     0   0.000   0.000     1.50M     1.50M  0.9479  0.9479
+   incomplete at cand 3000000: adv:7001 adv:7002 adv:7003 adv:7004 adv:7005 adv:7006 adv:7007 adv:7008 dev:1 dev:2 dev:3 dev:4 dev:5 dev:6 dev:7 dev:8 devX:501 devX:502 devX:503 devX:504 devX:505 devX:506 devX:507 devX:508 devX:509 devX:510 devX:511 devX:512 devX:513 devX:514 devX:515 devX:516 devY:601 devY:602 devY:603 devY:604 devY:605 devY:606 devY:607 devY:608 ... (158)
+   incomplete at cand 1500000: adv:7001 adv:7002 adv:7003 adv:7004 adv:7005 adv:7006 adv:7007 adv:7008 dev:1 dev:2 dev:3 dev:4 dev:5 dev:6 dev:7 dev:8 devX:501 devX:502 devX:503 devX:504 devX:505 devX:506 devX:507 devX:508 devX:509 devX:510 devX:511 devX:512 devX:513 devX:514 devX:515 devX:516 devY:601 devY:602 devY:603 devY:604 devY:605 devY:606 devY:607 devY:608 ... (158)
+   incomplete at cand 2000000: adv:7001 adv:7002 adv:7003 adv:7004 adv:7005 adv:7006 adv:7007 adv:7008 dev:1 dev:2 dev:3 dev:4 dev:5 dev:6 dev:7 dev:8 devX:501 devX:502 devX:503 devX:504 devX:505 devX:506 devX:507 devX:508 devX:509 devX:510 devX:511 devX:512 devX:513 devX:514 devX:515 devX:516 devY:601 devY:602 devY:603 devY:604 devY:605 devY:606 devY:607 devY:608 ... (158)
+   incomplete at cand 4000000: adv:7001 adv:7002 adv:7003 adv:7004 adv:7005 adv:7006 adv:7007 adv:7008 dev:2 devY:602 devY:603 devY:614 devY:615 held:9012 heldB:9106 heldB:9110 heldB:9111 heldB:9115 heldC:9202 heldC:9208 heldC:9212 heldC:9214 heldC:9216 heldD:9305 ood:8001 ood:8002 ood:8003 ood:8004 ood:8005 ood:8006 ood:8007 ood:8008 val:207
+   incomplete at cand 3500000: adv:7001 adv:7002 adv:7003 adv:7004 adv:7005 adv:7006 adv:7007 adv:7008 dev:2 dev:3 dev:4 devX:501 devX:502 devX:503 devX:504 devX:505 devX:506 devX:508 devX:509 devX:510 devX:511 devX:512 devX:513 devX:514 devX:515 devX:516 devY:602 devY:603 devY:604 devY:605 devY:610 devY:611 devY:613 devY:614 devY:615 devY:616 diag:101 diag:102 diag:103 diag:104 ... (123)
+   incomplete at cand 4194304: adv:7001 adv:7002 adv:7003 adv:7004 adv:7005 adv:7006 adv:7007 adv:7008 devY:602 heldB:9111 heldC:9208 heldC:9214 ood:8001 ood:8002 ood:8003 ood:8004 ood:8005 ood:8006 ood:8007 ood:8008
+   incomplete at cand 2500000: adv:7001 adv:7002 adv:7003 adv:7004 adv:7005 adv:7006 adv:7007 adv:7008 dev:1 dev:2 dev:3 dev:4 dev:5 dev:6 dev:7 dev:8 devX:501 devX:502 devX:503 devX:504 devX:505 devX:506 devX:507 devX:508 devX:509 devX:510 devX:511 devX:512 devX:513 devX:514 devX:515 devX:516 devY:601 devY:602 devY:603 devY:604 devY:605 devY:606 devY:607 devY:608 ... (158)
+   incomplete at cand 5000000: adv:7001 adv:7002 adv:7003 adv:7004 adv:7006 adv:7007 ood:8001 ood:8005 ood:8006 ood:8007 ood:8008
+
+== val+ood+adv (32 streams): candidate vs gen4 vs M1 vs the compute-ablated twin (no_compute_meta of the candidate) at the same budgets
+      work | candidate compl/skill  | gen4 compl/skill       | M1 compl/skill         | cand no_compute_meta  
+  33549312 | 32/32  0.929 (min 0.69) | 32/32  0.586 (min 0.06) | 32/32  0.906 (min 0.66) | 32/32  0.929 (min 0.69)
+   8387328 | 32/32  0.909 (min 0.72) | 32/32  0.582 (min 0.10) | 32/32  0.890 (min 0.70) | 18/32  0.526 (min 0.00)
+   6000000 | 32/32  0.876 (min 0.51) | 32/32  0.593 (min 0.02) | 32/32  0.863 (min 0.67) | 10/32  0.289 (min 0.00)
+   5000000 | 21/32  0.585 (min 0.00) | 32/32  0.595 (min 0.05) | 31/32  0.829 (min 0.00) |  0/32  0.000 (min 0.00)
+   4194304 | 16/32  0.459 (min 0.00) | 20/32  0.404 (min 0.00) | 16/32  0.446 (min 0.00) |  0/32  0.000 (min 0.00)
+   4000000 | 15/32  0.432 (min 0.00) | 16/32  0.329 (min 0.00) | 16/32  0.447 (min 0.00) |  0/32  0.000 (min 0.00)
+   3500000 |  3/32  0.085 (min 0.00) | 16/32  0.332 (min 0.00) | 14/32  0.388 (min 0.00) |  0/32  0.000 (min 0.00)
+   3000000 |  0/32  0.000 (min 0.00) |  5/32  0.109 (min 0.00) |  1/32  0.029 (min 0.00) |  0/32  0.000 (min 0.00)
+   2500000 |  0/32  0.000 (min 0.00) |  0/32  0.000 (min 0.00) |  0/32  0.000 (min 0.00) |  0/32  0.000 (min 0.00)
+   2000000 |  0/32  0.000 (min 0.00) |  0/32  0.000 (min 0.00) |  0/32  0.000 (min 0.00) |  0/32  0.000 (min 0.00)
+
+################################################################################
+## 5. DETERMINISM / IDENTITY / RESOURCES (ident2.lua, res.lua)
+################################################################################
+BASE_bundle default vs CAND legacy_defaults on 158 streams: same utility 158, same skill 158, same metered work 0, same instr count 0, same digest 0; max |dwork| 13230 (0.1274%)
+axis diffs (g4 - base):	util +0.00000 fp +0.00000 diag +0.00000 causal +0.00000 temporal +0.00000 hidden +0.00000 transfer +0.00000 ood +0.00000 info +0.00000 plan +0.00000 calib +0.00000 retain +0.00000 recov +0.00000 cap -0.00000 safety +0.00000
+determinism: cand vs cand_st (separate process, same streams): 158 streams compared, 0 differ in digest/utility/work
+determinism: cand_rev (val, reversed seed order) vs cand: 16 compared, 0 differ
+determinism: m1 vs m1_st: 158 compared, 0 differ
+determinism: g4 vs g4_st: 158 compared, 0 differ
+cand  n=158 complete=158 viol=0 guard=0 fault=0  max static RAM touched 14024 words (limit 16128), max stack 88 words (limit 256), peak 14112 of 16384; work min 4.59M mean 6.52M max 11.24M (budget 33.55M)
+g4    n=158 complete=158 viol=0 guard=0 fault=0  max static RAM touched 14265 words (limit 16128), max stack 88 words (limit 256), peak 14353 of 16384; work min 4.79M mean 8.96M max 19.72M (budget 33.55M)
+m1    n=158 complete=158 viol=0 guard=0 fault=0  max static RAM touched 13241 words (limit 16128), max stack 88 words (limit 256), peak 13329 of 16384; work min 4.98M mean 8.91M max 19.42M (budget 33.55M)
+
+################################################################################
+## 6a. ABLATION LADDER (ladder.lua)
+################################################################################
+== cumulative ladder: mean skill, step delta (paired, se) and t, per stream group
+-- DEV46
+  L0 gen4 (legacy)             n= 46 skill 0.5834
+  L1 +detect                   n= 46 skill 0.8507   step +0.2673 (se 0.0211, t  12.7)   vs g4 +0.2673
+  L2 +cold (=M1)               n= 46 skill 0.9096   step +0.0589 (se 0.0113, t   5.2)   vs g4 +0.3262
+  L3 +beliefs                  n= 46 skill 0.9304   step +0.0208 (se 0.0034, t   6.0)   vs g4 +0.3470
+  L4 +timeline (=candidate)    n= 46 skill 0.9305   step +0.0001 (se 0.0006, t   0.2)   vs g4 +0.3471
+-- devXY
+  L0 gen4 (legacy)             n= 32 skill 0.6125
+  L1 +detect                   n= 32 skill 0.8768   step +0.2643 (se 0.0239, t  11.1)   vs g4 +0.2643
+  L2 +cold (=M1)               n= 32 skill 0.9438   step +0.0670 (se 0.0112, t   6.0)   vs g4 +0.3313
+  L3 +beliefs                  n= 32 skill 0.9494   step +0.0056 (se 0.0070, t   0.8)   vs g4 +0.3369
+  L4 +timeline (=candidate)    n= 32 skill 0.9570   step +0.0076 (se 0.0045, t   1.7)   vs g4 +0.3444
+-- BURN80
+  L0 gen4 (legacy)             n= 80 skill 0.5936
+  L1 +detect                   n= 80 skill 0.8631   step +0.2695 (se 0.0149, t  18.0)   vs g4 +0.2695
+  L2 +cold (=M1)               n= 80 skill 0.9282   step +0.0651 (se 0.0092, t   7.1)   vs g4 +0.3346
+  L3 +beliefs                  n= 80 skill 0.9415   step +0.0133 (se 0.0036, t   3.7)   vs g4 +0.3479
+  L4 +timeline (=candidate)    n= 80 skill 0.9416   step +0.0001 (se 0.0004, t   0.2)   vs g4 +0.3480
+-- ALL158
+  L0 gen4 (legacy)             n=158 skill 0.5945
+  L1 +detect                   n=158 skill 0.8623   step +0.2678 (se 0.0108, t  24.8)   vs g4 +0.2678
+  L2 +cold (=M1)               n=158 skill 0.9259   step +0.0637 (se 0.0061, t  10.5)   vs g4 +0.3315
+  L3 +beliefs                  n=158 skill 0.9399   step +0.0139 (se 0.0025, t   5.5)   vs g4 +0.3454
+  L4 +timeline (=candidate)    n=158 skill 0.9415   step +0.0016 (se 0.0010, t   1.7)   vs g4 +0.3470
+
+== ladder composite (geometric mean of the 15 axis means) and axis means, DEV46 and devXY and BURN80
+-- DEV46
+  L0 gen4 (legacy)             composite 0.249 | util=0.58 fp=0.45 diag=0.68 causal=0.67 temporal=0.14 hidden=0.04 transfer=0.22 ood=0.73 info=0.38 plan=0.55 calib=0.16 retain=0.17 recov=0.90 cap=0.00 safety=1.00
+  L1 +detect                   composite 0.337 | util=0.85 fp=0.69 diag=0.84 causal=0.66 temporal=0.13 hidden=0.06 transfer=0.52 ood=0.90 info=0.40 plan=0.83 calib=0.18 retain=0.62 recov=0.95 cap=0.00 safety=1.00
+  L2 +cold (=M1)               composite 0.329 | util=0.91 fp=0.86 diag=0.87 causal=0.65 temporal=0.10 hidden=0.03 transfer=0.60 ood=0.95 info=0.38 plan=0.90 calib=0.19 retain=0.45 recov=0.94 cap=0.00 safety=1.00
+  L3 +beliefs                  composite 0.461 | util=0.93 fp=0.95 diag=0.95 causal=0.64 temporal=0.10 hidden=0.52 transfer=0.60 ood=0.96 info=0.63 plan=0.91 calib=0.84 retain=0.50 recov=0.93 cap=0.00 safety=1.00
+  L4 +timeline (=candidate)    composite 0.499 | util=0.93 fp=0.96 diag=0.95 causal=0.74 temporal=0.20 hidden=0.53 transfer=0.60 ood=0.95 info=0.63 plan=0.91 calib=0.84 retain=0.50 recov=0.93 cap=0.00 safety=1.00
+-- devXY
+  L0 gen4 (legacy)             composite 0.257 | util=0.61 fp=0.47 diag=0.72 causal=0.59 temporal=0.14 hidden=0.02 transfer=0.22 ood=0.72 info=0.36 plan=0.60 calib=0.27 retain=0.28 recov=0.88 cap=0.00 safety=1.00
+  L1 +detect                   composite 0.348 | util=0.88 fp=0.67 diag=0.90 causal=0.59 temporal=0.11 hidden=0.05 transfer=0.56 ood=0.89 info=0.42 plan=0.86 calib=0.27 retain=0.67 recov=0.98 cap=0.00 safety=1.00
+  L2 +cold (=M1)               composite 0.353 | util=0.94 fp=0.85 diag=0.92 causal=0.56 temporal=0.11 hidden=0.05 transfer=0.54 ood=0.95 info=0.37 plan=0.93 calib=0.29 retain=0.44 recov=0.98 cap=0.00 safety=1.00
+  L3 +beliefs                  composite 0.474 | util=0.95 fp=0.94 diag=0.96 causal=0.57 temporal=0.10 hidden=0.70 transfer=0.54 ood=0.94 info=0.63 plan=0.94 calib=0.90 retain=0.56 recov=0.95 cap=0.00 safety=1.00
+  L4 +timeline (=candidate)    composite 0.513 | util=0.96 fp=0.96 diag=0.97 causal=0.66 temporal=0.19 hidden=0.70 transfer=0.54 ood=0.95 info=0.62 plan=0.94 calib=0.90 retain=0.57 recov=0.96 cap=0.00 safety=1.00
+-- BURN80
+  L0 gen4 (legacy)             composite 0.244 | util=0.59 fp=0.43 diag=0.73 causal=0.59 temporal=0.13 hidden=0.02 transfer=0.18 ood=0.75 info=0.40 plan=0.57 calib=0.27 retain=0.19 recov=0.91 cap=0.00 safety=1.00
+  L1 +detect                   composite 0.333 | util=0.86 fp=0.71 diag=0.87 causal=0.60 temporal=0.12 hidden=0.02 transfer=0.62 ood=0.89 info=0.44 plan=0.85 calib=0.27 retain=0.65 recov=0.96 cap=0.00 safety=1.00
+  L2 +cold (=M1)               composite 0.346 | util=0.93 fp=0.87 diag=0.91 causal=0.57 temporal=0.09 hidden=0.04 transfer=0.60 ood=0.96 info=0.42 plan=0.92 calib=0.27 retain=0.47 recov=0.97 cap=0.00 safety=1.00
+  L3 +beliefs                  composite 0.467 | util=0.94 fp=0.95 diag=0.96 causal=0.57 temporal=0.09 hidden=0.60 transfer=0.62 ood=0.97 info=0.61 plan=0.93 calib=0.90 retain=0.52 recov=0.94 cap=0.00 safety=1.00
+  L4 +timeline (=candidate)    composite 0.509 | util=0.94 fp=0.95 diag=0.96 causal=0.67 temporal=0.20 hidden=0.60 transfer=0.62 ood=0.97 info=0.61 plan=0.93 calib=0.90 retain=0.54 recov=0.94 cap=0.00 safety=1.00
+
+== per-axis step deltas on ALL158 (paired mean, t)
+  g4->L1_detect                -> util +0.268(24.8) fp +0.252(14.6) diag +0.156(17.4) causal +0.001(0.1) temporal -0.024(-4.1) hidden +0.012(1.6) transfer +0.379(11.9) ood +0.151(12.8) info +0.015(0.6) plan +0.273(23.1) calib +0.003(0.5) retain +0.440(17.2) recov +0.063(6.5) cap +0.001(21.2) safety +0.000(0.0)
+  L1_detect->m1                -> util +0.064(10.5) fp +0.171(16.9) diag +0.028(4.9) causal -0.025(-4.8) temporal -0.014(-2.1) hidden +0.006(0.7) transfer +0.009(0.3) ood +0.065(10.3) info -0.033(-1.6) plan +0.069(9.7) calib +0.011(2.3) retain -0.188(-9.2) recov -0.000(-0.0) cap +0.000(10.9) safety +0.000(0.0)
+  m1->L3_beliefs               -> util +0.014(5.5) fp +0.081(14.7) diag +0.059(11.0) causal -0.000(-0.1) temporal -0.004(-0.8) hidden +0.555(23.3) transfer +0.014(1.3) ood +0.002(0.6) info +0.160(7.8) plan +0.010(3.8) calib +0.628(56.6) retain +0.064(4.3) recov -0.019(-3.4) cap +0.000(5.0) safety +0.000(0.0)
+  L3_beliefs->cand             -> util +0.002(1.7) fp +0.007(3.8) diag +0.002(1.5) causal +0.100(10.8) temporal +0.105(9.5) hidden +0.005(1.4) transfer -0.003(-1.5) ood +0.001(0.8) info -0.001(-0.2) plan +0.000(0.3) calib -0.000(-0.4) retain +0.012(2.6) recov +0.002(1.0) cap +0.001(56.1) safety +0.000(0.0)
+
+== leave-one-group-out from the candidate (candidate minus variant: positive = the group helps)
+  no detect                | DEV46 mean 0.5015 gain +0.4291 (se 0.0387) | devXY mean 0.5407 gain +0.4163 (se 0.0262) | BURN80 mean 0.5309 gain +0.4107 (se 0.0258) | ALL158 mean 0.5243 gain +0.4172 (se 0.0180)
+  no cold                  | DEV46 mean 0.8661 gain +0.0644 (se 0.0150) | devXY mean 0.9065 gain +0.0505 (se 0.0084) | BURN80 mean 0.8813 gain +0.0603 (se 0.0090) | ALL158 mean 0.8820 gain +0.0595 (se 0.0065)
+  no beliefs               | DEV46 mean 0.9100 gain +0.0205 (se 0.0035) | devXY mean 0.9468 gain +0.0101 (se 0.0062) | BURN80 mean 0.9276 gain +0.0140 (se 0.0032) | ALL158 mean 0.9264 gain +0.0151 (se 0.0023)
+  no timeline              | DEV46 mean 0.9304 gain +0.0001 (se 0.0006) | devXY mean 0.9494 gain +0.0076 (se 0.0045) | BURN80 mean 0.9415 gain +0.0001 (se 0.0004) | ALL158 mean 0.9399 gain +0.0016 (se 0.0010)
+  timeline without lnear   | DEV46 mean 0.9304 gain +0.0001 (se 0.0006) | devXY mean 0.9494 gain +0.0076 (se 0.0045) | BURN80 mean 0.9415 gain +0.0001 (se 0.0004) | ALL158 mean 0.9399 gain +0.0016 (se 0.0010)
+
+== add-one-group to gen4 (variant minus g4)
+  cold only                | DEV46 mean 0.7851 gain +0.2017 (se 0.0162) | devXY mean 0.8336 gain +0.2210 (se 0.0203) | BURN80 mean 0.7978 gain +0.2042 (se 0.0112) | ALL158 mean 0.8014 gain +0.2069 (se 0.0084)
+  beliefs only             | DEV46 mean 0.1848 gain -0.3986 (se 0.0304) | devXY mean 0.2001 gain -0.4124 (se 0.0402) | BURN80 mean 0.1938 gain -0.3998 (se 0.0258) | ALL158 mean 0.1925 gain -0.4020 (se 0.0177)
+  timeline only            | DEV46 mean 0.5753 gain -0.0082 (se 0.0077) | devXY mean 0.6043 gain -0.0082 (se 0.0176) | BURN80 mean 0.5748 gain -0.0188 (se 0.0080) | ALL158 mean 0.5809 gain -0.0135 (se 0.0058)
+
+################################################################################
+## 6b. SINGLE-FLAG REMOVAL AND THE 13 NAMED ABLATIONS (flags.lua)
+################################################################################
+== single default flag switched OFF (positive = the flag helps)
+variant                  | DEV46: cand-variant (se) t [streams changed] | devXY: cand-variant (se) t [changed] | axis deltas cand-variant on DEV46+devXY (|d|>=0.02)
+inb                      | +0.2660 (0.0304) t=  8.8 [45/46]   | +0.2326 (0.0278) t=  8.4 [32/32]   | util +0.25 diag +0.45 temporal +0.05 hidden +0.59 transfer +0.17 ood +0.22 info +0.17 plan +0.22 retain +0.40 recov +0.36
+inbu                     | +0.0579 (0.0117) t=  5.0 [36/46]   | +0.0319 (0.0072) t=  4.4 [27/32]   | util +0.05 hidden +0.42 ood +0.03 plan +0.04 retain +0.03 recov +0.03
+inbp                     | +0.0140 (0.0067) t=  2.1 [11/46]   | +0.0010 (0.0010) t=  1.0 [ 3/32]   | hidden +0.03 recov +0.02
+onset_adapt              | +0.0016 (0.0011) t=  1.5 [13/46]   | +0.0015 (0.0008) t=  1.9 [ 7/32]   | hidden +0.04 retain +0.03
+stale                    | +0.0062 (0.0016) t=  4.0 [22/46]   | +0.0013 (0.0004) t=  3.6 [11/32]   | hidden +0.07
+wmask                    | +0.0011 (0.0010) t=  1.1 [20/46]   | +0.0013 (0.0014) t=  1.0 [10/32]   | 
+pmin2                    | -0.0012 (0.0012) t= -1.0 [ 2/46]   | +0.0000 (0.0000) t=  0.0 [ 0/32]   | 
+cfgp                     | +0.0087 (0.0044) t=  2.0 [45/46]   | +0.0070 (0.0051) t=  1.4 [32/32]   | hidden +0.04 retain -0.03 recov +0.02
+cfghost                  | +0.0026 (0.0003) t=  7.6 [42/46]   | +0.0018 (0.0003) t=  6.6 [32/32]   | 
+expo                     | +0.0061 (0.0043) t=  1.4 [26/46]   | +0.0084 (0.0017) t=  5.0 [24/32]   | fp +0.02 temporal -0.03 transfer +0.03
+scan                     | +0.0254 (0.0100) t=  2.5 [46/46]   | +0.0060 (0.0051) t=  1.2 [32/32]   | diag +0.03 hidden +0.08 plan +0.03 retain -0.06 recov +0.02
+scanrole                 | +0.0263 (0.0041) t=  6.4 [46/46]   | +0.0202 (0.0020) t= 10.2 [32/32]   | util +0.02 transfer +0.16 retain +0.15
+norec                    | +0.0005 (0.0004) t=  1.3 [ 6/46]   | +0.0002 (0.0003) t=  0.6 [ 4/32]   | 
+beacon                   | -0.0005 (0.0009) t= -0.6 [ 6/46]   | -0.0009 (0.0006) t= -1.5 [ 5/32]   | 
+uhz                      | -0.0033 (0.0012) t= -2.7 [26/46]   | -0.0034 (0.0011) t= -3.2 [20/32]   | temporal -0.02 transfer -0.04 retain -0.04
+upmin                    | -0.0004 (0.0002) t= -2.0 [ 5/46]   | -0.0001 (0.0001) t= -1.0 [ 1/32]   | 
+qr                       | +0.0177 (0.0034) t=  5.2 [39/46]   | +0.0075 (0.0061) t=  1.2 [29/32]   | fp +0.06 diag +0.08 hidden +0.55 info +0.21 retain +0.06
+qsh                      | +0.0155 (0.0030) t=  5.2 [38/46]   | +0.0043 (0.0057) t=  0.8 [28/32]   | fp +0.06 transfer +0.02 retain +0.06
+qvo                      | +0.0043 (0.0018) t=  2.4 [22/46]   | -0.0023 (0.0044) t= -0.5 [14/32]   | info +0.20
+fq2                      | +0.0000 (0.0000) t=  0.0 [ 0/46]   | +0.0000 (0.0000) t=  0.0 [ 0/32]   | calib +0.54
+upair                    | +0.0027 (0.0007) t=  3.8 [22/46]   | +0.0022 (0.0006) t=  3.8 [18/32]   | fp +0.03 hidden +0.12
+tlsel                    | +0.0000 (0.0000) t=  0.0 [ 0/46]   | +0.0000 (0.0000) t=  0.0 [ 0/32]   | temporal +0.10
+fcpool                   | +0.0000 (0.0000) t=  0.0 [ 0/46]   | +0.0000 (0.0000) t=  0.0 [ 0/32]   | 
+lnear                    | +0.0001 (0.0006) t=  0.2 [20/46]   | +0.0076 (0.0045) t=  1.7 [15/32]   | causal +0.09
+
+== the 13 named ablations (E.ABLATIONS) on top of the candidate (positive = the mechanism helps)
+variant                  | DEV46: cand-variant (se) t [streams changed] | devXY: cand-variant (se) t [changed] | axis deltas cand-variant on DEV46+devXY (|d|>=0.02)
+no_model_learning        | +0.0020 (0.0013) t=  1.6 [18/46]   | -0.0019 (0.0012) t= -1.6 [11/32]   | 
+no_competing_hypotheses  | +0.0164 (0.0071) t=  2.3 [46/46]   | +0.0243 (0.0051) t=  4.8 [32/32]   | fp +0.14 temporal -0.02 info +0.04 retain +0.10
+no_counterfactuals       | +0.0000 (0.0000) t=  0.0 [ 0/46]   | +0.0000 (0.0000) t=  0.0 [ 0/32]   | 
+no_temporal              | +0.0000 (0.0002) t=  0.2 [ 3/46]   | +0.0006 (0.0012) t=  0.5 [ 4/32]   | causal +0.71
+no_hidden_state          | -0.0063 (0.0023) t= -2.8 [19/46]   | -0.0030 (0.0014) t= -2.2 [12/32]   | 
+no_information_gain      | +0.0486 (0.0147) t=  3.3 [45/46]   | +0.0421 (0.0082) t=  5.1 [32/32]   | util +0.05 fp +0.10 diag +0.05 causal -0.02 temporal -0.05 hidden +0.15 transfer -0.03 ood +0.04 plan +0.05 retain -0.07
+no_planning              | +0.0534 (0.0096) t=  5.6 [40/46]   | +0.0328 (0.0102) t=  3.2 [26/32]   | util +0.04 temporal +0.03 hidden -0.08 ood +0.05 info +0.03 plan +0.05 retain +0.17 recov +0.12
+no_graph                 | +0.0062 (0.0013) t=  4.9 [31/46]   | +0.0076 (0.0052) t=  1.5 [21/32]   | retain +0.15
+no_cyber_tools           | +0.0706 (0.0179) t=  3.9 [46/46]   | +0.0528 (0.0112) t=  4.7 [32/32]   | util +0.06 fp +0.14 diag +0.07 causal -0.02 temporal -0.04 hidden +0.20 transfer -0.10 ood +0.07 plan +0.08 retain -0.14 recov +0.04
+no_memory                | +0.0167 (0.0046) t=  3.6 [39/46]   | +0.0245 (0.0095) t=  2.6 [29/32]   | diag +0.03 causal +0.14 temporal +0.02 hidden +0.15 transfer +0.04 retain +0.20
+no_compute_meta          | +0.0000 (0.0000) t=  0.0 [ 0/46]   | +0.0000 (0.0000) t=  0.0 [ 0/32]   | 
+no_uncertainty           | -0.0047 (0.0032) t= -1.5 [32/46]   | -0.0019 (0.0016) t= -1.2 [23/32]   | temporal -0.03 hidden +0.02 retain -0.03
+no_root_cause            | +0.1762 (0.0183) t=  9.6 [46/46]   | +0.1461 (0.0115) t= 12.7 [32/32]   | util +0.16 fp +0.09 diag +0.08 temporal -0.04 hidden +0.11 transfer +0.10 ood +0.13 plan +0.16 retain +0.04 recov +0.04
+
+################################################################################
+## 6c. KEY FLAGS ON THE BURNED HELD-OUT SETS (flags_burn.lua)
+################################################################################
+flag     | DEV46 cand-without (se) t    | devXY                        | BURN80 (n)                   | FRESH112 pooled             
+qr       | +0.0177 (0.0034) t=  5.2 n= 46 | +0.0075 (0.0061) t=  1.2 n= 32 | +0.0123 (0.0032) t=  3.8 n= 80 | +0.0109 (0.0029) t=  3.8 n=112
+qsh      | +0.0155 (0.0030) t=  5.2 n= 46 | +0.0043 (0.0057) t=  0.8 n= 32 | +0.0089 (0.0028) t=  3.2 n= 80 | +0.0076 (0.0026) t=  2.9 n=112
+qvo      | +0.0043 (0.0018) t=  2.4 n= 46 | -0.0023 (0.0044) t= -0.5 n= 32 | +0.0011 (0.0015) t=  0.7 n= 80 | +0.0001 (0.0016) t=  0.1 n=112
+uhz      | -0.0033 (0.0012) t= -2.7 n= 46 | -0.0034 (0.0011) t= -3.2 n= 32 | -0.0105 (0.0024) t= -4.3 n= 80 | -0.0085 (0.0018) t= -4.8 n=112
+upmin    | -0.0004 (0.0002) t= -2.0 n= 46 | -0.0001 (0.0001) t= -1.0 n= 32 | -0.0005 (0.0003) t= -1.4 n= 80 | -0.0004 (0.0002) t= -1.5 n=112
+scan     | +0.0254 (0.0100) t=  2.5 n= 46 | +0.0060 (0.0051) t=  1.2 n= 32 | +0.0142 (0.0050) t=  2.9 n= 80 | +0.0119 (0.0038) t=  3.1 n=112
+inbp     | +0.0140 (0.0067) t=  2.1 n= 46 | +0.0010 (0.0010) t=  1.0 n= 32 | +0.0085 (0.0033) t=  2.6 n= 80 | +0.0063 (0.0024) t=  2.7 n=112
+stale    | +0.0062 (0.0016) t=  4.0 n= 46 | +0.0013 (0.0004) t=  3.6 n= 32 | +0.0043 (0.0009) t=  4.8 n= 80 | +0.0034 (0.0007) t=  5.2 n=112
+lnear    | +0.0001 (0.0006) t=  0.2 n= 46 | +0.0076 (0.0045) t=  1.7 n= 32 | +0.0001 (0.0004) t=  0.2 n= 80 | +0.0022 (0.0013) t=  1.7 n=112
+cfgp     | +0.0087 (0.0044) t=  2.0 n= 46 | +0.0070 (0.0051) t=  1.4 n= 32 | +0.0131 (0.0048) t=  2.7 n= 80 | +0.0114 (0.0037) t=  3.0 n=112
+expo     | +0.0061 (0.0043) t=  1.4 n= 46 | +0.0084 (0.0017) t=  5.0 n= 32 | +0.0135 (0.0043) t=  3.1 n= 80 | +0.0120 (0.0031) t=  3.9 n=112
+
+################################################################################
+## 6d. VACUOUS ABLATIONS (abl2.lua)
+################################################################################
+no_counterfactuals   streams 78: utility differs on 0, metered work differs on 78 (mean rel -8.08%); axis deltas (cand-variant... shown as variant-cand? no: cand minus variant) > 0.0005: causal -0.0084
+no_compute_meta      streams 78: utility differs on 0, metered work differs on 78 (mean rel +0.00%); axis deltas (cand-variant... shown as variant-cand? no: cand minus variant) > 0.0005: 
+no_model_learning    streams 78: utility differs on 29, metered work differs on 78 (mean rel -1.46%); axis deltas (cand-variant... shown as variant-cand? no: cand minus variant) > 0.0005: fp -0.0036 diag +0.0014 causal +0.0010 temporal -0.0006 hidden +0.0063 transfer -0.0008 info -0.0045 plan -0.0007 retain +0.0071 recov +0.0019
+no_temporal          streams 78: utility differs on 7, metered work differs on 78 (mean rel -17.72%); axis deltas (cand-variant... shown as variant-cand? no: cand minus variant) > 0.0005: fp -0.0005 causal +0.7095 temporal -0.0015 hidden -0.0014 retain +0.0147 cap -0.0007
+no_uncertainty       streams 78: utility differs on 55, metered work differs on 78 (mean rel -2.87%); axis deltas (cand-variant... shown as variant-cand? no: cand minus variant) > 0.0005: util -0.0035 fp -0.0033 diag +0.0051 causal +0.0058 temporal -0.0301 hidden +0.0215 transfer -0.0015 ood -0.0053 info +0.0065 plan -0.0039 calib -0.0029 retain -0.0308
+no_hidden_state      streams 78: utility differs on 31, metered work differs on 78 (mean rel -1.15%); axis deltas (cand-variant... shown as variant-cand? no: cand minus variant) > 0.0005: util -0.0049 fp +0.0006 diag +0.0035 causal +0.0033 hidden +0.0117 ood -0.0032 plan -0.0049 calib -0.0012 retain -0.0125 recov +0.0032
+
+################################################################################
+## 6e. lnear / timeline group effects (lnear.lua)
+################################################################################
+lnear=2 vs off (cand - nolnear) DEV46  skill +0.0001 (t 0.2): util +0.000(t0.2) fp +0.006(t1.8) diag +0.002(t0.8) causal +0.098(t6.9) temporal +0.006(t0.8) hidden +0.015(t1.4) transfer +0.000(t0.0) ood -0.001(t-0.7) info -0.000(t-1.0) plan -0.001(t-0.9) calib -0.002(t-1.0) retain +0.004(t1.5) recov +0.000(t0.0) cap +0.001(t28.9) safety +0.000(t0.0)
+lnear=2 vs off (cand - nolnear) devXY  skill +0.0076 (t 1.7): util +0.008(t1.7) fp +0.016(t2.6) diag +0.006(t1.2) causal +0.090(t4.2) temporal -0.003(t-0.4) hidden -0.000(t-0.0) transfer -0.003(t-1.4) ood +0.007(t1.4) info -0.007(t-1.0) plan +0.003(t1.3) calib +0.001(t1.8) retain +0.012(t1.2) recov +0.008(t1.0) cap +0.001(t33.5) safety +0.000(t0.0)
+lnear=2 vs off (cand - nolnear) BURN80 skill +0.0001 (t 0.2): util +0.000(t0.2) fp +0.004(t2.3) diag +0.000(t0.4) causal +0.105(t7.5) temporal -0.002(t-0.6) hidden +0.002(t1.3) transfer -0.005(t-1.3) ood +0.000(t0.0) info +0.001(t0.3) plan -0.000(t-0.6) calib +0.000(t0.6) retain +0.016(t2.1) recov +0.000(t0.0) cap +0.001(t47.6) safety +0.000(t0.0)
+lnear=2 vs off (cand - nolnear) ALL158 skill +0.0016 (t 1.7): util +0.002(t1.7) fp +0.007(t3.8) diag +0.002(t1.5) causal +0.100(t10.8) temporal +0.000(t0.1) hidden +0.005(t1.4) transfer -0.003(t-1.5) ood +0.001(t0.8) info -0.001(t-0.2) plan +0.000(t0.3) calib -0.000(t-0.4) retain +0.012(t2.6) recov +0.002(t1.0) cap +0.001(t62.8) safety +0.000(t0.0)
+whole timeline group vs off (cand - notl) DEV46 : util +0.000(t0.2) fp +0.006(t1.8) diag +0.002(t0.8) causal +0.098(t6.9) temporal +0.101(t4.7) hidden +0.015(t1.4) transfer +0.000(t0.0) ood -0.001(t-0.7) info -0.000(t-1.0) plan -0.001(t-0.9) calib -0.002(t-1.0) retain +0.004(t1.5) recov +0.000(t0.0) cap +0.001(t26.8) safety +0.000(t0.0)
+whole timeline group vs off (cand - notl) ALL158: util +0.002(t1.7) fp +0.007(t3.8) diag +0.002(t1.5) causal +0.100(t10.8) temporal +0.105(t9.5) hidden +0.005(t1.4) transfer -0.003(t-1.5) ood +0.001(t0.8) info -0.001(t-0.2) plan +0.000(t0.3) calib -0.000(t-0.4) retain +0.012(t2.6) recov +0.002(t1.0) cap +0.001(t56.1) safety +0.000(t0.0)

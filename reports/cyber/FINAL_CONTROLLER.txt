@@ -27,3 +27,5 @@ exact persistence read and early exposure closure (cfgp cfghost expo scan scanro
 incident-timeline selection (tlsel), nearest-cause link crediting (lnear).
 Selection evidence: development sets dev diag val ood adv (46 streams: skill 0.583 -> 0.931), devX/devY (32 streams, re-checked several times), 96 never-used seeds and the five burned held sets were used by the audits for robustness, not for tuning.
 heldF (9501-9516): baselines recorded (reports/cyber/baselines_heldF.*) BEFORE this controller is run on it; it is run ONCE, whatever it shows is reported. heldG (9601-9616) is reserved and unused.
+ERRATUM (written after the heldF run; it changes no result): the statement above that the generation-4 decisions give "the same utility, skill and replay digest" should read "the same utility and skill". The replay digests differ
+because the metered work differs by at most 0.13% (rows removed or made conditional change a few instructions).

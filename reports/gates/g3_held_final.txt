@@ -1,0 +1,9 @@
+generation G3  seeds=heldout  protocol c41c32887bfc
+balanced_fixed:4         utility=0.2649 work=  1559344 composite=0.0000
+    cross_tas=0.233 structura=0.306 normalize=0.265 model_ide=0.000 proper_pr=0.562 delayed_p=0.324 knowledge=0.233 prospecti=NA capabilit=0.002
+full:4                   utility=0.3683 work=  4157319 composite=0.2417
+    cross_tas=0.305 structura=0.402 normalize=0.454 model_ide=0.983 proper_pr=0.684 delayed_p=0.403 knowledge=0.535 prospecti=NA capabilit=0.001
+g2_full:4                utility=0.2417 work=  4421487 composite=0.0806
+    cross_tas=0.202 structura=0.254 normalize=0.222 model_ide=0.035 proper_pr=0.604 delayed_p=0.065 knowledge=0.183 prospecti=NA capabilit=0.001
+full vs g2_full            q4 composite 0.2417 / 0.0806 = 3.00x | cross_tas=1.51 structura=1.58 normalize=2.05 model_ide=28.00 proper_pr=1.13 delayed_p=6.21 knowledge=2.93 capabilit=2.31
+full vs balanced_fixed     q4 composite 0.2417 / 0.0000 | cross_tas=1.31 structura=1.31 normalize=1.72 proper_pr=1.22 delayed_p=1.24 knowledge=2.29 capabilit=0.70

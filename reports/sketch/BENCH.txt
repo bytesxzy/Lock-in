@@ -1,0 +1,73 @@
+task         found  agent   hidden  rounds  calls    cost program
+double         yes     ok    40/40       1      8     101 (x + x)
+square         yes     ok    40/40       1      8     107 (x * x)
+cube           yes     ok    40/40       1      8     311 (x * (x * x))
+plus7          yes     ok    40/40       1      8     101 (x + 7)
+abs_val        yes     ok    40/40       1      8     100 math.abs(x)
+triangular     yes     ok    40/40       1      8    3891 sum(range(n))
+factorial      yes     ok    40/40       1      8    3915 prod(range(n))
+sum_to_n       yes     ok    40/40       1      8    3891 sum(range(n))
+is_even        yes     ok    40/40       1      8     650 ((x % 2) < 1)
+is_pos         yes     ok    40/40       1      8     123 (0 < x)
+max2           yes     ok    40/40       1      8     125 math.max(a, b)
+abs_diff       yes     ok    40/40       1      8     215 math.abs((a - b))
+sum_sq2         no      -     0/40       1      3   12511 
+avg2           yes     ok    40/40       1      8     550 ((a + b) // 2)
+clamp          yes     ok    40/40       1      8    1406 math.min(hi, math.max(x, lo))
+is_multiple    yes     ok    40/40       1      8    1001 ((a % b) < 1)
+list_sum       yes     ok    40/40       1      8     104 sum(xs)
+list_prod      yes     ok    40/40       1      8     108 prod(xs)
+list_len       yes     ok    40/40       1      8     101 (#xs)
+list_max       yes     ok    40/40       1      8     104 maxl(xs)
+list_min       yes     ok    40/40       1      8     104 minl(xs)
+list_last      yes     ok    40/40       1      8     103 last(xs)
+list_second    yes     ok    40/40       1      8     133 tail(xs)[1]
+list_rev       yes     ok    40/40       1      8     104 rev(xs)
+list_sorted    yes     ok    40/40       1      8     108 sorted(xs)
+sum_squares    yes     ok    40/40       1      8    4229 sum(map(function(v) return (v * v) end, xs))
+count_pos      yes     ok    40/40       2     13    7583 countby(function(v) return (0 < v) end, xs)
+count_even     yes     ok    40/40       1      8    4035 countby(function(v) return ((v % 2) < 1) end, xs)
+sum_even       yes     ok    40/40       1      8    4294 sum(filter(function(v) return ((v % 2) < 1) end, xs))
+evens          yes     ok    40/40       1      8    4024 filter(function(v) return ((v % 2) < 1) end, xs)
+squares        yes     ok    40/40       1      8    3896 map(function(v) return (v * v) end, xs)
+negatives      yes     ok    40/40       2     13    6907 filter(function(v) return (v < 0) end, xs)
+any_neg        yes     ok    40/40       2     13    2508 (minl(append(xs, 0)) < 0)
+all_pos        yes     ok    30/40       2     13    2219 (0 < (prod(xs) % 4))
+span           yes     ok    40/40       1      8     307 (maxl(xs) - minl(xs))
+mean_floor     yes     ok    40/40       1      8     391 (sum(xs) // (#xs))
+odd_sq_sum      no      -     0/40       1      3   12511 
+double_all     yes     ok    40/40       1      8    3894 map(function(v) return (v + v) end, xs)
+count_gt3      yes     ok    40/40       2     13    5182 countby(function(v) return (3 < v) end, xs)
+take2          yes     ok    40/40       1      8     131 take(xs, 2)
+list_tail      yes     ok    40/40       1      8     104 tail(xs)
+contains       yes     ok    40/40       1      8     148 has(xs, x)
+count_of       yes     ok    40/40       1      8     148 countv(xs, x)
+str_len        yes     ok    40/40       1      8     101 #s
+str_upper      yes     ok    40/40       1      8     101 (s):upper()
+str_rev        yes     ok    40/40       1      8     101 (s):reverse()
+palindrome     yes     ok    40/40       1      8     245 (s == (s):reverse())
+str_twice      yes     ok    40/40       1      8     131 (s .. s)
+first_char     yes     ok    40/40       1      8     196 (s):sub(0, 1)
+last_char      yes     ok    40/40       2     13     902 (s):sub((-1), 10)
+join_comma     yes     ok    40/40       1      8     493 (a .. ("," .. b))
+shout          yes     ok    40/40       1      8     203 ((s .. "!")):upper()
+count_a        yes     ok    40/40       1      8     145 scount(s, "a")
+drop_first     yes     ok    40/40       2     13     403 (s):sub(2, 10)
+
+54 tasks: synthesizer found a program for 52; the agent accepted 52; 51 are correct on ALL hidden cases; hidden-case accuracy 0.958; 1428832 candidates in total
+
+baselines. Lookup table of the training examples: correct on 253 of 2160 hidden cases (11.7%). Same enumerator without observational equivalence at the same candidate budget: a program for 51 of 54 tasks (with pruning: 52)
+
+task         kind      ok   hidden  trials   cost  fills / edits
+clamp_s      sketch   yes    40/40     256    113  math.max(x, lo) | math.min(y, hi)
+relu         sketch   yes    40/40     113     91  true | math.max(x, 0)
+sign_s       sketch    no     0/40   20000   2512  no fill found (best 5/6)
+diff_sq      sketch   yes    40/40    5796    801  (a + b) | (a - b)
+max3_s       sketch   yes    40/40     271    110  math.max(a, b) | math.max(m, c)
+collatz      sketch    no     0/40   20000   2512  no fill found (best 3/6)
+count_big    bug      yes    35/40       1    103  - 1 -> (deleted)
+sum_pos      bug      yes    40/40      14    104  < -> >
+fact_loop    bug      yes    40/40       3    103  0 -> 1
+is_between   bug      yes    38/40     nil     47  
+mean_floor2  bug      yes    40/40       1    103  + 1 -> (deleted)
+last_two_sum bug      yes    40/40       6    102  2 -> 1

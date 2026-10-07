@@ -1,0 +1,183 @@
+### lua exec_eval_1.lua sketch-bench --synth-only --baseline --max-candidates 20000
+task         found  agent   hidden  rounds  calls    cost program
+double         yes      -    40/40       -      -       - 
+square         yes      -    40/40       -      -       - 
+cube           yes      -    40/40       -      -       - 
+plus7          yes      -    40/40       -      -       - 
+abs_val        yes      -    40/40       -      -       - 
+triangular     yes      -    40/40       -      -       - 
+factorial      yes      -    40/40       -      -       - 
+sum_to_n       yes      -    40/40       -      -       - 
+is_even         no      -     0/40       -      -       - 
+is_pos         yes      -    40/40       -      -       - 
+max2           yes      -    40/40       -      -       - 
+abs_diff       yes      -    40/40       -      -       - 
+sum_sq2         no      -     0/40       -      -       - 
+avg2            no      -     0/40       -      -       - 
+clamp           no      -     0/40       -      -       - 
+is_multiple     no      -     0/40       -      -       - 
+list_sum       yes      -    40/40       -      -       - 
+list_prod      yes      -    40/40       -      -       - 
+list_len       yes      -    40/40       -      -       - 
+list_max       yes      -    40/40       -      -       - 
+list_min       yes      -    40/40       -      -       - 
+list_last      yes      -    40/40       -      -       - 
+list_second    yes      -    40/40       -      -       - 
+list_rev       yes      -    40/40       -      -       - 
+list_sorted    yes      -    40/40       -      -       - 
+sum_squares    yes      -    40/40       -      -       - 
+count_pos      yes      -    40/40       -      -       - 
+count_even     yes      -    40/40       -      -       - 
+sum_even       yes      -    40/40       -      -       - 
+evens          yes      -    40/40       -      -       - 
+squares        yes      -    40/40       -      -       - 
+negatives      yes      -    40/40       -      -       - 
+any_neg        yes      -    28/40       -      -       - 
+all_pos        yes      -    34/40       -      -       - 
+span           yes      -    40/40       -      -       - 
+mean_floor     yes      -    40/40       -      -       - 
+odd_sq_sum      no      -     0/40       -      -       - 
+double_all     yes      -    40/40       -      -       - 
+count_gt3      yes      -    40/40       -      -       - 
+take2          yes      -    40/40       -      -       - 
+list_tail      yes      -    40/40       -      -       - 
+contains       yes      -    40/40       -      -       - 
+count_of       yes      -    40/40       -      -       - 
+str_len        yes      -    40/40       -      -       - 
+str_upper      yes      -    40/40       -      -       - 
+str_rev        yes      -    40/40       -      -       - 
+palindrome     yes      -    40/40       -      -       - 
+str_twice      yes      -    40/40       -      -       - 
+first_char     yes      -    40/40       -      -       - 
+last_char      yes      -    27/40       -      -       - 
+join_comma      no      -     0/40       -      -       - 
+shout          yes      -    40/40       -      -       - 
+count_a        yes      -    40/40       -      -       - 
+drop_first     yes      -    27/40       -      -       - 
+
+54 tasks: synthesizer found a program for 47; the agent accepted 0; 43 are correct on ALL hidden cases; hidden-case accuracy 0.850; 274749 candidates in total
+
+baselines. Lookup table of the training examples: correct on 253 of 2160 hidden cases (11.7%). Same enumerator without observational equivalence at the same candidate budget: a program for 43 of 54 tasks (with pruning: 47)
+
+### lua exec_eval_1.lua sketch-bench --synth-only --baseline --max-candidates 50000
+task         found  agent   hidden  rounds  calls    cost program
+double         yes      -    40/40       -      -       - 
+square         yes      -    40/40       -      -       - 
+cube           yes      -    40/40       -      -       - 
+plus7          yes      -    40/40       -      -       - 
+abs_val        yes      -    40/40       -      -       - 
+triangular     yes      -    40/40       -      -       - 
+factorial      yes      -    40/40       -      -       - 
+sum_to_n       yes      -    40/40       -      -       - 
+is_even        yes      -    40/40       -      -       - 
+is_pos         yes      -    40/40       -      -       - 
+max2           yes      -    40/40       -      -       - 
+abs_diff       yes      -    40/40       -      -       - 
+sum_sq2         no      -     0/40       -      -       - 
+avg2           yes      -    40/40       -      -       - 
+clamp           no      -     0/40       -      -       - 
+is_multiple    yes      -    40/40       -      -       - 
+list_sum       yes      -    40/40       -      -       - 
+list_prod      yes      -    40/40       -      -       - 
+list_len       yes      -    40/40       -      -       - 
+list_max       yes      -    40/40       -      -       - 
+list_min       yes      -    40/40       -      -       - 
+list_last      yes      -    40/40       -      -       - 
+list_second    yes      -    40/40       -      -       - 
+list_rev       yes      -    40/40       -      -       - 
+list_sorted    yes      -    40/40       -      -       - 
+sum_squares    yes      -    40/40       -      -       - 
+count_pos      yes      -    40/40       -      -       - 
+count_even     yes      -    40/40       -      -       - 
+sum_even       yes      -    40/40       -      -       - 
+evens          yes      -    40/40       -      -       - 
+squares        yes      -    40/40       -      -       - 
+negatives      yes      -    40/40       -      -       - 
+any_neg        yes      -    28/40       -      -       - 
+all_pos        yes      -    34/40       -      -       - 
+span           yes      -    40/40       -      -       - 
+mean_floor     yes      -    40/40       -      -       - 
+odd_sq_sum      no      -     0/40       -      -       - 
+double_all     yes      -    40/40       -      -       - 
+count_gt3      yes      -    40/40       -      -       - 
+take2          yes      -    40/40       -      -       - 
+list_tail      yes      -    40/40       -      -       - 
+contains       yes      -    40/40       -      -       - 
+count_of       yes      -    40/40       -      -       - 
+str_len        yes      -    40/40       -      -       - 
+str_upper      yes      -    40/40       -      -       - 
+str_rev        yes      -    40/40       -      -       - 
+palindrome     yes      -    40/40       -      -       - 
+str_twice      yes      -    40/40       -      -       - 
+first_char     yes      -    40/40       -      -       - 
+last_char      yes      -    27/40       -      -       - 
+join_comma     yes      -    40/40       -      -       - 
+shout          yes      -    40/40       -      -       - 
+count_a        yes      -    40/40       -      -       - 
+drop_first     yes      -    27/40       -      -       - 
+
+54 tasks: synthesizer found a program for 51; the agent accepted 0; 47 are correct on ALL hidden cases; hidden-case accuracy 0.924; 429279 candidates in total
+
+baselines. Lookup table of the training examples: correct on 253 of 2160 hidden cases (11.7%). Same enumerator without observational equivalence at the same candidate budget: a program for 45 of 54 tasks (with pruning: 51)
+
+### lua exec_eval_1.lua sketch-bench --synth-only --baseline --max-candidates 200000
+task         found  agent   hidden  rounds  calls    cost program
+double         yes      -    40/40       -      -       - 
+square         yes      -    40/40       -      -       - 
+cube           yes      -    40/40       -      -       - 
+plus7          yes      -    40/40       -      -       - 
+abs_val        yes      -    40/40       -      -       - 
+triangular     yes      -    40/40       -      -       - 
+factorial      yes      -    40/40       -      -       - 
+sum_to_n       yes      -    40/40       -      -       - 
+is_even        yes      -    40/40       -      -       - 
+is_pos         yes      -    40/40       -      -       - 
+max2           yes      -    40/40       -      -       - 
+abs_diff       yes      -    40/40       -      -       - 
+sum_sq2         no      -     0/40       -      -       - 
+avg2           yes      -    40/40       -      -       - 
+clamp          yes      -    40/40       -      -       - 
+is_multiple    yes      -    40/40       -      -       - 
+list_sum       yes      -    40/40       -      -       - 
+list_prod      yes      -    40/40       -      -       - 
+list_len       yes      -    40/40       -      -       - 
+list_max       yes      -    40/40       -      -       - 
+list_min       yes      -    40/40       -      -       - 
+list_last      yes      -    40/40       -      -       - 
+list_second    yes      -    40/40       -      -       - 
+list_rev       yes      -    40/40       -      -       - 
+list_sorted    yes      -    40/40       -      -       - 
+sum_squares    yes      -    40/40       -      -       - 
+count_pos      yes      -    20/40       -      -       - 
+count_even     yes      -    40/40       -      -       - 
+sum_even       yes      -    40/40       -      -       - 
+evens          yes      -    40/40       -      -       - 
+squares        yes      -    40/40       -      -       - 
+negatives      yes      -    19/40       -      -       - 
+any_neg        yes      -    28/40       -      -       - 
+all_pos        yes      -    34/40       -      -       - 
+span           yes      -    40/40       -      -       - 
+mean_floor     yes      -    40/40       -      -       - 
+odd_sq_sum      no      -     0/40       -      -       - 
+double_all     yes      -    40/40       -      -       - 
+count_gt3      yes      -    20/40       -      -       - 
+take2          yes      -    40/40       -      -       - 
+list_tail      yes      -    40/40       -      -       - 
+contains       yes      -    40/40       -      -       - 
+count_of       yes      -    40/40       -      -       - 
+str_len        yes      -    40/40       -      -       - 
+str_upper      yes      -    40/40       -      -       - 
+str_rev        yes      -    40/40       -      -       - 
+palindrome     yes      -    40/40       -      -       - 
+str_twice      yes      -    40/40       -      -       - 
+first_char     yes      -    40/40       -      -       - 
+last_char      yes      -    27/40       -      -       - 
+join_comma     yes      -    40/40       -      -       - 
+shout          yes      -    40/40       -      -       - 
+count_a        yes      -    40/40       -      -       - 
+drop_first     yes      -    27/40       -      -       - 
+
+54 tasks: synthesizer found a program for 52; the agent accepted 0; 45 are correct on ALL hidden cases; hidden-case accuracy 0.914; 1167648 candidates in total
+
+baselines. Lookup table of the training examples: correct on 253 of 2160 hidden cases (11.7%). Same enumerator without observational equivalence at the same candidate budget: a program for 51 of 54 tasks (with pruning: 52)
+
