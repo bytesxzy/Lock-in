@@ -41913,12 +41913,13 @@ Env.PROTOCOL = {
 Env.protocol_hash = U.sha256(U.to_literal({Env.PROTOCOL, W.PARAMS, W.BASE_ACT_COST, W.BASE_TOOL_COST, W.BASE_VERIFY}))
 -- Fresh held-out sets drawn from the same generator and parameters as the frozen sets. They are NOT part of the frozen protocol (its hash is
 -- unchanged); each is meant to be run once. heldC, heldD and heldE confirm successive controller revisions after earlier passes had shown
--- defects (see reports/cyber); heldE is the set the final controller is confirmed on.
+-- defects (see reports/cyber); heldE confirms the generation-4 controller, heldF the generation-5 controller (run once), heldG is reserved and unused.
 Env.RESERVE = {
   heldC = {9201, 9202, 9203, 9204, 9205, 9206, 9207, 9208, 9209, 9210, 9211, 9212, 9213, 9214, 9215, 9216},
   heldD = {9301, 9302, 9303, 9304, 9305, 9306, 9307, 9308, 9309, 9310, 9311, 9312, 9313, 9314, 9315, 9316},
   heldE = {9401, 9402, 9403, 9404, 9405, 9406, 9407, 9408, 9409, 9410, 9411, 9412, 9413, 9414, 9415, 9416},
   heldF = {9501, 9502, 9503, 9504, 9505, 9506, 9507, 9508, 9509, 9510, 9511, 9512, 9513, 9514, 9515, 9516},
+  heldG = {9601, 9602, 9603, 9604, 9605, 9606, 9607, 9608, 9609, 9610, 9611, 9612, 9613, 9614, 9615, 9616},     -- reserved for a later revision; unused
   -- extra DEVELOPMENT sets (never used for the reported results): fresh streams on which a candidate improvement is re-checked
   devX = {501, 502, 503, 504, 505, 506, 507, 508, 509, 510, 511, 512, 513, 514, 515, 516},
   devY = {601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612, 613, 614, 615, 616},
@@ -42310,6 +42311,9 @@ PROSPECTIVE FORECASTS. Each round the guest submits up to eight forecasts of fut
 (external connections / alerts at suspected hosts, once their posterior is substantial) and the effects its validated temporal
 links predict. Their probabilities are shrunk toward the guest's OWN resolved record, binned by predicted event type, and the
 forecasts are scored by the guest itself when the telemetry arrives (self-resolved calibration).
+With cfg.fq2 the forecasts are instead activity forecasts (how likely a host that has been busy so far is to see an event of a kind in the next few
+ticks, with the best of them submitted where the expected skill over the network-wide climatology is large); with cfg.qr the REPORTED beliefs come from a
+calibrated layer of their own (the evidence engine's log-odds are overconfident) and cfg.qsh / cfg.qvo let the decisions use that posterior as well.
 
 COMPUTE CONTROL. The guest paces its metered work against the budget left per remaining round: deep (more probes), normal, and
 ECONOMY mode (no probes, no link mining, no forecasts, timeline refreshed every fourth round). With about 18% of the frozen budget
@@ -42331,9 +42335,27 @@ G.FEATURES = {"rare", "nocause", "offprofile", "alerted", "recurrence", "lateral
 G.PRIOR_MULT = {2, 2, 2, 5, 4, 2, 8, 2, 12, 2, 2, 2}
 G.NB = 12
 
+-- The controller's DEFAULT mechanisms (generation 5).  Each one is a cfg flag that was measured on the development streams only (paired against the controller
+-- without it) and kept because it passed the gates; cfg keys override these defaults (cfg.x = false switches one off) and cfg.legacy_defaults = true restores
+-- generation 4 exactly (no new mechanism), which is what the ablation ladder and the baseline comparison use.
+--   detect:   inb inbu inbp (inbound flows from outside, credential use from outside and persistence records as sticky onset evidence), onset_adapt (their weight is the
+--             learned surprise of such events), stale (records older than the last remediation of their entity are ignored), wmask / pmin2 (evidence split and decision floor)
+--   cold:     cfgp cfghost (exact persistence read through the configuration tool), expo (read the exposure of hosts), scan scanrole (inventory scan in the first rounds),
+--             norec (no emerging-recurrence feature), beacon (repeated outbound connections), uhz upmin (horizon and floor for stolen credentials)
+--   beliefs:  qr (calibrated report beliefs), qsh qvo (decisions and verification value use that posterior), fq2 (activity forecasts), upair (login pairing)
+--   timeline: tlsel (incident-timeline selection), fcpool (forecast reliability is inherited by the next world), lnear (a link credits its nearest causes only)
+G.DEFAULTS = {inb = 1, inbu = 1, inbp = 1, onset_adapt = 1, stale = 1, wmask = 3767, pmin2 = 850,
+              cfgp = 1, cfghost = 1, expo = 1, scan = 1, scanrole = 14, norec = 1, beacon = 1, uhz = 30, upmin = 60,
+              qr = 1, qsh = 102, qvo = 1, fq2 = 1, upair = 1, tlsel = 1, fcpool = 1, lnear = 2}
+function G.with_defaults(cfg)
+  if cfg.legacy_defaults or getmetatable(cfg) then return cfg end
+  return setmetatable(cfg, {__index = G.DEFAULTS})
+end
 function G.install(P, cfg)
-  cfg = cfg or {}
+  cfg = G.with_defaults(cfg or {})
   local R = {cfg = cfg}
+  local NBX = cfg.alertconf and 13 or G.NB                       -- feature bits in use (bit 12: high-confidence alert, cfg.alertconf)
+  local AGB = 3336 | (cfg.alertconf and 4096 or 0)               -- agent-bound feature bits (their absence counts only on observable hosts)
   local function mem(name, n) local node = P:static("C_" .. name, n or 1); R[name] = node; return node end
   local NE, NSIG = G.NE, G.NSIG
   mem("PK", 120); mem("RQ", 4); mem("RS", 32); mem("TMP", 32); mem("REP", 64); mem("FA", 4)
@@ -42353,8 +42375,11 @@ function G.install(P, cfg)
   mem("EB", 48); mem("PRI", 4)                          -- log-odds x16 per (class*16+id), prior log-odds per class
   mem("C1", 48); mem("C0", 48); mem("E1", 4); mem("E0", 4); mem("G0", 48); mem("GT", 4)   -- labelled counts, labelled exposure, stream base counts
   mem("W1", 48); mem("DL", 48)                          -- log-likelihood-ratio weights and absence penalties (x16 bits)
+  mem("XC", 16); mem("XT", 16)                         -- repeated outbound external connections per host (beaconing); also the former ISOLD/REVK scratch rows
+  R.ISOLD, R.REVK = R.XC, R.XT
+  mem("PC", 16)                                        -- calibrated compromise probability of each host (x1024)
   mem("HAG", 16); mem("HLAST", 16)                      -- agent-event counts (observability), last event tick
-  mem("LASTLABEL", 4); mem("KILLT", 16)
+  mem("KILLT", 16)
   -- temporal links (cause signature -> effect signature under a relation, with lag window) and their pending forecasts
   for _, n in ipairs({"LKEY", "LNP", "LLO", "LHI", "LPN", "LPH", "LPM", "LPU", "LAGE", "LP1", "LP2"}) do mem(n, G.NL) end
   for _, n in ipairs({"PL", "PS", "PSEQ", "PT1", "PT2", "PACT"}) do mem(n, G.NPEND) end
@@ -42367,8 +42392,27 @@ function G.install(P, cfg)
   mem("BACT"); mem("BX"); mem("BY"); mem("BEU")
   mem("ADJ", 16); mem("SPV", 16); mem("TELON", 16); mem("SHB", 8); mem("DIST", 16)
   mem("HEVN", 16); mem("UEVN", 16); mem("DIRTY"); mem("PENL", 8); mem("PENS", 8); mem("CSIG", 512)
-  mem("USED", 16); mem("LAM1", 48); mem("LAM0", 48); mem("PREP", 48); mem("TR", 512); mem("TRN"); mem("WORKT"); mem("LEAD")
-  mem("LAB", 4); mem("NPOS"); mem("NNEG"); mem("PMIN"); mem("CALA", 4); mem("CALB", 4); mem("EW", 48); mem("HSC", 512); mem("HST", 512)
+  mem("USED", 16); mem("LAM1", 48); mem("LAM0", 48); mem("PREP", 48); mem("TR", 512); mem("TRN"); mem("LEAD")
+  mem("LAB", 4); mem("NPOS"); mem("NNEG"); mem("PMIN"); mem("CALA", 4); mem("CALB", 4); mem("EW", 48)
+  local NOREC = cfg.no_temporal or cfg.norec                                  -- no emerging-recurrence feature: its 1024-word table is not allocated
+  if not NOREC then mem("HSC", 512); mem("HST", 512) end
+  mem("ON", 16); mem("ONU", 16); mem("ONP", 16); mem("CALOFF"); mem("INN", 4)                           -- sticky onset evidence per host (log-odds x16, added after calibration); calibration offset scratch
+  -- timeline selection (cfg.tlsel), constants fitted on the development streams: evidence threshold (log-likelihood x16, 9.4 bits), age of the candidates in ticks, bonus for the
+  -- payload that follows a core record and the ticks it may follow, evidence that makes a record a core, minimum list length, bound of the weak feature family, cap of the weight
+  -- of an inbound connection from outside, weight of the incident memory of a host (x1/1024 of its belief) and its decay per tick, refresh period in rounds
+  local TS = cfg.tlsel and {th = 150, win = 24, nb = 100, nbt = 8, core = 100, min = 2, cap = 24, inw = 80, hb = 64, dec = 40, every = 2}
+  if TS then
+    mem("HINC", 16); mem("HBON", 16); mem("HANY"); mem("HCT", 16)       -- incident memory per host and its weight, time of the last core record per host
+    mem("ETW", NE); mem("ESEV", NE)                                     -- per-slot weight of the system's processes (judged once the cores are known), cached evidence of the features
+  end
+  -- report layer (cfg.qr): calibrated posteriors of what is REPORTED (x1024), kept apart from the decision beliefs PC/PU/PP; PEX = exact persistence read says
+  -- "implanted"; PRB = verification evidence added at full strength; RVQ = belief about a user at the moment its credential was revoked; QD = a tool ran this round
+  if cfg.qr then mem("BQH", 16); mem("BQU", 16); mem("BQP", 16); mem("PEX", 16); mem("PRB", 16); mem("RVQ", 16); mem("QD") end
+  -- activity forecasts (cfg.fq2): per host and event family (type 1..8, plus authentications from and connections to the outside) the ticks of this episode with at
+  -- least one such event (count, last tick), their pooled sums, the prior's non-event ticks, the pooled climatology estimates (3 windows) and the best eight candidates
+  if cfg.fq2 then mem("FC2", 160); mem("FC2T", 160); mem("FC2S", 10); mem("FC2P", 10); mem("FC2R", 10); mem("FC2C", 30); mem("FC2B", 16); mem("FC2N") end
+  -- login pairing (cfg.upair): per host, event time of the last inbound connection from outside (+1), and the login from outside that has no such partner yet (user, event time + 1)
+  if cfg.upair then mem("INCT", 16); mem("AXU", 16); mem("AXT", 16) end
   local E2 = {}; for x = 0, 128 do E2[#E2 + 1] = math.floor(1024 * 2 ^ (-x / 16) + 0.5) end
   local E2T = P:rodata("C_E2T", E2)
   local LOGT = P:rodata("C_LOGT", log2tab())
@@ -42467,20 +42511,46 @@ function G.install(P, cfg)
     f:iff(GL.or_(pred:eq(7), GL.and_(pred:eq(4), f:ld(R.EA2 + s):eq(3), f:ld(R.EA3 + s):eq(1))), function() f:set(fe, fe | 256) end)
     f:iff(GL.or_(GL.and_(pred:eq(5), f:ld(R.EA2 + s):eq(3)), GL.and_(pred:eq(3), f:ld(R.EAT + s):ge(3))), function() f:set(fe, fe | 512) end)
     f:iff(pred:eq(4), function() f:set(fe, fe | 1024) end)
+    if cfg.expo then f:iff(GL.and_(pred:eq(4), h:lt(f:ld(R.NH)), f:ld(R.EA2 + s):lt(2), f:ld(R.EA3 + s):ne(0)), function() f:iff(f:ld(R.RCCFG + h):lt(2), function() f:st(R.RCCFG + h, 4) end) end) end
     f:iff(GL.and_(pred:eq(2), warm:ne(0), f:ld(R.IMGN + f:ld(R.EA2 + s)):eq(0)), function() f:set(fe, fe | 2048) end)
+    if cfg.alertconf then
+      -- an EDR alert carries its classifier confidence (0..255, attr): below the middle of the scale it is no evidence of compromise (such alerts are what benign
+      -- and decoy activity produces), above three quarters it is strong evidence; both thresholds are generic (the scale's midpoint and 3/4), the learned class
+      -- rates take over as verified labels accumulate
+      f:iff(pred:eq(8), function()
+        f:iff(f:ld(R.EAT + s):ge(cfg.acmid or 128), function() f:set(fe, fe | 8) end)
+        f:iff(f:ld(R.EAT + s):ge(cfg.achi or 192), function() f:set(fe, fe | 4096) end)
+      end)
+    else
     f:iff(pred:eq(8), function() f:set(fe, fe | 8) end)
+    end
+    if cfg.beacon then
+      -- beaconing: a host that opens an outbound connection to the outside again within a few ticks of the last one (short, regular intervals)
+      f:iff(GL.and_(pred:eq(3), p:eq(255), h:lt(f:ld(R.NH))), function()
+        f:set(x, f:ld(R.ETE + s) - f:ld(R.XT + h)); f:iff(x:lt(0), function() f:set(x, 0 - x) end)
+        f:iff(x:gt(cfg.bgap or 8), function() f:st(R.XC + h, 0) end)
+        f:st(R.XC + h, f:ld(R.XC + h) + 1)
+        f:iff(f:ld(R.ETE + s):gt(f:ld(R.XT + h)), function() f:st(R.XT + h, f:ld(R.ETE + s)) end)
+        f:iff(f:ld(R.XC + h):ge(cfg.bn or 2), function() f:set(fe, fe | 16) end)
+      end)
+    end
     -- emerging recurrence: a young signature starts recurring at one host (new recurrent behaviour, whatever it is)
-    f:iff(GL.and_(h:lt(f:ld(R.NH)), pred:ne(8), warm:ne(0), cfg.no_temporal and 0 or 1), function()
+    if not NOREC then f:iff(GL.and_(h:lt(f:ld(R.NH)), pred:ne(8), warm:ne(0)), function()
       f:set(x, ((h * 977 + sig) * 2654435761 >> 11) & 511)
-      f:iff(f:ld(R.T):gt(f:ld(R.HST + x) + 15), function() f:st(R.HSC + x, 0) end)
+      f:iff(f:ld(R.T):gt(f:ld(R.HST + x) + (cfg.rec_gap or 15)), function() f:st(R.HSC + x, 0) end)
       f:st(R.HSC + x, f:ld(R.HSC + x) + 1); f:st(R.HST + x, f:ld(R.T))
-      f:iff(GL.and_(f:ld(R.SBN + sig):le(8), f:ld(R.HSC + x):ge(3)), function() f:set(fe, fe | 16) end)
-    end)
+      f:iff(GL.and_(f:ld(R.SBN + sig):le(cfg.rec_sbn or 8), f:ld(R.HSC + x):ge(cfg.rec_n or 3)), function() f:set(fe, fe | 16) end)
+    end) end
     f:st(R.EFEAT + s, fe)
   end)
   P:func("c_absorb", {"s"}, function(f, s)
     local pred, h, p, u, sig = f:var("pred", f:ld(R.EPRED + s)), f:var("h", f:ld(R.EH + s)), f:var("p", f:ld(R.EP + s)), f:var("u", f:ld(R.EU + s)), f:var("sig", f:ld(R.ESIG + s))
+    if cfg.nocontam then
+      -- robust normality: events of a host that is currently suspected do not teach the normal profile that such behaviour is usual
+      f:iff(GL.and_(f:ld(R.SBN + sig):lt(1000), GL.or_(h:ge(f:ld(R.NH)), f:ld(R.PC + h):lt(cfg.nocontam))), function() f:st(R.SBN + sig, f:ld(R.SBN + sig) + 1) end)
+    else
     f:iff(f:ld(R.SBN + sig):lt(1000), function() f:st(R.SBN + sig, f:ld(R.SBN + sig) + 1) end)
+    end
     f:st(R.TOTEV, f:ld(R.TOTEV) + 1)
     f:iff(pred:eq(1), function()
       f:iff(u:lt(f:ld(R.NU)), function()
@@ -42495,26 +42565,96 @@ function G.install(P, cfg)
     f:iff(h:lt(f:ld(R.NH)), function()
       f:iff(f:ld(R.ESENS + s):eq(3), function() f:st(R.HAG + h, f:ld(R.HAG + h) + 1) end)
       f:st(R.HLAST + h, f:ld(R.T))
+      if cfg.fq2 then
+        -- ticks with at least one event per host and family (the scorer's hit is "an event of this type, toward the outside for kind 1, delivered at the host")
+        local function bump(fam)
+          f:iff(f:ld(R.FC2T + h * 10 + fam):ne(f:ld(R.T) + 1), function()
+            f:st(R.FC2T + h * 10 + fam, f:ld(R.T) + 1); f:st(R.FC2 + h * 10 + fam, f:ld(R.FC2 + h * 10 + fam) + 1); f:st(R.FC2S + fam, f:ld(R.FC2S + fam) + 1)
+          end)
+        end
+        bump(pred - 1)
+        f:iff(GL.and_(pred:eq(1), p:eq(255)), function() bump(8) end)
+        f:iff(GL.and_(pred:eq(3), p:eq(255)), function() bump(9) end)
+      end
     end)
+  end)
+  -- sticky onset evidence for host h: the event is about a state CHANGE (a new inbound session), so it is not cancelled by quiet ticks afterwards
+  -- strength of an onset indicator of kind k (0 inbound flow at a host, 1 inbound authentication of a user, 2 persistence mechanism on a host), log-odds x16:
+  -- the surprise of the event under the rate at which such indicators have been observed so far, 16*log2(P(emitted by a compromise) / rate), with the
+  -- emission probability fixed at one half and the rate smoothed by one pseudo-event per 128 entity-ticks. A world with routine inbound traffic therefore
+  -- weakens its own indicator; the indicator is strongest when it is rare.
+  P:func("c_surprise", {"k"}, function(f, k)
+    local w = f:var("w", f:call("c_log2q", f:ld(R.GT + k) + 128, 2 * (f:ld(R.INN + k) + 1)))
+    f:iff(w:gt(cfg.inb_wmax or 144), function() f:set(w, cfg.inb_wmax or 144) end)
+    f:iff(w:lt(0), function() f:set(w, 0) end)
+    f:st(R.INN + k, f:ld(R.INN + k) + 1)
+    f:ret(w)
+  end)
+  P:func("c_onset", {"h"}, function(f, h)
+    local w = f:var("w", cfg.inb_w or 100)
+    if cfg.onset_adapt then f:set(w, f:call("c_surprise", 0)) end
+    f:iff(f:ld(R.ON + h):lt(w), function() f:st(R.ON + h, w) end)
+  end)
+  -- decision floor of host h: hosts without a decisive onset indicator (their belief is accumulated from weak, partly correlated evidence) need more corroboration
+  P:func("c_floor", {"h"}, function(f, h)
+    f:iff(GL.or_(f:ld(R.ON + h):gt(0), f:ld(R.ONP + h):gt(0)), function() f:ret(f:ld(R.PMIN)) end)
+    f:ret(f:call("max2", f:ld(R.PMIN), cfg.pmin2 or 0))
+  end)
+  P:func("max2", {"a", "b"}, function(f, a, b) f:iff(b:gt(a), function() f:set(a, b) end); f:ret(a) end)
+  P:func("c_onset_p", {"h"}, function(f, h)                  -- a persistence mechanism was installed on h: compromise and persistence are both near certain until h is cleaned
+    local w = f:var("w", cfg.inb_wp or 112)
+    if cfg.onset_adapt then f:set(w, f:call("c_surprise", 2)) end
+    f:iff(f:ld(R.ON + h):lt(w), function() f:st(R.ON + h, w) end)
+    f:iff(f:ld(R.ONP + h):lt(w), function() f:st(R.ONP + h, w) end)
+  end)
+  P:func("c_onset_u", {"u"}, function(f, u)
+    local w = f:var("w", cfg.inb_wu or 100)
+    if cfg.onset_adapt then f:set(w, f:call("c_surprise", 1)) end
+    f:iff(f:ld(R.ONU + u):lt(w), function() f:st(R.ONU + u, w) end)
   end)
   -- attribute the features of the event in slot s to the entities that can explain them
   P:func("c_attribute", {"s"}, function(f, s)
     local pred, fe, h, p, u, b = f:var("pred", f:ld(R.EPRED + s)), f:var("fe", f:ld(R.EFEAT + s)), f:var("h", f:ld(R.EH + s)), f:var("p", f:ld(R.EP + s)), f:var("u", f:ld(R.EU + s)), f:var("b")
+    local sh, sp, su = f:var("sh", 0), f:var("sp", 0), f:var("su", 0)                          -- the record predates the last remediation of its host / peer / user
+    if cfg.stale then f:set(sh, f:call("c_stale", h, s)); f:set(sp, f:call("c_stale", p, s)); f:set(su, f:call("c_stale_u", u, s)) end
+    if cfg.upair then
+      -- A login from outside that rides on an inbound connection from outside to the same host (same event time, +-1) is a break-in through an exposed service: the
+      -- user was whoever logged in, and no secret is known to be stolen (never in 52 of 52 such cases); a login from outside with no partner is a credential used from
+      -- elsewhere (92% stolen).  The partner arrives first or together in 87% of the cases; a login that has none yet is taken as stolen at once and the user's onset
+      -- is withdrawn if the partner turns up within the sensor delays.
+      local d = f:var("d")
+      f:iff(GL.and_(pred:eq(3), h:eq(255), p:lt(f:ld(R.NH))), function()
+        f:st(R.INCT + p, f:ld(R.ETE + s) + 1)
+        f:set(d, f:ld(R.ETE + s) + 1 - f:ld(R.AXT + p))
+        f:iff(GL.and_(f:ld(R.AXT + p):gt(0), d:ge(-1), d:le(1)), function() f:st(R.ONU + f:ld(R.AXU + p), 0); f:st(R.AXT + p, 0) end)
+      end)
+      f:iff(GL.and_(pred:eq(1), p:eq(255), h:lt(f:ld(R.NH)), u:lt(f:ld(R.NU)), su:eq(0)), function()
+        f:set(d, f:ld(R.ETE + s) + 1 - f:ld(R.INCT + h))
+        f:iff(GL.or_(f:ld(R.INCT + h):eq(0), d:lt(-1), d:gt(1)), function() f:st(R.AXU + h, u); f:st(R.AXT + h, f:ld(R.ETE + s) + 1) end, function() f:set(su, 1) end)
+      end)
+    end
     f:st(R.DIRTY, 1)
+    if cfg.nofeat then f:set(fe, fe & (~(cfg.nofeat))) end
     f:iff(h:lt(f:ld(R.NH)), function()
-      f:iff(fe:ne(0), function() f:st(R.HEVN + h, 1) end)
-      f:for_(b, 0, G.NB, function()
-        f:iff(((fe >> b) & 1):ne(0), function() f:st(R.HEV + h * 16 + b, f:ld(R.HEV + h * 16 + b) + 1); f:st(R.G0 + b, f:ld(R.G0 + b) + 1); f:st(R.G0 + 32 + b, f:ld(R.G0 + 32 + b) + 1) end)
+      f:iff(GL.and_(fe:ne(0), sh:eq(0)), function() f:st(R.HEVN + h, 1) end)
+      f:for_(b, 0, NBX, function()
+        f:iff(((fe >> b) & 1):ne(0), function() f:iff(sh:eq(0), function() f:st(R.HEV + h * 16 + b, f:ld(R.HEV + h * 16 + b) + 1) end); f:st(R.G0 + b, f:ld(R.G0 + b) + 1); f:st(R.G0 + 32 + b, f:ld(R.G0 + 32 + b) + 1) end)
       end)
     end)
-    f:iff(GL.and_(GL.or_(pred:eq(1), pred:eq(3)), p:lt(f:ld(R.NH)), (fe & 32):ne(0)), function() f:st(R.HEVN + p, 1); f:st(R.HEV + p * 16 + 5, f:ld(R.HEV + p * 16 + 5) + 1) end)
-    f:iff(GL.and_(pred:eq(3), h:eq(255), p:lt(f:ld(R.NH))), function()                 -- an inbound connection from outside is evidence about its destination
+    f:iff(GL.and_(GL.or_(pred:eq(1), pred:eq(3)), p:lt(f:ld(R.NH)), (fe & 32):ne(0), sp:eq(0)), function() f:st(R.HEVN + p, 1); f:st(R.HEV + p * 16 + 5, f:ld(R.HEV + p * 16 + 5) + 1) end)
+    f:iff(GL.and_(pred:eq(3), h:eq(255), p:lt(f:ld(R.NH)), sp:eq(0)), function()                 -- an inbound connection from outside is evidence about its destination
       f:st(R.HEVN + p, 1)
-      f:for_(b, 0, G.NB, function() f:iff(((fe >> b) & 1):ne(0), function() f:st(R.HEV + p * 16 + b, f:ld(R.HEV + p * 16 + b) + 1) end) end)
+      f:for_(b, 0, NBX, function() f:iff(((fe >> b) & 1):ne(0), function() f:st(R.HEV + p * 16 + b, f:ld(R.HEV + p * 16 + b) + 1) end) end)
     end)
-    f:iff(GL.and_(GL.or_(pred:eq(1), pred:eq(2)), u:lt(f:ld(R.NU))), function()
+    if cfg.inb then                                           -- an inbound flow from outside the inventory: onset evidence for its destination
+      f:iff(GL.and_(pred:eq(3), h:eq(255), p:lt(f:ld(R.NH)), sp:eq(0)), function() f:run("c_onset", p) end)
+      f:iff(GL.and_(pred:eq(1), p:eq(255), h:lt(f:ld(R.NH)), sh:eq(0)), function() f:run("c_onset", h) end)
+    end
+    if cfg.inbu then f:iff(GL.and_(pred:eq(1), p:eq(255), u:lt(f:ld(R.NU)), su:eq(0)), function() f:run("c_onset_u", u) end) end
+    if cfg.inbp then f:iff(GL.and_((fe & 256):ne(0), h:lt(f:ld(R.NH)), sh:eq(0)), function() f:run("c_onset_p", h) end) end
+    f:iff(GL.and_(GL.or_(pred:eq(1), pred:eq(2)), u:lt(f:ld(R.NU)), su:eq(0)), function()
       f:iff(fe:ne(0), function() f:st(R.UEVN + u, 1) end)
-      f:for_(b, 0, G.NB, function()
+      f:for_(b, 0, NBX, function()
         f:iff(((fe >> b) & 1):ne(0), function() f:st(R.UEV + u * 16 + b, f:ld(R.UEV + u * 16 + b) + 1); f:st(R.G0 + 16 + b, f:ld(R.G0 + 16 + b) + 1) end)
       end)
     end)
@@ -42547,6 +42687,7 @@ function G.install(P, cfg)
     f:run("c_absorb", s)
     f:st(R.EVAL + s, 1); f:st(R.RPOS, (s + 1) % NE)
     f:iff(f:ld(R.EFEAT + s):ne(0), function() inc(f, 6) end)
+    if TS then f:st(R.ESEV + s, f:call("c_tl_ev", f:ld(R.EFEAT + s))) end      -- the final features are fixed now: judge them once, with the weights of the moment
   end)
   ------------------------------------------------------------------ temporal links: mining, crediting, prospective validation
   -- key = causeSig | effectSig << 9 | relation << 18 (+1; 0 marks a free entry); four-way hashed table with weakest-entry replacement
@@ -42579,11 +42720,14 @@ function G.install(P, cfg)
     if cfg.no_temporal then f:ret(0) end
     local j, q, rel, dt, l, key, nc, best, bs, sc = f:var("j"), f:var("q"), f:var("rel"), f:var("dt"), f:var("l"), f:var("key"), f:var("nc", 0), f:var("best", -1), f:var("bs", -1), f:var("sc")
     local sg = f:var("sg", f:ld(R.ESIG + s))
+    local ncred = cfg.lnear and f:var("ncred", 0)
     f:for_(j, 1, G.NE, function()
       f:set(q, (s + G.NE - j) % G.NE)
       f:iff(f:ld(R.EVAL + q):eq(0), function() f:break_() end)
       f:set(dt, f:ld(R.ETE + s) - f:ld(R.ETE + q))
       f:iff(dt:gt(8), function() f:break_() end)
+      -- an effect has one or two proximate causes: credit the nearest related records, not every coincidence of the window (dense periodic traffic creates thousands)
+      if cfg.lnear then f:iff(ncred:ge(cfg.lnear), function() f:break_() end) end
       f:iff(dt:ge(0), function()
         f:set(rel, f:call("c_rel", q, s))
         f:iff(rel:gt(0), function()
@@ -42599,6 +42743,7 @@ function G.install(P, cfg)
               f:iff(GL.and_(sc:gt(bs), cfg.no_competing_hypotheses and best:lt(0) or (cfg.no_competing_hypotheses and 0 or 1)), function() f:set(bs, sc); f:set(best, l); f:set(nc, q) end)
             end)
           end)
+          if cfg.lnear then f:set(ncred, ncred + 1) end
         end)
       end)
     end)
@@ -42666,17 +42811,17 @@ function G.install(P, cfg)
   ------------------------------------------------------------------ evidence engine
   -- class tables of prior odds ratios: 0 host compromised, 1 user credential stolen, 2 host persistence
   local MU = {
-    {2, 2, 2, 5, 4, 2, 8, 2, 12, 2, 2, 2, 0, 0, 0, 0},
+    {2, 2, 2, cfg.mu_alert or 5, cfg.mu_rec or 4, cfg.mu_lat or 2, cfg.mu_ext or 8, 2, cfg.mu_pers or 12, 2, 2, 2, cfg.alertconf and (cfg.achm or 5) or 0, 0, 0, 0},
     {2, 2, 8, 1, 1, 2, 24, 4, 1, 1, 1, 2, 0, 0, 0, 0},
     {1, 1, 1, 1, 1, 1, 1, 1, 12, 1, 2, 1, 0, 0, 0, 0},
   }
   local flat = {}; for c = 1, 3 do for b = 1, 16 do flat[#flat + 1] = MU[c][b] end end
   local PM = P:rodata("C_PM", flat)
-  local ALLOW = P:rodata("C_ALLOW", {0xFFF, 0x8E7, 0x500})          -- bits each class may use (host: all but 'unexplained'; user; persistence: persist, config change)
+  local ALLOW = P:rodata("C_ALLOW", {cfg.alertconf and 0x1FFF or 0xFFF, 0x8E7, 0x500})          -- bits each class may use (host: all but 'unexplained'; user; persistence: persist, config change)
   P:func("c_params", {}, function(f)
     local cls, b, k, l0, l1, p1, c0, e0 = f:var("cls"), f:var("b"), f:var("k"), f:var("l0"), f:var("l1"), f:var("p1"), f:var("c0"), f:var("e0")
     f:for_(cls, 0, 3, function()
-      f:for_(b, 0, G.NB, function()
+      f:for_(b, 0, NBX, function()
         f:set(k, cls * 16 + b)
         f:set(c0, f:ld(R.G0 + k) + 1); f:set(e0, f:ld(R.GT + cls) + 64)
         f:set(l0, (4096 * (f:ld(R.C0 + k) + 16 * c0)) // (f:ld(R.E0 + cls) + 16 * e0))
@@ -42709,12 +42854,12 @@ function G.install(P, cfg)
     -- evidence of the weak, correlated family (rare, no cause, off-profile, lateral, chain, bulk, config change, new image) has bounded influence
     local function one(k, cnt_addr, wcls, exposure)
       f:set(lw, 0); f:set(ls, 0)
-      f:for_(b, 0, G.NB, function()
+      f:for_(b, 0, NBX, function()
         f:set(n, f:ld(cnt_addr + b)); f:iff(n:gt(2), function() f:set(n, 2) end)
         f:set(ex, 1)
-        if exposure then f:iff(((3336 >> b) & 1):ne(0), function() f:set(ex, obs) end) end
+        if exposure then f:iff(((AGB >> b) & 1):ne(0), function() f:set(ex, obs) end) end
         f:set(t, n * f:ld(R.W1 + wcls * 16 + b) - (ex * f:ld(R.DL + wcls * 16 + b) * 16) // 16)
-        f:iff(((3751 >> b) & 1):ne(0), function() f:set(lw, lw + t) end, function() f:set(ls, ls + t) end)
+        f:iff((((cfg.wmask or 3751) >> b) & 1):ne(0), function() f:set(lw, lw + t) end, function() f:set(ls, ls + t) end)
       end)
       f:iff(ls:gt(128), function() f:set(ls, 128) end)
       f:iff(GL.and_(lw:gt(24), cfg.no_competing_hypotheses and 0 or 1), function() f:set(lw, 24) end)
@@ -42731,10 +42876,10 @@ function G.install(P, cfg)
     f:for_(cls, 0, 3, function()
       f:for_(ex, 0, 2, function()
         f:set(lw, 0); f:set(ls, 0)
-        f:for_(b, 0, G.NB, function()
+        f:for_(b, 0, NBX, function()
           f:set(t, 0)
-          f:iff(GL.or_(((3336 >> b) & 1):eq(0), ex:ne(0)), function() f:set(t, -f:ld(R.DL + cls * 16 + b)) end)
-          f:iff(((3751 >> b) & 1):ne(0), function() f:set(lw, lw + t) end, function() f:set(ls, ls + t) end)
+          f:iff(GL.or_(((AGB >> b) & 1):eq(0), ex:ne(0)), function() f:set(t, -f:ld(R.DL + cls * 16 + b)) end)
+          f:iff((((cfg.wmask or 3751) >> b) & 1):ne(0), function() f:set(lw, lw + t) end, function() f:set(ls, ls + t) end)
         end)
         f:st(R.PENL + cls * 2 + ex, lw); f:st(R.PENS + cls * 2 + ex, ls)
       end)
@@ -42769,6 +42914,18 @@ function G.install(P, cfg)
         f:st(R.EB + 32 + h, 80); f:st(R.KILLT + h, 0); inc(f, 8)
       end)
     end)
+    if cfg.inb then
+      f:for_(h, 0, 16, function() f:st(R.ON + h, f:ld(R.ON + h) - (f:ld(R.ON + h) >> (cfg.inb_dec or 4))) end)
+    end
+    if cfg.inbu then
+      f:for_(h, 0, 16, function() f:st(R.ONU + h, f:ld(R.ONU + h) - (f:ld(R.ONU + h) >> (cfg.inbu_dec or 6))) end)
+    end
+    if cfg.inbp then
+      f:for_(h, 0, 16, function() f:st(R.ONP + h, f:ld(R.ONP + h) - (f:ld(R.ONP + h) >> (cfg.inbp_dec or 6))) end)
+    end
+    if cfg.qr then
+      f:for_(h, 0, 16, function() f:st(R.PRB + h, f:ld(R.PRB + h) - (f:ld(R.PRB + h) // (cfg.rlpd or 16))) end)      -- a probe ages: the host may have changed since
+    end
     inc(f, 7)
   end)
   -- bits of event slot s that entity (cls, id) can claim
@@ -42792,14 +42949,14 @@ function G.install(P, cfg)
     local cnt = f:var("cnt", 0)
     inc(f, 2)
     if cfg.no_model_learning then f:ret(0) end
-    f:for_(b, 0, G.NB, function() f:st(R.TMP + b, 0) end)
+    f:for_(b, 0, NBX, function() f:st(R.TMP + b, 0) end)
     f:for_(s, 0, NE, function()
       f:iff(GL.and_(f:ld(R.EVAL + s):ne(0), f:ld(R.ETE + s):ge(f:ld(R.T) - 8)), function()
         f:set(n, f:call("c_ebits", cls, id, s))
-        f:for_(b, 0, G.NB, function() f:iff(((n >> b) & 1):ne(0), function() f:st(R.TMP + b, f:ld(R.TMP + b) + 1) end) end)
+        f:for_(b, 0, NBX, function() f:iff(((n >> b) & 1):ne(0), function() f:st(R.TMP + b, f:ld(R.TMP + b) + 1) end) end)
       end)
     end)
-    f:for_(b, 0, G.NB, function()
+    f:for_(b, 0, NBX, function()
       f:set(k, cls * 16 + b)
       f:iff(y:ne(0), function() f:st(R.C1 + k, f:ld(R.C1 + k) + f:ld(R.TMP + b) * wt) end,
         function() f:st(R.C0 + k, f:ld(R.C0 + k) + f:ld(R.TMP + b) * wt) end)
@@ -42808,7 +42965,21 @@ function G.install(P, cfg)
     f:run("c_params")
   end)
   ------------------------------------------------------------------ episode handling
-  mem("FPCTX"); mem("FPNOW"); mem("CLEANT", 16); mem("REVK", 16); mem("ISOLD", 16); mem("PROBET", 16); mem("PSTAT", 16); mem("PROBEY", 16); mem("PROBEP", 16)
+  mem("FPCTX"); mem("FPNOW"); mem("CLEANT", 16); mem("PROBET", 16); mem("PSTAT", 16); mem("PROBEY", 16); mem("PROBEP", 16)
+  R.REMN = R.AUDD                                      -- remediations per host in this episode (shares the audit row, which only cfg.audit uses)
+  R.PCFGT = R.PSTAT                                    -- tick+1 of the last exact persistence read of each host
+  -- evidence about entity h reported with an event time at or before the tick of the last remediation of h describes the state that action has
+  -- already ended (records arrive up to a few ticks late): it must not raise the belief about the remediated entity again
+  P:func("c_stale", {"h", "s"}, function(f, h, s)
+    f:iff(GL.or_(h:lt(0), h:ge(f:ld(R.NH))), function() f:ret(0) end)
+    f:iff(GL.and_(f:ld(R.CLEANT + h):gt(0), f:ld(R.ETE + s):le(f:ld(R.CLEANT + h))), function() f:ret(1) end)
+    f:ret(0)
+  end)
+  P:func("c_stale_u", {"u", "s"}, function(f, u, s)
+    f:iff(GL.or_(u:lt(0), u:ge(f:ld(R.NU))), function() f:ret(0) end)
+    f:iff(GL.and_(f:ld(R.REVT + u):gt(0), f:ld(R.ETE + s):le(f:ld(R.REVT + u) + (cfg.stale_ud or 4))), function() f:ret(1) end)
+    f:ret(0)
+  end)
   P:func("c_init", {}, function(f)
     local i0 = f:var("i0")
     f:st(R.CPM, 16000); f:st(R.CPM + 1, 36000); f:st(R.CPM + 2, 42000)
@@ -42880,32 +43051,43 @@ function G.install(P, cfg)
             f:iff(f:ld(R.FPCTX):ge(0), function() f:run("c_ctx_stash") end)
             f:st(R.FPCTX, f:ld(R.FPNOW)); f:st(R.TOTEV, 0)
           end)
-        f:st(R.MAXD, 0); f:run("c_zero", R.FCN + 8, 216); f:run("c_zero", R.FCH + 8, 216)
+        f:st(R.MAXD, 0)
+        -- cfg.fcpool: how often a forecast of a given kind and model probability came true is largely a property of the forecaster, not of the world (the model probability
+        -- is the world's own estimate): a new world inherits the reliability tables instead of starting from nothing
+        if not cfg.fcpool then f:run("c_zero", R.FCN + 8, 216); f:run("c_zero", R.FCH + 8, 216) end
       end
     end)
     if cfg.no_memory then f:iff(f:ld(R.RND):le(1), function() f:run("c_forget") end) end
-    f:run("c_zero", R.HSC, 512); f:run("c_zero", R.HST, 512); f:run("c_zero", R.HEVN, 16); f:run("c_zero", R.UEVN, 16); f:st(R.DIRTY, 1)
+    if not NOREC then f:run("c_zero", R.HSC, 512); f:run("c_zero", R.HST, 512) end; f:run("c_zero", R.HEVN, 16); f:run("c_zero", R.UEVN, 16); f:st(R.DIRTY, 1)
     f:run("c_rebuild_csig")
     f:run("c_zero", R.EVAL, NE); f:st(R.RPOS, 0); f:run("c_zero", R.PACT, G.NPEND); f:run("c_zero", R.PREP, G.NPEND); f:st(R.NPEND, 0); f:run("c_zero", R.FQA, 32)
     f:run("c_zero", R.HEV, 256); f:run("c_zero", R.UEV, 192); f:run("c_zero", R.HAG, 16); f:run("c_zero", R.HLAST, 16)
-    f:run("c_zero", R.CLEANT, 16); f:run("c_zero", R.PROBET, 16); f:run("c_zero", R.PROBEY, 16); f:run("c_zero", R.TELON, 16); f:run("c_zero", R.UVER, 16); f:run("c_zero", R.KILLT, 16); f:run("c_zero", R.DOWNK, 16); f:run("c_zero", R.SIMK, 160); f:run("c_zero", R.RCCFG, 16); f:run("c_zero", R.RCHOST, 16); f:run("c_zero", R.HPAT, 16); f:run("c_zero", R.REVT, 16); f:run("c_zero", R.UREI, 16); f:run("c_zero", R.KBK, 8);  f:run("c_zero", R.REVK, 16); f:run("c_zero", R.ISOLD, 16); f:run("c_zero", R.PROBET, 16)
+    f:run("c_zero", R.XC, 16); f:run("c_zero", R.XT, 16); f:run("c_zero", R.PCFGT, 16); f:run("c_zero", R.REMN, 16); f:run("c_zero", R.CLEANT, 16); f:run("c_zero", R.PROBET, 16); f:run("c_zero", R.PROBEY, 16); f:run("c_zero", R.TELON, 16); f:run("c_zero", R.UVER, 16); f:run("c_zero", R.KILLT, 16); f:run("c_zero", R.SIMK, 160); f:run("c_zero", R.RCCFG, 16); f:run("c_zero", R.RCHOST, 16); f:run("c_zero", R.HPAT, 16); f:run("c_zero", R.REVT, 16); f:run("c_zero", R.UREI, 16); f:run("c_zero", R.KBK, 8); f:run("c_zero", R.PROBET, 16)
     f:for_(i, 0, 16, function() f:st(R.EB + i, f:ld(R.PRI)); f:st(R.EB + 16 + i, f:ld(R.PRI + 1)); f:st(R.EB + 32 + i, f:ld(R.PRI + 2)) end)
-    f:run("c_zero", R.EW, 48)
+    f:run("c_zero", R.EW, 48); f:run("c_zero", R.ON, 16); f:run("c_zero", R.ONU, 16); f:run("c_zero", R.ONP, 16)
+    if TS then f:run("c_zero", R.HINC, 16) end
+    if cfg.upair then f:run("c_zero", R.INCT, 16); f:run("c_zero", R.AXT, 16) end
+    if cfg.qr then f:run("c_zero", R.PEX, 16); f:run("c_zero", R.PRB, 16); f:run("c_zero", R.RVQ, 16) end
+    if cfg.fq2 then f:run("c_zero", R.FC2, 160); f:run("c_zero", R.FC2T, 160); f:run("c_zero", R.FC2S, 10); f:run("c_zero", R.FC2R, 10); f:st(R.FC2N, 0) end
   end)
 
   ------------------------------------------------------------------ first decision rule and the report
   ------------------------------------------------------------------ estimates, expected utility, value of information
-  mem("PC", 16); mem("PU", 16); mem("PP", 16); mem("DOWNC", 16); mem("DOWNK", 16); mem("HZN"); mem("EXPLB"); mem("NPROBE")
-  mem("EUBEST"); mem("EU2ND"); mem("PRB", 8)
+  mem("PU", 16); mem("PP", 16); mem("HZN"); mem("EXPLB"); mem("UHZ")
+  mem("EUBEST"); mem("EU2ND")
   P:func("c_pcomp", {"h"}, function(f, h) f:ret(f:call("c_prob", f:ld(R.EB + h))) end)
   -- calibrated probability x1024 of class cls from log-odds lo (Platt map with online-learned slope/offset)
   P:func("c_cal", {"cls", "lo"}, function(f, cls, lo)
     f:ret(f:call("c_prob", (f:ld(R.CALA + cls) * lo) // 16 + f:ld(R.CALB + cls)))
   end)
-  -- one SGD step of logistic recalibration from a verified label y for a belief that was lo (class cls)
+  -- the same map with a known additive offset on the calibrated log-odds (sticky onset evidence is not subject to the recalibration slope)
+  P:func("c_calx", {"cls", "lo", "off"}, function(f, cls, lo, off)
+    f:ret(f:call("c_prob", (f:ld(R.CALA + cls) * lo) // 16 + f:ld(R.CALB + cls) + off))
+  end)
+  -- one SGD step of logistic recalibration from a verified label y for a belief that was lo (class cls); logistic regression with the offset CALOFF
   P:func("c_cal_learn", {"cls", "lo", "y"}, function(f, cls, lo, y)
     if cfg.no_model_learning then f:ret(0) end
-    local err, a, b = f:var("err", y * 1024 - f:call("c_cal", cls, lo)), f:var("a"), f:var("b")
+    local err, a, b = f:var("err", y * 1024 - f:call("c_calx", cls, lo, f:ld(R.CALOFF))), f:var("a"), f:var("b")
     f:set(a, f:ld(R.CALA + cls) + (err * lo) // (1024 * 16))
     f:set(b, f:ld(R.CALB + cls) + (err * 4) // 1024)
     f:iff(a:lt(4), function() f:set(a, 4) end); f:iff(a:gt(24), function() f:set(a, 24) end)
@@ -42915,7 +43097,12 @@ function G.install(P, cfg)
   P:func("c_refresh_p", {}, function(f)
     local h = f:var("h")
     f:for_(h, 0, 16, function()
-      f:st(R.PC + h, f:call("c_cal", 0, f:ld(R.EB + h))); f:st(R.PU + h, f:call("c_cal", 1, f:ld(R.EB + 16 + h))); f:st(R.PP + h, f:call("c_cal", 2, f:ld(R.EB + 32 + h)))
+      if cfg.inb then f:st(R.PC + h, f:call("c_calx", 0, f:ld(R.EB + h), f:ld(R.ON + h)))
+      else f:st(R.PC + h, f:call("c_cal", 0, f:ld(R.EB + h))) end
+      if cfg.inbu then f:st(R.PU + h, f:call("c_calx", 1, f:ld(R.EB + 16 + h), f:ld(R.ONU + h)))
+      else f:st(R.PU + h, f:call("c_cal", 1, f:ld(R.EB + 16 + h))) end
+      if cfg.inbp then f:st(R.PP + h, f:call("c_calx", 2, f:ld(R.EB + 32 + h), f:ld(R.ONP + h)))
+      else f:st(R.PP + h, f:call("c_cal", 2, f:ld(R.EB + 32 + h))) end
     end)
     if cfg.no_uncertainty then                               -- beliefs are collapsed to certainties: no probabilities, no value of information
       f:for_(h, 0, 16, function()
@@ -42927,12 +43114,43 @@ function G.install(P, cfg)
     f:set(h, 49 - f:ld(R.RND)); f:iff(h:gt(10), function() f:set(h, 10) end); f:iff(h:lt(1), function() f:set(h, 1) end)
     if cfg.no_planning then f:iff(h:gt(3), function() f:set(h, 3) end) end                -- no multi-step consequence model: a short horizon
     f:st(R.HZN, h)
+    f:set(h, 49 - f:ld(R.RND)); f:iff(h:gt(cfg.uhz or 10), function() f:set(h, cfg.uhz or 10) end); f:iff(h:lt(1), function() f:set(h, 1) end)
+    f:st(R.UHZ, h)
     f:set(h, (cfg.explb or 20) - 8 * f:ld(R.NPOS) - 3 * f:ld(R.NNEG)); f:iff(h:lt(0), function() f:set(h, 0) end)
     f:st(R.EXPLB, h)
+    if cfg.qr then f:run("c_qrefresh"); f:st(R.QD, 0) end
   end)
+  if cfg.qr then
+    -- Calibrated report posteriors.  The evidence engine counts correlated weak evidence at nominal strength, so its log-odds are overconfident (an evidence state
+    -- reported at 0.8 was right 5% of the time); the sticky onset evidence is the opposite (a clean onset trigger is worth more than its nominal strength).  The
+    -- report therefore uses its own map (slopes, offsets and the revoke window are constants tuned on the development sets: README of the lab notes), a posterior
+    -- that is a function of what the guest knows and not of what it would do about it:
+    --   host: lo = rla/100 EB + rlb/100 ON + rlc (+ PRB)       user: lo = rua/100 EB1 + rub/100 ONU + ruc
+    --   a user whose credential was revoked stays compromised until the reissue completes (rlw ticks): the belief at revocation is kept for that window
+    --   persistence: exact reads are exact; an implant that nothing has shown is as rare as it is everywhere (the base rate), not the 'kill did not last' guess
+    P:func("c_qrefresh", {}, function(f)
+      local h, lo, dt, nn = f:var("h"), f:var("lo"), f:var("dt"), f:var("nn")
+      f:set(nn, f:call("max2", f:ld(R.NH), f:ld(R.NU)))                                  -- entities that exist (hosts and users share the index)
+      f:for_(h, 0, nn, function()
+        f:set(lo, (f:ld(R.EB + h) * (cfg.rla or 39)) // 100 + (f:ld(R.ON + h) * (cfg.rlb or 166)) // 100 + (cfg.rlc or -107))
+        f:set(lo, lo + f:ld(R.PRB + h))
+        f:iff(lo:lt(-128), function() f:set(lo, -128) end); f:iff(lo:gt(128), function() f:set(lo, 128) end)       -- c_prob, inline
+        f:st(R.BQH + h, f:ld(SIGM + lo + 128))
+        f:set(lo, (f:ld(R.EB + 16 + h) * (cfg.rua or 30)) // 100 + (f:ld(R.ONU + h) * (cfg.rub or 126)) // 100 + (cfg.ruc or -103))
+        f:iff(lo:lt(-128), function() f:set(lo, -128) end); f:iff(lo:gt(128), function() f:set(lo, 128) end)
+        f:st(R.BQU + h, f:ld(SIGM + lo + 128))
+        f:set(dt, f:ld(R.T) - f:ld(R.REVT + h))
+        f:iff(GL.and_(f:ld(R.REVT + h):gt(0), dt:ge(1), dt:le(cfg.rlw or 3)), function() f:st(R.BQU + h, f:ld(R.RVQ + h)) end)
+        f:st(R.BQP + h, cfg.rpq or 4)
+        f:iff(f:ld(R.PEX + h):ne(0), function()
+          f:st(R.BQP + h, cfg.rpx or 1010)
+          f:iff(f:ld(R.BQH + h):lt(cfg.rpx or 1010), function() f:st(R.BQH + h, cfg.rpx or 1010) end)
+        end)
+      end)
+    end)
+  end
   -- prior guess of the downtime cost per tick of host h until a SIMULATE result is known (public inventory only)
   P:func("c_downc", {"h"}, function(f, h)
-    f:iff(f:ld(R.DOWNK + h):ne(0), function() f:ret(f:ld(R.DOWNC + h)) end)
     local ro, c = f:var("ro", f:ld(R.ROLE + h)), f:var("c", 5)
     f:iff(GL.or_(ro:eq(2), ro:eq(5)), function() f:set(c, 8) end)
     f:iff(GL.or_(ro:eq(1), ro:eq(3)), function() f:set(c, 6) end)
@@ -42985,6 +43203,7 @@ function G.install(P, cfg)
   -- value of a binary test of host compromise: Bayes risk before minus after, less its cost, plus the epistemic value of a label
   P:func("c_voi_host", {"h"}, function(f, h)
     local p, tpr, fpr = f:var("p", f:ld(R.PC + h)), f:var("tpr", f:ld(R.VTPR + 1)), f:var("fpr", f:ld(R.VFPR + 1))
+    if cfg.qr and cfg.qvo then f:set(p, f:ld(R.BQH + h)) end                      -- the value of a test is computed on the calibrated posterior
     local pw, pp, pn, r1, v = f:var("pw"), f:var("pp"), f:var("pn"), f:var("r1"), f:var("v")
     f:set(pw, (p * tpr + (1024 - p) * fpr) // 256)
     f:iff(pw:lt(1), function() f:set(pw, 1) end); f:iff(pw:gt(1023), function() f:set(pw, 1023) end)
@@ -43004,6 +43223,7 @@ function G.install(P, cfg)
     -- the per-round tool allowance is published in the packet; the controller never asks for more (a denied call would be a violation)
     f:iff(f:ld(R.TUSED):ge(f:ld(R.PK + 14)), function() f:st(R.RS, 2); f:st(R.RS + 3, 0); f:ret(2) end)
     f:st(R.TUSED, f:ld(R.TUSED) + 1)
+    if cfg.qr then f:st(R.QD, 1) end
     f:st(R.RQ, id); f:st(R.RQ + 1, a); f:st(R.RQ + 2, b); f:st(R.RQ + 3, c)
     inc(f, 3)
     f:iff(f:sys("CTOOL", R.RQ, R.RS):ne(0), function() f:ret(f:ld(R.RS)) end)
@@ -43017,11 +43237,15 @@ function G.install(P, cfg)
     f:set(y, f:ld(R.RS + 3))
     f:run("c_trace", 1, 13, h, y)
     f:st(R.PROBEY + h, y + 1); f:st(R.PROBEP + h, f:call("c_pcomp", h))
+    if cfg.inb then f:st(R.CALOFF, f:ld(R.ON + h)) end
     f:run("c_cal_learn", 0, f:ld(R.EB + h), y)
+    f:st(R.CALOFF, 0)
     f:iff(y:ne(0), function() f:set(lr, f:call("c_log2q", tpr, fpr)) end, function() f:set(lr, f:call("c_log2q", 256 - tpr, 256 - fpr)) end)
     f:st(R.EB + h, f:ld(R.EB + h) + lr)
+    if cfg.qr then f:st(R.PRB + h, f:ld(R.PRB + h) + (lr * (100 - (cfg.rla or 39))) // 100) end     -- the report counts the probe at its published strength
     f:iff(f:ld(R.EB + h):gt(120), function() f:st(R.EB + h, 120) end); f:iff(f:ld(R.EB + h):lt(-120), function() f:st(R.EB + h, -120) end)
     f:set(pa, f:call("c_cal", 0, f:ld(R.EB + h)))
+    if cfg.inb then f:set(pa, f:call("c_calx", 0, f:ld(R.EB + h), f:ld(R.ON + h))) end
     f:st(R.PROBET + h, f:ld(R.T))
     f:st(R.LAB, f:ld(R.LAB) + 1)
     f:iff(y:ne(0), function() f:st(R.NPOS, f:ld(R.NPOS) + 1) end, function() f:st(R.NNEG, f:ld(R.NNEG) + 1) end)
@@ -43035,6 +43259,7 @@ function G.install(P, cfg)
     f:st(R.RCCFG + h, 1)
     f:iff((f:ld(R.RS + 4) & 3):ne(0), function() f:st(R.RCCFG + h, 2) end)         -- drift from the baseline in remote-admin / weak-authentication bits
     f:iff((f:ld(R.RS + 4) & 8):ne(0), function() f:st(R.EB + 32 + h, 80) end)         -- unsigned autostart present: persistence
+    if cfg.qr then f:iff((f:ld(R.RS + 4) & 8):ne(0), function() f:st(R.PEX + h, 1) end, function() f:st(R.PEX + h, 0) end) end
     f:ret(1)
   end)
   P:func("c_probe_host", {"h"}, function(f, h)
@@ -43043,6 +43268,7 @@ function G.install(P, cfg)
     f:st(R.RCHOST + h, 1)
     f:for_(i, 0, 3, function() f:st(R.HCOMP + h * 3 + i, f:ld(R.RS + 8 + 2 * i)); f:st(R.HVER + h * 3 + i, f:ld(R.RS + 9 + 2 * i)) end)
     f:iff((f:ld(R.RS + 14) & 3):ne(0) , function() f:st(R.RCCFG + h, 2) end)          -- the host read also carries the configuration bits
+    if cfg.qr then f:iff((f:ld(R.RS + 14) & 8):ne(0), function() f:st(R.PEX + h, 1) end, function() f:st(R.PEX + h, 0) end) end
     f:ret(1)
   end)
   P:func("c_probe_kb", {"comp"}, function(f, comp)
@@ -43125,8 +43351,8 @@ function G.install(P, cfg)
     f:iff(GL.and_(id:ne(3), id:ne(4), x:ge(f:ld(R.NH))), function() f:st(R.ACTID, 0); f:st(R.SHB + 3, f:ld(R.SHB + 3) + 1); f:ret(1) end)
     f:iff(GL.and_(GL.or_(id:eq(1), id:eq(9)), f:ld(R.PROT + x):ne(0)), function() f:st(R.ACTID, 0); f:st(R.SHB + 1, f:ld(R.SHB + 1) + 1); f:ret(1) end)
     f:iff(GL.and_(id:eq(1), f:ld(R.PK + 13):le(0)), function() f:st(R.ACTID, 0); f:st(R.SHB + 2, f:ld(R.SHB + 2) + 1); f:ret(1) end)
-    f:iff(GL.and_(GL.or_(id:eq(5), id:eq(6), id:eq(1), id:eq(9)), f:ld(R.PC + x):lt(f:ld(R.PMIN))), function() f:st(R.ACTID, 0); f:st(R.SHB + 4, f:ld(R.SHB + 4) + 1); f:ret(1) end)
-    f:iff(GL.and_(id:eq(3), f:ld(R.PU + x):lt(f:ld(R.PMIN))), function() f:st(R.ACTID, 0); f:st(R.SHB + 4, f:ld(R.SHB + 4) + 1); f:ret(1) end)
+    f:iff(GL.and_(GL.or_(id:eq(5), id:eq(6), id:eq(1), id:eq(9)), f:ld(R.PC + x):lt(cfg.pmin2 and f:call("c_floor", x) or f:ld(R.PMIN))), function() f:st(R.ACTID, 0); f:st(R.SHB + 4, f:ld(R.SHB + 4) + 1); f:ret(1) end)
+    f:iff(GL.and_(id:eq(3), f:ld(R.PU + x):lt(cfg.upmin or f:ld(R.PMIN))), function() f:st(R.ACTID, 0); f:st(R.SHB + 4, f:ld(R.SHB + 4) + 1); f:ret(1) end)
     f:ret(0)
   end)
   ------------------------------------------------------------------ more information sources, chosen by value of information
@@ -43134,7 +43360,7 @@ function G.install(P, cfg)
   P:func("c_voi_user", {"u"}, function(f, u)
     local p, tpr, fpr, L, C = f:var("p", f:ld(R.PU + u)), f:var("tpr", f:ld(R.VTPR + 3)), f:var("fpr", f:ld(R.VFPR + 3)), f:var("L"), f:var("C")
     local pw, pp, pn, r0, r1 = f:var("pw"), f:var("pp"), f:var("pn"), f:var("r0"), f:var("r1")
-    f:set(L, 4 * f:ld(R.HZN) + 8); f:set(C, f:ld(R.ACOST + 3) + f:ld(R.ACOST + 4) + 6)
+    f:set(L, 4 * f:ld(R.UHZ) + 8); f:set(C, f:ld(R.ACOST + 3) + f:ld(R.ACOST + 4) + 6)
     f:set(pw, (p * tpr + (1024 - p) * fpr) // 256); f:iff(pw:lt(1), function() f:set(pw, 1) end); f:iff(pw:gt(1023), function() f:set(pw, 1023) end)
     f:set(pp, (p * tpr * 4) // pw); f:iff(pp:gt(1024), function() f:set(pp, 1024) end)
     f:set(pn, (p * (256 - tpr) * 4) // (1024 - pw)); f:iff(pn:gt(1024), function() f:set(pn, 1024) end)
@@ -43148,12 +43374,15 @@ function G.install(P, cfg)
     f:iff(st:ne(0), function() f:ret(0) end)
     f:set(y, f:ld(R.RS + 3))
     f:run("c_trace", 1, 23, u, y)
+    if cfg.inbu then f:st(R.CALOFF, f:ld(R.ONU + u)) end
     f:run("c_cal_learn", 1, f:ld(R.EB + 16 + u), y)
+    f:st(R.CALOFF, 0)
     f:iff(y:ne(0), function() f:set(lr, f:call("c_log2q", f:ld(R.VTPR + 3), f:ld(R.VFPR + 3))) end, function() f:set(lr, f:call("c_log2q", 256 - f:ld(R.VTPR + 3), 256 - f:ld(R.VFPR + 3))) end)
     f:st(R.EB + 16 + u, f:ld(R.EB + 16 + u) + lr)
     f:iff(f:ld(R.EB + 16 + u):gt(120), function() f:st(R.EB + 16 + u, 120) end); f:iff(f:ld(R.EB + 16 + u):lt(-120), function() f:st(R.EB + 16 + u, -120) end)
     f:st(R.UVER + u, f:ld(R.T))
     local pa = f:var("pa", f:call("c_cal", 1, f:ld(R.EB + 16 + u)))
+    if cfg.inbu then f:set(pa, f:call("c_calx", 1, f:ld(R.EB + 16 + u), f:ld(R.ONU + u))) end
     f:run("c_label", 1, u, 1, (pa * 16) // 1024); f:run("c_label", 1, u, 0, ((1024 - pa) * 16) // 1024)
     f:ret(1)
   end)
@@ -43179,7 +43408,10 @@ function G.install(P, cfg)
     f:run("c_trace", 1, 33, h, y)
     f:st(R.QP, f:ld(R.QP) + y); f:st(R.QN, f:ld(R.QN) + 1)
     f:iff(f:ld(R.QN):ge(40), function() f:st(R.QP, (f:ld(R.QP) + 1) // 2); f:st(R.QN, (f:ld(R.QN) + 1) // 2) end)
+    if cfg.inbp then f:st(R.CALOFF, f:ld(R.ONP + h)) end
     f:run("c_cal_learn", 2, f:ld(R.EB + 32 + h), y)
+    f:st(R.CALOFF, 0)
+    if cfg.inbp then f:iff(y:eq(0), function() f:st(R.ONP + h, f:ld(R.ONP + h) >> 1) end) end
     f:iff(y:ne(0), function() f:set(lr, f:call("c_log2q", f:ld(R.VTPR + 2), f:ld(R.VFPR + 2))) end, function() f:set(lr, f:call("c_log2q", 256 - f:ld(R.VTPR + 2), 256 - f:ld(R.VFPR + 2))) end)
     f:st(R.EB + 32 + h, f:ld(R.EB + 32 + h) + lr)
     f:iff(f:ld(R.EB + 32 + h):gt(120), function() f:st(R.EB + 32 + h, 120) end); f:iff(f:ld(R.EB + 32 + h):lt(-120), function() f:st(R.EB + 32 + h, -120) end)
@@ -43219,13 +43451,42 @@ function G.install(P, cfg)
       end)
     end)
   end)
+  -- Inventory scan (cfg.scan): in the first rounds of an episode, read the hosts (most valuable first, a few per round) and the vulnerability KB of the
+  -- components found; exposures (open remote administration, vulnerable versions) are then closed before any campaign uses them.
+  P:func("c_scan", {}, function(f)
+    local a, h, best, bv, n, j, comp = f:var("a"), f:var("h"), f:var("best"), f:var("bv"), f:var("n", 0), f:var("j"), f:var("comp")
+    f:iff(f:ld(R.RND):le(cfg.scant or 8), function()
+    f:for_(a, 0, cfg.scann or 3, function()
+      f:set(best, -1); f:set(bv, -1)
+      f:for_(h, 0, f:ld(R.NH), function()
+        f:iff(GL.and_(f:ld(R.RCHOST + h):eq(0), f:ld(R.VAL + h):gt(bv), (((cfg.scanrole or 65535) >> f:ld(R.ROLE + h)) & 1):ne(0)), function() f:set(bv, f:ld(R.VAL + h)); f:set(best, h) end)
+      end)
+      f:iff(GL.and_(best:ge(0), bv:ge(cfg.scanv or 0), f:ld(R.TCOST + 1):lt(6 * bv)), function() f:run("c_probe_host", best) end, function() f:break_() end)
+      f:iff(f:ld(R.RCHOST + best):eq(0), function() f:st(R.RCHOST + best, 2) end)      -- failed read: do not retry this episode
+    end)
+    end)
+    f:for_(h, 0, f:ld(R.NH), function()
+      f:iff(f:ld(R.RCHOST + h):eq(1), function()
+        f:for_(j, 0, 3, function()
+          f:set(comp, f:ld(R.HCOMP + h * 3 + j))
+          f:iff(GL.and_(comp:lt(7), f:ld(R.KBK + comp):eq(0), f:ld(R.TCOST + 8):lt(6 * f:ld(R.VAL + h))), function() f:run("c_probe_kb", comp) end)
+        end)
+      end)
+    end)
+  end)
   P:func("c_probe_round", {}, function(f)
     local k, h, best, bv, v, kind, cap = f:var("k"), f:var("h"), f:var("best"), f:var("bv"), f:var("v"), f:var("kind"), f:var("cap", 3)
     f:iff(f:ld(R.MODE):ge(2), function() f:set(cap, 5) end)
     f:run("c_refresh_p")
     if not cfg.no_graph then f:run("c_graph") end
-    if not cfg.no_root_cause then f:run("c_rc_probes") end
+    if not cfg.no_root_cause and not cfg.no_rc_probes then f:run("c_rc_probes") end
+    if cfg.scan then f:run("c_scan") end
     if cfg.audit then f:run("c_audit") end
+    if cfg.expo then
+      f:for_(h, 0, f:ld(R.NH), function()
+        f:iff(f:ld(R.RCCFG + h):eq(4), function() f:run("c_probe_config", h) end)
+      end)
+    end
     if not cfg.no_hidden_state then f:run("c_probe_telemetry") end
     f:for_(k, 0, cap, function()
       f:set(best, -1); f:set(bv, 0); f:set(kind, 0)
@@ -43252,12 +43513,33 @@ function G.install(P, cfg)
       f:run("c_refresh_p")
     end)
   end)
+  -- Exact, cheap persistence read (cfg.cfgp): the configuration read shows an unsigned autostart entry (drift bit 3) iff an implant would survive a KILL.
+  -- Unlike the (paid, noisy) persistence sweep it has no false positives; it decides KILL versus CLEAN and finds persistent implants that telemetry missed.
+  P:func("c_pers_cfg", {"h"}, function(f, h)
+    f:st(R.PCFGT + h, f:ld(R.T) + 1)
+    f:iff(f:call("c_tool", cfg.cfghost and 1 or 6, h, 0, 0):ne(0), function() f:ret(0) end)
+    if cfg.cfghost and cfg.rcread then                                  -- the same read is an inventory read: components, versions, exposure
+      local i = f:var("i")
+      f:st(R.RCHOST + h, 1)
+      f:for_(i, 0, 3, function() f:st(R.HCOMP + h * 3 + i, f:ld(R.RS + 8 + 2 * i)); f:st(R.HVER + h * 3 + i, f:ld(R.RS + 9 + 2 * i)) end)
+      f:iff(GL.and_((f:ld(R.RS + 14) & 3):ne(0), f:ld(R.RCCFG + h):lt(3)), function() f:st(R.RCCFG + h, 2) end)
+    end
+    f:iff((f:ld(R.RS + (cfg.cfghost and 14 or 4)) & 8):ne(0), function()
+      f:st(R.EB + 32 + h, 110)
+      f:iff(f:ld(R.EB + h):lt(80), function() f:st(R.EB + h, 80) end)                 -- an implant is a compromise
+      if cfg.qr then f:st(R.PEX + h, 1) end
+    end, function() f:st(R.EB + 32 + h, f:ld(R.PRI + 2) - 16); if cfg.qr then f:st(R.PEX + h, 0) end end)
+    f:ret(1)
+  end)
   P:func("c_decide_host", {}, function(f)
     local h, bh, bv, bk, v, k, w, pass = f:var("h"), f:var("bh", -1), f:var("bv", 0), f:var("bk"), f:var("v"), f:var("k"), f:var("w"), f:var("pass")
-    f:for_(pass, 0, 2, function()
+    f:for_(pass, 0, cfg.cfgp and 3 or 2, function()
       f:set(bh, -1); f:set(bv, 0)
       f:for_(h, 0, f:ld(R.NH), function()
-        f:iff(GL.and_(f:ld(R.T):ge(f:ld(R.CLEANT + h) + 3), f:ld(R.PC + h):ge(f:ld(R.PMIN))), function()
+        local dconds = {f:ld(R.T):ge(f:ld(R.CLEANT + h) + 3), f:ld(R.PC + h):ge(cfg.pmin2 and f:call("c_floor", h) or f:ld(R.PMIN))}
+        -- hosts whose alarm the calibrated posterior does not support (cfg.qsh) are not candidates for remediation: such alarms are decoys and evidence-engine clamps (96% clean)
+        if cfg.qr and cfg.qsh then dconds[#dconds + 1] = f:ld(R.BQH + h):ge(cfg.qsh) end
+        f:iff(GL.and_(table.unpack(dconds)), function()
           f:set(w, f:call("c_lossopt", h, f:ld(R.PC + h), 0))
           f:for_(k, 1, 3, function()
             f:set(v, w - f:call("c_lossopt", h, f:ld(R.PC + h), k))
@@ -43267,7 +43549,13 @@ function G.install(P, cfg)
       end)
       f:iff(bh:lt(0), function() f:break_() end)
       -- dry run before committing to a consequential action whose collateral is still a guess
+      if cfg.cfgp then
+        f:iff(GL.and_(f:ld(R.PCFGT + bh):ne(f:ld(R.T) + 1), f:ld(R.TCOST + (cfg.cfghost and 1 or 6)):le(bv)), function() f:run("c_pers_cfg", bh); f:run("c_refresh_p") end, function()
+          f:iff(GL.and_(f:ld(R.SIMK + (4 + bk) * 16 + bh):eq(0), f:ld(R.TCOST + 14):le(bv)), function() f:run("c_simulate", 4 + bk, bh) end, function() f:break_() end)
+        end)
+      else
       f:iff(GL.and_(f:ld(R.SIMK + (4 + bk) * 16 + bh):eq(0), f:ld(R.TCOST + 14):le(bv)), function() f:run("c_simulate", 4 + bk, bh) end, function() f:break_() end)
+      end
     end)
     f:st(R.BACT, 0); f:st(R.BEU, bv)
     f:iff(bh:ge(0), function() f:st(R.BACT, 4 + bk); f:st(R.BX, bh); f:st(R.BY, 0) end)
@@ -43278,9 +43566,14 @@ function G.install(P, cfg)
   end)
   P:func("c_decide_root", {}, function(f)
     local i, n, h, j, e, comp, v, k, eu, r = f:var("i"), f:var("n"), f:var("h"), f:var("j"), f:var("e"), f:var("comp"), f:var("v"), f:var("k"), f:var("eu"), f:var("r")
-    f:set(n, f:call("c_entry_hosts", 4))
+    if cfg.expo then
+      f:for_(h, 0, f:ld(R.NH), function()
+        f:iff(f:ld(R.RCCFG + h):eq(2), function() f:run("c_offer", 8, h, 0, f:call("c_vre", h) - f:ld(R.ACOST + 8)) end)
+      end)
+    end
+    if cfg.scan then f:set(n, f:ld(R.NH)) else f:set(n, f:call("c_entry_hosts", 4)) end
     f:for_(i, 0, n, function()
-      f:set(h, f:ld(R.RCQ + i))
+      if cfg.scan then f:set(h, i) else f:set(h, f:ld(R.RCQ + i)) end
       f:iff(f:ld(R.RCCFG + h):eq(2), function() f:run("c_offer", 8, h, 0, f:call("c_vre", h) - f:ld(R.ACOST + 8)) end)
       f:iff(f:ld(R.RCHOST + h):ne(0), function()
         f:for_(j, 0, 3, function()
@@ -43302,8 +43595,8 @@ function G.install(P, cfg)
     end)
     -- credentials: revoke (then reissue, which also invalidates the stolen secret) when the posterior and the stolen-loss rate justify it
     f:for_(i, 0, f:ld(R.NU), function()
-      f:iff(GL.and_(f:ld(R.REVT + i):eq(0), f:ld(R.PU + i):ge(f:ld(R.PMIN))), function()
-        f:run("c_offer", 3, i, 0, (f:ld(R.PU + i) * (4 * f:ld(R.HZN) + 8)) // 1024 - f:ld(R.ACOST + 3) - f:ld(R.ACOST + 4) - 6)
+      f:iff(GL.and_(f:ld(R.REVT + i):eq(0), f:ld(R.PU + i):ge(cfg.upmin or f:ld(R.PMIN))), function()
+        f:run("c_offer", 3, i, 0, (f:ld(R.PU + i) * (4 * f:ld(R.UHZ) + 8)) // 1024 - f:ld(R.ACOST + 3) - f:ld(R.ACOST + 4) - 6)
       end)
       f:iff(GL.and_(f:ld(R.REVT + i):gt(0), f:ld(R.UREI + i):eq(0), f:ld(R.T):ge(f:ld(R.REVT + i) + 1)), function() f:run("c_offer", 4, i, 0, 1000) end)
     end)
@@ -43318,6 +43611,11 @@ function G.install(P, cfg)
   P:func("c_after_action", {}, function(f)
     local id, x = f:var("id", f:ld(R.ACTID)), f:var("x", f:ld(R.ACTX))
     inc(f, 4)
+    if cfg.inb then f:iff(GL.or_(id:eq(5), id:eq(6)), function() f:st(R.ON + x, 0) end) end
+    if cfg.inbp then
+      f:iff(id:eq(5), function() f:iff(f:ld(R.ONP + x):gt(0), function() f:st(R.ON + x, cfg.inb_wp or 112) end) end)
+      f:iff(GL.or_(id:eq(6), id:eq(9)), function() f:st(R.ONP + x, 0) end)
+    end
     f:iff(id:eq(6), function()
       f:st(R.CLEANT + x, f:ld(R.T)); f:st(R.EB + x, f:ld(R.PRI) - 16); f:st(R.EB + 32 + x, f:ld(R.PRI + 2) - 16); f:st(R.KILLT + x, 0); f:st(R.EW + x, 0); f:st(R.EW + 32 + x, 0)
     end)
@@ -43332,9 +43630,25 @@ function G.install(P, cfg)
         f:st(R.EB + x, q); f:st(R.EB + 32 + x, q); f:st(R.AUDD + x, 0)
       end
     end)
+    if cfg.repn then
+      -- a host that has been remediated before and is accused again is a false alarm more often than a first accusation (decoys recur at the same host)
+      f:iff(GL.or_(id:eq(5), id:eq(6)), function()
+        local n = f:var("n", f:ld(R.REMN + x))
+        f:st(R.REMN + x, n + 1)
+        f:iff(n:gt(0), function()
+          local m = f:var("m", f:ld(R.EB + x) - cfg.repn * n)
+          f:iff(m:lt(-120), function() f:set(m, -120) end)
+          f:st(R.EB + x, m)
+        end)
+      end)
+    end
     f:iff(id:eq(8), function() f:st(R.RCCFG + x, 3) end)
     f:iff(id:eq(7), function() f:st(R.HPAT + x, f:ld(R.HPAT + x) | (GL.lift(1) << (f:ld(R.ACTY) - 1))) end)
-    f:iff(id:eq(3), function() f:st(R.REVT + x, f:ld(R.T)); f:st(R.EB + 16 + x, f:ld(R.PRI + 1) - 16); f:st(R.EW + 16 + x, 0) end)
+    f:iff(id:eq(3), function() f:st(R.REVT + x, f:ld(R.T)); f:st(R.EB + 16 + x, f:ld(R.PRI + 1) - 16); f:st(R.EW + 16 + x, 0); if cfg.inbu then f:st(R.ONU + x, 0) end; if cfg.qr then f:st(R.RVQ + x, f:ld(R.BQU + x)) end end)
+    if cfg.qr then
+      f:iff(GL.or_(id:eq(6), id:eq(9)), function() f:st(R.PEX + x, 0) end)
+      f:iff(GL.or_(id:eq(5), id:eq(6), id:eq(9)), function() f:st(R.PRB + x, 0) end)
+    end
     f:iff(id:eq(4), function() f:st(R.UREI + x, 1) end)
   end)
   -- the leading hypothesis (most probable compromised host); a change of leader is recorded
@@ -43354,6 +43668,107 @@ function G.install(P, cfg)
     end)
     f:ret(w)
   end)
+  if cfg.tlsel then
+  -- INCIDENT TIMELINE SELECTION (cfg.tlsel). The timeline lists the records that are part of the attack, in reported-time order. Evidence that a record is attack
+  -- activity: (1) the learned log-likelihood weight of its features -- the strong family summed, the correlated weak family bounded (the same split the host belief
+  -- uses; the old timeline summed all of them, so records of sensor faults and decoys, which are rare in every way at once, outweighed an external connection);
+  -- (2) the surprise of an inbound connection or login from outside the inventory under the rate at which such events are seen (as in c_surprise);
+  -- (3) the incident memory of the hosts it names: the running maximum of their compromise belief, decaying, so that a host that was remediated is still an incident
+  -- host while its records age; (4) a process the system executed shortly AFTER a core record (an entry, a persistence mechanism) at the same host: the payload of
+  -- the entry. Records are listed when their evidence clears TS.th (at least TS.min, at most eight). Unlike a time window of recent records, the candidates are
+  -- all records still in the ring up to TS.win ticks old: precision counts attack records of any age, only coverage is measured against the recent ones.
+  P:func("c_tl_ev", {"fe"}, function(f, fe)                          -- evidence (1) of a feature set: strong family summed, weak family bounded
+    local i, st, wk = f:var("i", 0), f:var("st", 0), f:var("wk", 0)
+    local WM = (cfg.wmask or 3751)
+    f:while_(fe:ne(0), function()
+      f:iff((fe & 1):ne(0), function()
+        f:iff(((WM >> i) & 1):ne(0), function() f:set(wk, wk + f:ld(R.W1 + i)) end, function() f:set(st, st + f:ld(R.W1 + i)) end)
+      end)
+      f:set(fe, fe >> 1); f:set(i, i + 1)
+    end)
+    f:iff(wk:gt(TS.cap), function() f:set(wk, TS.cap) end)
+    f:ret(st + wk)
+  end)
+  P:func("c_tl_update", {}, function(f)
+    local h, x, any = f:var("h"), f:var("x"), f:var("any", 0)
+    f:for_(h, 0, f:ld(R.NH), function()
+      f:set(x, f:ld(R.HINC + h) - TS.dec)
+      f:iff(f:ld(R.PC + h):gt(x), function() f:set(x, f:ld(R.PC + h)) end)
+      f:iff(x:lt(0), function() f:set(x, 0) end)
+      f:st(R.HINC + h, x)
+      f:st(R.HBON + h, (x * TS.hb) >> 10)
+      f:iff(f:ld(R.HBON + h):gt(any), function() f:set(any, f:ld(R.HBON + h)) end)
+    end)
+    f:st(R.HANY, any)
+  end)
+  P:func("c_timeline", {}, function(f)
+    -- TMP: [0..7] weight, [8..15] slot, [16..23] key, [24..31] seq
+    local k, w, i, m, n, j, key, cur, want, s = f:var("k"), f:var("w"), f:var("i"), f:var("m"), f:var("n", 0), f:var("j"), f:var("key"), f:var("cur"), f:var("want", 0), f:var("s")
+    local mn, mi, win, hb = f:var("mn", -1), f:var("mi", 0), f:var("win"), f:var("hb")
+    f:for_(i, 0, 8, function() f:st(R.TMP + i, -1); f:st(R.TMP + 8 + i, 0) end)
+    f:set(cur, f:ld(R.T) - TS.win)
+    f:set(win, f:call("c_log2q", f:ld(R.GT) + 128, 2 * (f:ld(R.INN) + 1)))
+    f:iff(win:gt(TS.inw), function() f:set(win, TS.inw) end); f:iff(win:lt(0), function() f:set(win, 0) end)
+    -- keep the best eight (mn, mi: weakest kept) and count the records that clear the threshold
+    local function offer(k, w)
+      f:iff(w:ge(TS.th), function() f:set(want, want + 1) end)
+      f:iff(w:gt(mn), function()
+        f:st(R.TMP + mi, w); f:st(R.TMP + 8 + mi, k)
+        f:set(mi, 0); f:set(mn, f:ld(R.TMP))
+        f:for_(i, 1, 8, function() f:iff(f:ld(R.TMP + i):lt(mn), function() f:set(mn, f:ld(R.TMP + i)); f:set(mi, i) end) end)
+      end)
+    end
+    f:run("c_zero", R.HCT, 16)
+    f:for_(k, 0, NE, function()
+      f:iff(GL.and_(GL.or_(f:ld(R.EFEAT + k):ne(0), f:ld(R.HANY):ne(0)), f:ld(R.ETE + k):ge(cur), f:ld(R.EVAL + k):ne(0), f:ld(R.EPRED + k):ne(8)), function()
+        f:set(w, f:ld(R.ESEV + k))
+        f:iff(GL.or_(GL.and_(f:ld(R.EPRED + k):eq(3), f:ld(R.EH + k):eq(255), f:ld(R.EP + k):lt(f:ld(R.NH))),
+                     GL.and_(f:ld(R.EPRED + k):eq(1), f:ld(R.EP + k):eq(255), f:ld(R.EH + k):lt(f:ld(R.NH)))), function() f:set(w, w + win) end)
+        -- strong evidence by itself: the record is a core of an incident at its host(s); remember when
+        f:iff(w:ge(TS.core), function()
+          f:set(s, f:ld(R.EH + k)); f:iff(GL.and_(s:lt(16), f:ld(R.ETE + k):gt(f:ld(R.HCT + s))), function() f:st(R.HCT + s, f:ld(R.ETE + k)) end)
+          f:set(s, f:ld(R.EP + k)); f:iff(GL.and_(s:lt(16), f:ld(R.ETE + k):gt(f:ld(R.HCT + s))), function() f:st(R.HCT + s, f:ld(R.ETE + k)) end)
+        end)
+        f:set(s, f:ld(R.EH + k)); f:iff(s:lt(16), function() f:set(hb, f:ld(R.HBON + s)) end, function() f:set(hb, 0) end)
+        f:set(s, f:ld(R.EP + k)); f:iff(GL.and_(s:lt(16), f:ld(R.HBON + s):gt(hb)), function() f:set(hb, f:ld(R.HBON + s)) end)
+        f:set(w, w + hb)
+        -- processes the system executed are judged below, once the cores are known
+        f:iff(GL.and_(f:ld(R.EPRED + k):eq(2), f:ld(R.EU + k):eq(255)), function() f:st(R.ETW + k, w) end, function() offer(k, w) end)
+      end, function() f:st(R.ETW + k, 0) end)
+    end)
+    f:for_(k, 0, NE, function()
+      f:iff(GL.and_(f:ld(R.EPRED + k):eq(2), f:ld(R.EU + k):eq(255), f:ld(R.ETE + k):ge(cur), f:ld(R.EVAL + k):ne(0)), function()
+        f:set(w, f:ld(R.ETW + k))
+        f:set(s, f:ld(R.EH + k))
+        f:iff(GL.and_(s:lt(16), f:ld(R.HCT + s):gt(0), f:ld(R.ETE + k):ge(f:ld(R.HCT + s)), f:ld(R.ETE + k):le(f:ld(R.HCT + s) + TS.nbt)), function() f:set(w, w + TS.nb) end)
+        offer(k, w)
+      end)
+    end)
+    f:iff(want:lt(TS.min), function() f:set(want, TS.min) end); f:iff(want:gt(8), function() f:set(want, 8) end)
+    f:set(n, 0); f:for_(i, 0, 8, function() f:iff(f:ld(R.TMP + i):ge(0), function() f:set(n, n + 1) end) end)
+    f:while_(n:gt(want), function()                              -- drop the weakest of the best eight beyond the number wanted
+      f:set(m, -1)
+      f:for_(i, 0, 8, function() f:iff(GL.and_(f:ld(R.TMP + i):ge(0), GL.or_(m:lt(0), f:ld(R.TMP + i):lt(f:ld(R.TMP + m)))), function() f:set(m, i) end) end)
+      f:st(R.TMP + m, -1); f:set(n, n - 1)
+    end)
+    f:set(n, 0)
+    f:for_(i, 0, 8, function()
+      f:iff(f:ld(R.TMP + i):ge(0), function()
+        f:set(k, f:ld(R.TMP + 8 + i))
+        f:st(R.TMP + 16 + n, (f:ld(R.ETE + k) << 20) | f:ld(R.ESEQ + k)); f:st(R.TMP + 24 + n, f:ld(R.ESEQ + k))
+        f:set(n, n + 1)
+      end)
+    end)
+    f:for_(i, 1, n, function()                                   -- insertion sort by (reported time, sequence number)
+      f:set(key, f:ld(R.TMP + 16 + i)); f:set(cur, f:ld(R.TMP + 24 + i)); f:set(j, i)
+      f:while_(GL.and_(j:gt(0), f:ld(R.TMP + 16 + j - 1):gt(key)), function()
+        f:st(R.TMP + 16 + j, f:ld(R.TMP + 16 + j - 1)); f:st(R.TMP + 24 + j, f:ld(R.TMP + 24 + j - 1)); f:set(j, j - 1)
+      end)
+      f:st(R.TMP + 16 + j, key); f:st(R.TMP + 24 + j, cur)
+    end)
+    f:for_(i, 0, n, function() f:st(R.REP + 8 + i, f:ld(R.TMP + 24 + i)) end)
+  end)
+  else
   -- incident timeline: anomalous events related to the leading hypothesis (same host, peer, or an observed edge), in time order, last eight
   P:func("c_timeline", {}, function(f)
     -- incident timeline: the most suspicious recent records of the whole network (summed log-likelihood weight of their features, a
@@ -43396,6 +43811,7 @@ function G.install(P, cfg)
     end)
     f:for_(i, 0, n, function() f:st(R.REP + 8 + i, f:ld(R.TMP + 24 + i)) end)
   end)
+  end
   -- epistemic status of every host-compromise belief, 4 bits per host in REP[16..17]:
   -- 0 unknown (never observed or probed)  1 known true  2 known false  3 uncertain  4 contradicted (a fresh probe overturned the prior belief)
   -- 5 stale (the last probe is older than 12 ticks or predates a remediation)
@@ -43423,14 +43839,24 @@ function G.install(P, cfg)
     -- Reported persistence beliefs are shrunk (floor + scale * p, x1024): persistence indicators (new autoruns, scheduled tasks) are
     -- common for benign reasons, and the unshrunk belief was systematically overconfident (verified persistence frequency 0.3 where
     -- 0.86 was claimed). Host and credential beliefs are reported as computed. Decisions use the unshrunk beliefs.
+    if cfg.qr then
+      f:iff(f:ld(R.QD):ne(0), function() f:run("c_qrefresh") end)      -- again only if a probe or read of this round changed what the layer is built from
+      f:st(R.REP, f:call("c_pack", R.BQH, 8, 0, 1024)); f:st(R.REP + 1, f:call("c_pack", R.BQH + 8, 8, 0, 1024))
+      f:st(R.REP + 2, f:call("c_pack", R.BQU, 8, 0, 1024)); f:st(R.REP + 3, f:call("c_pack", R.BQU + 8, 4, 0, 1024))
+      f:st(R.REP + 4, f:call("c_pack", R.BQP, 8, 0, 1024)); f:st(R.REP + 5, f:call("c_pack", R.BQP + 8, 8, 0, 1024))
+    else
     f:st(R.REP, f:call("c_pack", R.PC, 8, 0, 1024)); f:st(R.REP + 1, f:call("c_pack", R.PC + 8, 8, 0, 1024))
     f:st(R.REP + 2, f:call("c_pack", R.PU, 8, 0, 1024)); f:st(R.REP + 3, f:call("c_pack", R.PU + 8, 4, 0, 1024))
     f:st(R.REP + 4, f:call("c_pack", R.PP, 8, cfg.pfloor or 25, cfg.pscale or 360)); f:st(R.REP + 5, f:call("c_pack", R.PP + 8, 8, cfg.pfloor or 25, cfg.pscale or 360))
+    end
     f:st(R.REP + 6, 255)
     f:run("c_status")
     f:iff(f:ld(R.RND):eq(0), function() f:run("c_zero", R.TLC, 8) end)
+    if cfg.tlsel then f:run("c_tl_update") end
     -- economy mode recomputes the incident timeline every fourth round and re-submits the last one in between
-    f:iff(GL.or_(f:ld(R.MODE):gt(0), (f:ld(R.RND) & 3):eq(0)), function()
+    local refresh = f:ld(R.MODE):gt(0)
+    if TS then refresh = GL.and_(refresh, (f:ld(R.RND) % TS.every):eq(0)) end        -- the selection is robust to a one-tick lag; refreshing every second round halves its cost
+    f:iff(GL.or_(refresh, (f:ld(R.RND) & 3):eq(0)), function()
       f:run("c_timeline"); f:run("c_copy", R.TLC, R.REP + 8, 8)
     end, function() f:run("c_copy", R.REP + 8, R.TLC, 8) end)
   end)
@@ -43499,12 +43925,91 @@ function G.install(P, cfg)
     if cfg.force_mode then f:st(R.MODE, cfg.force_mode) end
     f:st(R.MLAST, f:ld(R.MODE))
   end)
+  if cfg.fq2 then
+    local KAP, NF = cfg.fq2k or 16, 10
+    -- expected skill (x1024) of a forecast of probability p (x1024) over the climatology c (x1024): 1 - E[(p-y)^2] / E[(c-y)^2], both taken under p
+    P:func("c_fq2es", {"p", "c"}, function(f, p, c)
+      f:iff(p:lt(8), function() f:set(p, 8) end); f:iff(p:gt(1016), function() f:set(p, 1016) end)
+      f:iff(c:lt(8), function() f:set(c, 8) end); f:iff(c:gt(1016), function() f:set(c, 1016) end)
+      f:ret(1024 - ((p * (1024 - p)) * 1024) // ((p * (1024 - c) * (1024 - c) + (1024 - p) * c * c) >> 10))
+    end)
+    -- the pooled rate of family fam (ticks with an event per host and tick), the prior's non-event ticks and the climatology estimates for the three windows
+    P:func("c_fq2f", {"fam"}, function(f, fam)
+      local t, nh, rb, a0, pn, i = f:var("t", f:ld(R.T)), f:var("nh", f:ld(R.NH)), f:var("rb"), f:var("a0"), f:var("pn", 1 << 20), f:var("i")
+      f:set(rb, (f:ld(R.FC2S + fam) * 1024 + 512) // (nh * t + 1))
+      f:iff(rb:gt(1000), function() f:set(rb, 1000) end); f:iff(rb:lt(1), function() f:set(rb, 1) end)
+      f:st(R.FC2P + fam, KAP * (1024 - rb))                                  -- prior ticks without an event (x1024)
+      f:set(a0, (t + KAP) * (1024 - rb))                                       -- a typical host: ticks without an event at the pooled rate
+      f:for_(i, 0, 8, function()
+        f:set(pn, (pn * (a0 + (i << 10))) // ((t + KAP + i) << 10))
+        f:iff(i:eq(2), function() f:st(R.FC2C + fam * 3, 1024 - (pn >> 10)) end)
+        f:iff(i:eq(4), function() f:st(R.FC2C + fam * 3 + 1, 1024 - (pn >> 10)) end)
+        f:iff(i:eq(7), function() f:st(R.FC2C + fam * 3 + 2, 1024 - (pn >> 10)) end)
+      end)
+    end)
+    -- Activity forecasts.  Hosts differ a lot in how busy they are (servers see a session every other tick, workstations almost never), so the chance that a
+    -- host sees an event of a family inside the next L ticks is predicted from its own ticks with such an event, shrunk (beta-binomial predictive, KAP prior ticks)
+    -- toward the rate of the whole network for that family.  A forecast is worth submitting where it beats the climatology (the chance that a typical host sees
+    -- such an event in a window of that length, estimated from the same pooled rate) by a wide margin: the expected Brier skill must reach cfg.fq2t/1024.
+    -- The best eight of the round are submitted, each at its best window of 3, 5 or 8 ticks.
+    P:func("c_fq2", {}, function(f)
+      local t, nh, fam, h, i, cnt, a0, pn = f:var("t", f:ld(R.T)), f:var("nh", f:ld(R.NH)), f:var("fam"), f:var("h"), f:var("i"), f:var("cnt"), f:var("a0"), f:var("pn")
+      local p, c, es, be, bp, bl, li, k = f:var("p"), f:var("c"), f:var("es"), f:var("be"), f:var("bp"), f:var("bl"), f:var("li"), f:var("k")
+      local rb, tau, ty, kd, w = f:var("rb"), f:var("tau", cfg.fq2t or 512), f:var("ty"), f:var("kd"), f:var("w")
+      f:for_(i, 0, 8, function() f:st(R.FC2B + i, -1) end)
+      f:iff(GL.and_(t:ge(3), nh:gt(0)), function()
+        -- a stream that has issued almost nothing lowers its bar (a forecast count below twenty scores nothing)
+        f:iff(GL.and_(f:ld(R.RND):ge(12), (f:ld(R.FC2N) * 3):lt(f:ld(R.RND))), function() f:set(tau, cfg.fq2t2 or 256) end)
+        f:for_(fam, 0, NF, function()
+          f:iff((f:ld(R.FC2S + fam) * 4):ge(t), function()                           -- no host can qualify unless the family has events in a quarter of the ticks
+          f:for_(h, 0, nh, function()
+            f:set(cnt, f:ld(R.FC2 + h * 10 + fam))
+            f:iff((cnt * 4):ge(t), function()                                      -- a host with events in less than a quarter of the ticks cannot qualify
+              f:iff(f:ld(R.FC2R + fam):ne(t), function() f:run("c_fq2f", fam); f:st(R.FC2R + fam, t) end)
+              f:set(a0, ((t - cnt) << 10) + f:ld(R.FC2P + fam)); f:set(pn, 1 << 20); f:set(be, -1)
+              f:for_(i, 0, 8, function()
+                f:set(pn, (pn * (a0 + (i << 10))) // ((t + KAP + i) << 10))
+                f:set(li, -1)
+                f:iff(i:eq(2), function() f:set(li, 0) end); f:iff(i:eq(4), function() f:set(li, 1) end); f:iff(i:eq(7), function() f:set(li, 2) end)
+                f:iff(GL.and_(li:ge(0), (t + i):lt(48)), function()                   -- the window must end inside the episode
+                  f:set(p, 1024 - (pn >> 10))
+                  f:set(es, f:call("c_fq2es", p, f:ld(R.FC2C + fam * 3 + li)))
+                  f:iff(es:gt(be), function() f:set(be, es); f:set(bp, p); f:set(bl, i + 1) end)
+                end)
+              end)
+              f:iff(be:ge(tau), function()
+                f:set(ty, fam + 1); f:set(kd, 0)
+                f:iff(fam:eq(8), function() f:set(ty, 1); f:set(kd, 1) end)
+                f:iff(fam:eq(9), function() f:set(ty, 3); f:set(kd, 1) end)
+                f:set(w, ty | (h << 4) | (GL.lift(1) << 12) | (bl << 20) | (((bp * 255) >> 10) << 28) | (kd << 36))
+                f:iff(be:gt(f:ld(R.FC2B + 7)), function()                           -- insert into the sorted best eight
+                  f:set(k, 7)
+                  f:while_(GL.and_(k:gt(0), be:gt(f:ld(R.FC2B + k - 1))), function()
+                    f:st(R.FC2B + k, f:ld(R.FC2B + k - 1)); f:st(R.FC2B + 8 + k, f:ld(R.FC2B + 7 + k)); f:set(k, k - 1)
+                  end)
+                  f:st(R.FC2B + k, be); f:st(R.FC2B + 8 + k, w)
+                end)
+              end)
+            end)
+          end)
+          end)
+        end)
+        f:set(k, 0)
+        f:while_(GL.and_(k:lt(8), f:ld(R.FC2B + k):ge(0)), function() f:st(R.REP + 41 + k, f:ld(R.FC2B + 8 + k)); f:set(k, k + 1) end)
+        f:st(R.REP + 40, k); f:st(R.FC2N, f:ld(R.FC2N) + k)
+      end)
+    end)
+  end
   -- prospective forecasts of future telemetry (scored when they resolve): (1) what the two leading hypotheses predict -- external
   -- connections and alerts at those hosts, mixed with the clean rates; (2) every pending temporal-link forecast, once
   P:func("c_forecasts", {}, function(f)
     local n, h, r, best, bp, p, k, bit, l1, l0, p1, p0, kk = f:var("n", 0), f:var("h"), f:var("r"), f:var("best"), f:var("bp"), f:var("p"), f:var("k"), f:var("bit"), f:var("l1"), f:var("l0"), f:var("p1"), f:var("p0"), f:var("kk")
     local l, sl, rel, host, lo, hi, w, src, slot = f:var("l"), f:var("sl"), f:var("rel"), f:var("host"), f:var("lo"), f:var("hi"), f:var("w"), f:var("src"), f:var("slot")
     f:for_(k, 0, 9, function() f:st(R.REP + 40 + k, 0) end)
+    if cfg.fq2 then   -- every second round (cfg.fq2s) only: the busy hosts stay busy, and the scan is the largest single cost of the forecasts
+      f:iff((f:ld(R.RND) % (cfg.fq2s or 2)):eq(0), function() f:run("c_fq2") end)
+      f:ret(0)
+    end
     if cfg.no_counterfactuals then f:ret(0) end
     f:run("c_zero", R.USED, 16)
     f:for_(r, 0, 2, function()
@@ -43614,7 +44119,7 @@ local function finish(P, machine, R, cfg)
   return {words = words, sym = sym, P = P, R = R, bits = bits, cfg = cfg, machine = machine}
 end
 function G.build(cfg)
-  cfg = cfg or {}
+  cfg = G.with_defaults(cfg or {})
   local P = GL.program(Env.machine, {ram_words = G.RAM, stack_words = 256})
   local R = G.install(P, cfg)
   P:main(function(f)
@@ -44086,6 +44591,7 @@ function E.variant(name)
   local G = require("asi.cyber.guest")
   local v
   if name == "new" then v = {art = G.build({}), kind = "new"}
+  elseif name == "gen4" then v = {art = G.build({legacy_defaults = true}), kind = "new"}      -- the generation-4 controller (no round-1/2 mechanism), for paired comparison
   elseif name == "old" then v = {art = require("asi.reason.hpr").artifact({}), kind = "legacy"}
   elseif name == "passive" or name == "triage" or name == "sweeper" then v = {art = G.build_baseline(name), kind = "new"}
   else
@@ -44823,12 +45329,13 @@ function M.run()
         T.eq(r.viol.tool_invalid + r.viol.tool_denied + r.viol.act_invalid + r.viol.act_denied + r.viol.protocol, 0, "stream " .. seed .. " at " .. quarters .. "/4: zero tool, action and protocol violations")
       end
     end
-    -- compute meta-control is a real mechanism: with 6.0M work (about 18% of the frozen budget) the metered controller drops to economy
-    -- mode when its pace demands it and still finishes the whole stream; the ablated one is cut off before the stream ends
+    -- compute meta-control is a real mechanism: with 4.0M work (about 12% of the frozen budget; 6.0M before the generation-5 controller, which
+    -- needs about a quarter less work) the metered controller drops to economy mode when its pace demands it and still finishes the whole stream;
+    -- the ablated one is cut off before the stream ends
     for _, seed in ipairs({201, 202, 203}) do
-      local m = E.run(new.art, {seed = seed, set = "val", kind = "new", variant = "new", work_budget = 6000000})
-      local nm = E.run(E.variant("no_compute_meta").art, {seed = seed, set = "val", kind = "new", variant = "no_compute_meta", work_budget = 6000000})
-      T.check(m.complete and m.skill > 0.05, "with 6.0M work the metered controller still completes with real skill (seed " .. seed .. ")")
+      local m = E.run(new.art, {seed = seed, set = "val", kind = "new", variant = "new", work_budget = 4000000})
+      local nm = E.run(E.variant("no_compute_meta").art, {seed = seed, set = "val", kind = "new", variant = "no_compute_meta", work_budget = 4000000})
+      T.check(m.complete and m.skill > 0.05, "with 4.0M work the metered controller still completes with real skill (seed " .. seed .. ")")
       T.check(not nm.complete and nm.skill == 0, "without compute meta-control the same budget is exhausted before the stream ends (seed " .. seed .. ")")
     end
   end
