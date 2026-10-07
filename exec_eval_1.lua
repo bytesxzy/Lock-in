@@ -41918,6 +41918,10 @@ Env.RESERVE = {
   heldC = {9201, 9202, 9203, 9204, 9205, 9206, 9207, 9208, 9209, 9210, 9211, 9212, 9213, 9214, 9215, 9216},
   heldD = {9301, 9302, 9303, 9304, 9305, 9306, 9307, 9308, 9309, 9310, 9311, 9312, 9313, 9314, 9315, 9316},
   heldE = {9401, 9402, 9403, 9404, 9405, 9406, 9407, 9408, 9409, 9410, 9411, 9412, 9413, 9414, 9415, 9416},
+  heldF = {9501, 9502, 9503, 9504, 9505, 9506, 9507, 9508, 9509, 9510, 9511, 9512, 9513, 9514, 9515, 9516},
+  -- extra DEVELOPMENT sets (never used for the reported results): fresh streams on which a candidate improvement is re-checked
+  devX = {501, 502, 503, 504, 505, 506, 507, 508, 509, 510, 511, 512, 513, 514, 515, 516},
+  devY = {601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612, 613, 614, 615, 616},
 }
 function Env.seeds(set) return Env.PROTOCOL.sets[set] or Env.RESERVE[set] end
 
@@ -42344,7 +42348,7 @@ function G.install(P, cfg)
   -- learned world context (what is normal here)
   mem("SBN", NSIG); mem("SBC", NSIG); mem("PROF", 216); mem("EDGE", 256); mem("IMGN", 32)
   -- evidence engine: class 0 host compromised, 1 user credential stolen, 2 host persistence
-  mem("TLC", 8)
+  mem("TLC", 8); mem("AUDD", 16); mem("QP"); mem("QN")      -- post-KILL persistence audits done; learned persistence rate (positives / sweeps)
   mem("HEV", 256); mem("UEV", 192)                      -- per-tick feature counts per entity
   mem("EB", 48); mem("PRI", 4)                          -- log-odds x16 per (class*16+id), prior log-odds per class
   mem("C1", 48); mem("C0", 48); mem("E1", 4); mem("E0", 4); mem("G0", 48); mem("GT", 4)   -- labelled counts, labelled exposure, stream base counts
@@ -42448,7 +42452,7 @@ function G.install(P, cfg)
     local pred, fe, h, p, warm, x, u = f:var("pred", f:ld(R.EPRED + s)), f:var("fe", 0), f:var("h", f:ld(R.EH + s)), f:var("p", f:ld(R.EP + s)), f:var("warm"), f:var("x"), f:var("u")
     local sig = f:var("sig", f:call("c_sig", s))
     f:st(R.ESIG + s, sig)
-    f:set(warm, f:ld(R.TOTEV):ge(60))
+    f:set(warm, f:ld(R.TOTEV):ge(cfg.warmn or 60))
     f:iff(GL.and_(warm:ne(0), f:ld(R.SBN + sig):le(2)), function() f:set(fe, fe | 1) end)
     f:iff(pred:eq(1), function()
       f:set(u, f:ld(R.EU + s)); f:set(x, p); f:iff(x:ge(16), function() f:set(x, 16) end)
@@ -42808,6 +42812,7 @@ function G.install(P, cfg)
   P:func("c_init", {}, function(f)
     local i0 = f:var("i0")
     f:st(R.CPM, 16000); f:st(R.CPM + 1, 36000); f:st(R.CPM + 2, 42000)
+    f:st(R.QP, 1); f:st(R.QN, 5)
     f:st(R.PRI, -56); f:st(R.PRI + 1, -64); f:st(R.PRI + 2, -80); f:st(R.FPCTX, -1); f:st(R.PMIN, cfg.pmin or 205)
     f:for_(i0, 0, 3, function() f:st(R.CALA + i0, cfg.cal_a or 16); f:st(R.CALB + i0, cfg.cal_b or -32) end)
     f:run("c_params")
@@ -42969,7 +42974,7 @@ function G.install(P, cfg)
       f:ret(f:ld(R.ACOST + 5) + (f:call("c_simcost", 5, h) * (1024 - p)) // 1024 + (p * (L - bk)) // 1024)
     end
     -- value of the follow-up clean once the respawn is observed: three ticks of loss, then the clean itself
-    f:ret(f:ld(R.ACOST + 5) + (f:call("c_simcost", 5, h) * (1024 - p)) // 1024 + (((p * rho) // 1024) * (6 * v + cc)) // 1024)
+    f:ret(f:ld(R.ACOST + 5) + (f:call("c_simcost", 5, h) * (1024 - p)) // 1024 + (((p * rho) // 1024) * (2 * (cfg.rl or 12) * v + cc)) // 1024)
   end)
   P:func("c_risk", {"h", "p"}, function(f, h, p)
     local m, x = f:var("m", f:call("c_lossopt", h, p, 0)), f:var("x")
@@ -43172,11 +43177,17 @@ function G.install(P, cfg)
     f:iff(st:ne(0), function() f:ret(0) end)
     f:set(y, f:ld(R.RS + 3))
     f:run("c_trace", 1, 33, h, y)
+    f:st(R.QP, f:ld(R.QP) + y); f:st(R.QN, f:ld(R.QN) + 1)
+    f:iff(f:ld(R.QN):ge(40), function() f:st(R.QP, (f:ld(R.QP) + 1) // 2); f:st(R.QN, (f:ld(R.QN) + 1) // 2) end)
     f:run("c_cal_learn", 2, f:ld(R.EB + 32 + h), y)
     f:iff(y:ne(0), function() f:set(lr, f:call("c_log2q", f:ld(R.VTPR + 2), f:ld(R.VFPR + 2))) end, function() f:set(lr, f:call("c_log2q", 256 - f:ld(R.VTPR + 2), 256 - f:ld(R.VFPR + 2))) end)
     f:st(R.EB + 32 + h, f:ld(R.EB + 32 + h) + lr)
     f:iff(f:ld(R.EB + 32 + h):gt(120), function() f:st(R.EB + 32 + h, 120) end); f:iff(f:ld(R.EB + 32 + h):lt(-120), function() f:st(R.EB + 32 + h, -120) end)
     f:st(R.PROBET + h, f:ld(R.T))
+    -- the implant is part of the compromise: a found implant makes the host compromised, and right after a kill (no foothold left) a clean
+    -- sweep makes the host clean
+    f:iff(y:ne(0), function() f:iff(f:ld(R.EB + h):lt(f:ld(R.EB + 32 + h)), function() f:st(R.EB + h, f:ld(R.EB + 32 + h)) end) end,
+      function() f:iff(GL.and_(f:ld(R.KILLT + h):gt(0), f:ld(R.T):le(f:ld(R.KILLT + h) + 10)), function() f:st(R.EB + h, f:ld(R.EB + 32 + h)) end) end)
     f:ret(1)
   end)
   -- extra telemetry on a blind host that is a plausible victim (persistent benefit, small recurring cost)
@@ -43191,12 +43202,30 @@ function G.install(P, cfg)
       end)
     end)
   end)
+  -- Did the kill work? A killed host may carry a persistent implant that respawns silently three ticks later. Within ten ticks of a kill,
+  -- one persistence sweep per host is bought when what it is worth (the chance of an implant, times the loss of the ticks that would pass
+  -- before evidence reappeared, a learned allowance of ten) exceeds its price.
+  P:func("c_audit", {}, function(f)
+    local h, rho, gain = f:var("h"), f:var("rho"), f:var("gain")
+    f:for_(h, 0, f:ld(R.NH), function()
+      f:iff(GL.and_(f:ld(R.KILLT + h):gt(0), f:ld(R.T):gt(f:ld(R.KILLT + h)), f:ld(R.T):le(f:ld(R.KILLT + h) + 10), f:ld(R.AUDD + h):eq(0)), function()
+        f:set(rho, f:call("c_cal", 2, f:ld(R.EB + 32 + h)))
+        f:set(gain, (rho * f:ld(R.VAL + h) * 2 * (cfg.audit_ticks or 10)) // 1024)
+        f:iff(gain:gt((f:ld(R.VCOST + 2) * (cfg.audit_k or 100)) // 100), function()
+          f:st(R.AUDD + h, 1)
+          f:run("c_verify_pers", h)
+          f:run("c_refresh_p")
+        end)
+      end)
+    end)
+  end)
   P:func("c_probe_round", {}, function(f)
     local k, h, best, bv, v, kind, cap = f:var("k"), f:var("h"), f:var("best"), f:var("bv"), f:var("v"), f:var("kind"), f:var("cap", 3)
     f:iff(f:ld(R.MODE):ge(2), function() f:set(cap, 5) end)
     f:run("c_refresh_p")
     if not cfg.no_graph then f:run("c_graph") end
     if not cfg.no_root_cause then f:run("c_rc_probes") end
+    if cfg.audit then f:run("c_audit") end
     if not cfg.no_hidden_state then f:run("c_probe_telemetry") end
     f:for_(k, 0, cap, function()
       f:set(best, -1); f:set(bv, 0); f:set(kind, 0)
@@ -43292,7 +43321,17 @@ function G.install(P, cfg)
     f:iff(id:eq(6), function()
       f:st(R.CLEANT + x, f:ld(R.T)); f:st(R.EB + x, f:ld(R.PRI) - 16); f:st(R.EB + 32 + x, f:ld(R.PRI + 2) - 16); f:st(R.KILLT + x, 0); f:st(R.EW + x, 0); f:st(R.EW + 32 + x, 0)
     end)
-    f:iff(id:eq(5), function() f:st(R.KILLT + x, f:ld(R.T)); f:st(R.CLEANT + x, f:ld(R.T)); f:st(R.EB + x, f:ld(R.PRI) - 8); f:st(R.EW + x, 0) end)
+    f:iff(id:eq(5), function()
+      f:st(R.KILLT + x, f:ld(R.T)); f:st(R.CLEANT + x, f:ld(R.T)); f:st(R.EW + x, 0)
+      if not cfg.audit then f:st(R.EB + x, f:ld(R.PRI) - 8)
+      else
+        -- a kill removes the foothold, not necessarily the implant: what is left is the probability that this host persists. It is the
+        -- larger of the rate learned from past sweeps and the persistence evidence gathered before the kill, never the prior.
+        local q = f:var("q", f:call("c_odds", (f:ld(R.QP) * 1024) // f:ld(R.QN)))
+        f:iff(f:ld(R.EB + 32 + x):gt(q), function() f:set(q, f:ld(R.EB + 32 + x)) end)
+        f:st(R.EB + x, q); f:st(R.EB + 32 + x, q); f:st(R.AUDD + x, 0)
+      end
+    end)
     f:iff(id:eq(8), function() f:st(R.RCCFG + x, 3) end)
     f:iff(id:eq(7), function() f:st(R.HPAT + x, f:ld(R.HPAT + x) | (GL.lift(1) << (f:ld(R.ACTY) - 1))) end)
     f:iff(id:eq(3), function() f:st(R.REVT + x, f:ld(R.T)); f:st(R.EB + 16 + x, f:ld(R.PRI + 1) - 16); f:st(R.EW + 16 + x, 0) end)
